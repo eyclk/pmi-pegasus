@@ -3,7 +3,7 @@
 GPU_IDX=0
 
 deepspeed --include=localhost:"$GPU_IDX" src/main.py --fp16 \
---data_dir ./c4_realnewslike_processed_combined_No_factcc_only_PMI \
+--data_dir ./c4_realnewslike_processed_with_PMI_combined_No_factcc_only_PMI \
 --do_train --do_pretrain --model_name facebook/bart-base \
 --deepspeed src/ds_config.json \
 --per_device_train_batch_size 16 --gradient_accumulation_steps 2 \
@@ -12,4 +12,3 @@ deepspeed --include=localhost:"$GPU_IDX" src/main.py --fp16 \
 --warmup_steps 20000 --save_steps 5000 \
 --max_source_length 512 --max_target_length 256 \
 --output_dir ./models/factpegasus_No_factcc_only_PMI_500_steps --pretrain_model_type bart_base --tokenize_on_fly
-

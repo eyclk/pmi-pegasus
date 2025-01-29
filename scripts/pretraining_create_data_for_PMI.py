@@ -7,7 +7,8 @@ import numpy as np
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 import math
-import re
+#  import re
+import tqdm
 
 parser = argparse.ArgumentParser()
 
@@ -30,6 +31,9 @@ model = T5ForConditionalGeneration.from_pretrained('t5-base')
 # Set the device (GPU or CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
+
+
+all_PMI_scores_dict = {}
 
 
 def conditional_probability(target_sentence, context_sentence):
@@ -67,18 +71,32 @@ def calculate_pmi(target_sentence, doc_without_target_sentence):
     return pmi
 
 
+def calc_pmi_for_all(training_dataset):
+    for t in tqdm.tqdm(training_dataset):
+        temp_text = t["text"]
+        sentences = nltk.sent_tokenize(temp_text)
+
+        temp_scores = []
+        for i, sent in enumerate(sentences):
+            summ = sent
+            doc = " ".join([s for j, s in enumerate(sentences) if i != j])
+            pmi_score = calculate_pmi(summ, doc)
+            temp_scores.append(pmi_score)
+        all_PMI_scores_dict[temp_text] = temp_scores
+
 
 def calc_pmi_score_and_select_top_k(example):
-    sentences = nltk.sent_tokenize(example["text"])
+    temp_text = example["text"]
+    sentences = nltk.sent_tokenize(temp_text)
     
-    scores = []
+    """scores = []
     for i, sent in enumerate(sentences):
         summ = sent
         doc = " ".join([s for j,s in enumerate(sentences) if i !=j])
         pmi_score = calculate_pmi(summ, doc)
-
         #  scores.append(pmi_score[args.rouge_type].fmeasure)
-        scores.append(pmi_score)
+        scores.append(pmi_score)"""
+    scores = all_PMI_scores_dict[temp_text]
 
     # top k
     if len(scores) <= args.topk:
@@ -96,6 +114,9 @@ dataset = load_dataset("c4",args.c4_split, cache_dir="./cache")
 
 dataset.pop("validation")
 dataset["train"] = dataset["train"].select(list(range(1000)))
+
+calc_pmi_for_all(dataset["train"])
+
 dataset["train"] = dataset["train"].map(
     calc_pmi_score_and_select_top_k,
     remove_columns=["url","text","timestamp"],
