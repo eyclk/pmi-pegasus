@@ -3,7 +3,11 @@ import argparse
 import nltk
 from datasets import load_dataset
 import numpy as np
-from calc_pmi_for_a_document import calculate_pmi
+#  from calc_pmi_for_a_document import calculate_pmi
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+import torch
+import math
+import re
 
 parser = argparse.ArgumentParser()
 
@@ -16,7 +20,54 @@ args = parser.parse_args()
 mask_token = "<mask>"
 
 #  scorer = rouge_scorer.RougeScorer([args.rouge_type])
-    
+
+# Load pre-trained model tokenizer (vocabulary)
+tokenizer = T5Tokenizer.from_pretrained('t5-base')
+
+# Load pre-trained model (weights)
+model = T5ForConditionalGeneration.from_pretrained('t5-base')
+
+# Set the device (GPU or CPU)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+
+def conditional_probability(target_sentence, context_sentence):
+    # Tokenize the context sentence
+    context_inputs = tokenizer(context_sentence, return_tensors='pt').to(device)
+
+    # Tokenize the target sentence
+    target_inputs = tokenizer(target_sentence, return_tensors='pt').to(device)
+
+    losses = model(context_inputs['input_ids'], labels=target_inputs['input_ids'])
+    #print("Probability of target sentence given context sentence:", losses.loss.item())
+    return math.exp(-losses.loss.item())
+
+
+def marginal_probability(context_sentence):
+    # Tokenize the context sentence
+    context_inputs = tokenizer(context_sentence, return_tensors='pt').to(device)
+
+    # Generate output
+    output = model.generate(context_inputs['input_ids'], max_new_tokens=40, num_beams=5, no_repeat_ngram_size=2,
+                            early_stopping=True)
+
+    losses = model(context_inputs['input_ids'], labels=output)
+
+    # Print probability
+    # print("Probability of target sentence given context sentence:", p_x_given_y)
+    return math.exp(-losses.loss.item())
+
+
+def calculate_pmi(target_sentence, doc_without_target_sentence):
+    p_x_given_y = conditional_probability(target_sentence, doc_without_target_sentence)
+    p_x = marginal_probability(doc_without_target_sentence)
+
+    pmi = math.log2(p_x_given_y / p_x)
+    return pmi
+
+
+
 def calc_pmi_score_and_select_top_k(example):
     sentences = nltk.sent_tokenize(example["text"])
     
