@@ -1,3 +1,40 @@
+# NOTES FOR PMI-PEGASUS
+
+## Different Steps Necessary for Installation
+
+- conda install python=3.9, 
+
+- pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113,
+
+- pip install datasets==2.0.0,
+
+- pip install transformers==4.17.0,
+
+- pip install deepspeed==0.6.4,
+
+- pip install nltk==3.7,
+
+- pip install rouge_score==0.0.4,
+
+
+-- pip install sentencepiece, 
+
+-- pip install numpy==1.26.4,
+
+-- (sh dosyasının başını GPU_IDX=0 olarak değiştirdim.)
+
+-- pip install protobuf==3.19.6,
+
+-- pip install tokenizers==0.14.1,
+
+-- (sh dosyasındaki data_dir parametresine "./c4_realnewslike_processed_combined" yazdım.)
+
+-- (sh dosyasında per_device_train_batch_size'yi 16 yaptım. AYRICA max_steps 750000 çok fazlaydı. Deneme amaçlı olduğu için 500'e düşürdüm.)
+
+==> Bu arada factpegasus'un kodu deneme amaçlı olduğu için seçilen datasetin ilk 1000 row'u ile çalışacak şekilde ayarlanmıştı.
+
+
+
 # FactPEGASUS: Factuality-Aware Pre-training and Fine-tuning for Abstractive Summarization (NAACL 2022)
 
 This repository contains PyTorch code and pre-trained models for FactPEGASUS.
