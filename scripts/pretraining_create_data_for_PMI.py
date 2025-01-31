@@ -69,7 +69,7 @@ def calculate_pmi(target_sentence, doc_without_target_sentence):
 
 
 def calc_pmi_for_all(training_dataset):
-    global model
+    # global model
     for t in tqdm.tqdm(training_dataset):
         temp_text = t["text"]
         sentences = nltk.sent_tokenize(temp_text)
@@ -77,8 +77,8 @@ def calc_pmi_for_all(training_dataset):
         temp_scores = []
         for i, sent in enumerate(sentences):
             summ = sent
-            doc = " ".join([s for j, s in enumerate(sentences) if i != j])  # Burayı hızlandır. belki replace ile olabilir.
-            pmi_score = calculate_pmi(summ, doc)  # --- Burayı hızlandırmak için parallel yapabiliriz. T5'in burada olduğunu unutma.
+            doc = " ".join([s for j, s in enumerate(sentences) if i != j])
+            pmi_score = calculate_pmi(summ, doc)
             temp_scores.append(pmi_score)
         all_PMI_scores_dict[temp_text] = temp_scores
 
