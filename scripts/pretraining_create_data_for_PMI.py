@@ -3,13 +3,10 @@ import argparse
 import nltk
 from datasets import load_dataset
 import numpy as np
-#  from calc_pmi_for_a_document import calculate_pmi
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 import math
-#  import re
 import tqdm
-import gc
 
 parser = argparse.ArgumentParser()
 
@@ -71,18 +68,6 @@ def calculate_pmi(target_sentence, doc_without_target_sentence):
     return pmi
 
 
-"""def reset_model(current_model):
-    # Clear the model
-    del current_model
-    gc.collect()
-    torch.cuda.empty_cache()
-
-    # Reinitialize the model
-    model = T5ForConditionalGeneration.from_pretrained('t5-base')
-    model.to(device)
-    return model"""
-
-
 def calc_pmi_for_all(training_dataset):
     global model
     for t in tqdm.tqdm(training_dataset):
@@ -92,11 +77,10 @@ def calc_pmi_for_all(training_dataset):
         temp_scores = []
         for i, sent in enumerate(sentences):
             summ = sent
-            doc = " ".join([s for j, s in enumerate(sentences) if i != j])
-            pmi_score = calculate_pmi(summ, doc)
+            doc = " ".join([s for j, s in enumerate(sentences) if i != j])  # Burayı hızlandır. belki replace ile olabilir.
+            pmi_score = calculate_pmi(summ, doc)  # --- Burayı hızlandırmak için parallel yapabiliriz. T5'in burada olduğunu unutma.
             temp_scores.append(pmi_score)
-        all_PMI_scores_dict[temp_text] = temp_scores  # [:500]
-        #  model = reset_model(model)  # ****************************************************
+        all_PMI_scores_dict[temp_text] = temp_scores
 
 
 def calc_pmi_score_and_select_top_k(example):
@@ -110,7 +94,7 @@ def calc_pmi_score_and_select_top_k(example):
         pmi_score = calculate_pmi(summ, doc)
         #  scores.append(pmi_score[args.rouge_type].fmeasure)
         scores.append(pmi_score)"""
-    scores = all_PMI_scores_dict[temp_text]  # [:500]
+    scores = all_PMI_scores_dict[temp_text]
 
     # top k
     if len(scores) <= args.topk:
