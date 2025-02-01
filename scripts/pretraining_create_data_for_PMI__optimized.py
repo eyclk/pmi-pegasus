@@ -10,6 +10,8 @@ import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
 
+MAX_WORKERS = 4
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--c4_split", type=str, default="realnewslike", choices=["en", "realnewslike"])
@@ -54,7 +56,7 @@ def marginal_probability(context_sentence):
     # Tokenize the context sentence
     context_inputs = tokenizer(context_sentence, return_tensors='pt', truncation=True, max_length=512).to(device)
 
-    # Generate output
+    # Generate output  -------------------> I SHOULD CHECK WHETHER THE GENERATION PARAMETERS CAN BE IMPROVED
     output = model.generate(context_inputs['input_ids'], max_new_tokens=40, num_beams=5, no_repeat_ngram_size=2,
                             early_stopping=True)
 
@@ -112,7 +114,7 @@ def calc_pmi_for_all(training_dataset):
             temp_scores.append(pmi_score)
         return temp_text, temp_scores
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         results = list(tqdm.tqdm(executor.map(process_text, training_dataset), total=len(training_dataset)))
 
     for text, scores in results:
