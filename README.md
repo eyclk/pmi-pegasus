@@ -33,6 +33,8 @@
 
 -- (sh dosyasında per_device_train_batch_size'yi 16 yaptım. AYRICA max_steps 750000 çok fazlaydı. Deneme amaçlı olduğu için 500'e düşürdüm.)
 
+-- pmi-pegasus dosyasının içinde "models" dosyası oluşturdum.
+
 ==> Not: factpegasus'un kodu deneme amaçlı olduğu için seçilen datasetin ilk 1000 row'u ile çalışacak şekilde ayarlanmıştı.
 
 
