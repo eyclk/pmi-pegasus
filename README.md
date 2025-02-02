@@ -37,6 +37,14 @@
 
 ==> Not: factpegasus'un kodu deneme amaçlı olduğu için seçilen datasetin ilk 1000 row'u ile çalışacak şekilde ayarlanmıştı.
 
+Çalıştırmak için kullandığım komutlar:
+
+python scripts/pretraining_create_data_for_PMI__optimized.py
+
+python scripts/pretraining_combine_scores_No_factcc_only_PMI.py
+
+./run_pretrain_factpegasus_No_factcc_only_PMI.sh
+
 
 
 # FactPEGASUS: Factuality-Aware Pre-training and Fine-tuning for Abstractive Summarization (NAACL 2022)
