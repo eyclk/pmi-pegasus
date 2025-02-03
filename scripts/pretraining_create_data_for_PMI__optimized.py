@@ -11,10 +11,13 @@ from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 
 
-MAX_WORKERS = 8
+MAX_WORKERS = 11
+
+USE_SMALLER_SUBSET = True
+SUBSET_LIMIT = 1000
+
 
 multiprocessing.set_start_method('spawn', force=True)
-
 
 parser = argparse.ArgumentParser()
 
@@ -154,7 +157,9 @@ if __name__ == "__main__":
     dataset = load_dataset("c4", args.c4_split, cache_dir="./cache")
 
     dataset.pop("validation")
-    dataset["train"] = dataset["train"].select(list(range(1000)))
+
+    if USE_SMALLER_SUBSET:
+        dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
 
     calc_pmi_for_all(dataset["train"])
 
