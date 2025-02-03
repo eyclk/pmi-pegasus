@@ -1,37 +1,49 @@
 # NOTES FOR PMI-PEGASUS
 
-## Different Steps Necessary for Installation
+## Different Steps Necessary for Installation (Bu kısmı daha sonra düzgün bir şekilde yeniden yazacağım.)
 
-- conda install python=3.9, 
+- conda create -n factP python=3.9 
 
-- pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113,
+- conda install python=3.9
 
-- pip install datasets==2.0.0,
+- pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
 
-- pip install transformers==4.17.0,
+- pip install datasets==2.0.0
 
-- pip install deepspeed==0.6.4,
+- pip install transformers==4.17.0
 
-- pip install nltk==3.7,
+- pip install deepspeed==0.6.4
 
-- pip install rouge_score==0.0.4,
+- pip install nltk==3.7
+
+- pip install rouge_score==0.0.4
 
 
--- pip install sentencepiece, 
+-- pip install sentencepiece
 
--- pip install numpy==1.26.4,
+-- pip install numpy==1.26.4
 
 -- (sh dosyasının başını GPU_IDX=0 olarak değiştirdim.)
 
--- pip install protobuf==3.19.6,
+-- pip install protobuf==3.19.6
 
--- pip install tokenizers==0.14.1,
+-- pip install tokenizers==0.14.1
 
 -- (sh dosyasındaki data_dir parametresine "./c4_realnewslike_processed_combined" yazdım.)
 
 -- (sh dosyasında per_device_train_batch_size'yi 16 yaptım. AYRICA max_steps 750000 çok fazlaydı. Deneme amaçlı olduğu için 500'e düşürdüm.)
 
-==> Bu arada factpegasus'un kodu deneme amaçlı olduğu için seçilen datasetin ilk 1000 row'u ile çalışacak şekilde ayarlanmıştı.
+-- pmi-pegasus dosyasının içinde "models" dosyası oluşturdum.
+
+==> Not: factpegasus'un kodu deneme amaçlı olduğu için seçilen datasetin ilk 1000 row'u ile çalışacak şekilde ayarlanmıştı.
+
+Çalıştırmak için kullandığım komutlar:
+
+python scripts/pretraining_create_data_for_PMI__optimized.py
+
+python scripts/pretraining_combine_scores_No_factcc_only_PMI.py
+
+./run_pretrain_factpegasus_No_factcc_only_PMI.sh
 
 
 
