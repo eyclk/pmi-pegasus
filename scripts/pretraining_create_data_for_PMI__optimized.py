@@ -7,10 +7,14 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 import math
 import tqdm
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 
 
-MAX_WORKERS = 4
+MAX_WORKERS = 8
+
+multiprocessing.set_start_method('spawn', force=True)
+
 
 parser = argparse.ArgumentParser()
 
@@ -37,6 +41,7 @@ model.to(device)
 model.eval()
 
 all_PMI_scores_dict = {}
+
 
 
 def conditional_probability(target_sentence, context_sentence):
@@ -78,26 +83,6 @@ def calculate_pmi(target_sentence, doc_without_target_sentence):
 
 """def calc_pmi_for_all(training_dataset):
     # global model
-    for t in tqdm.tqdm(training_dataset):
-        temp_text = t["text"]
-        sentences = nltk.sent_tokenize(temp_text)
-
-        temp_scores = []
-        for i, sent in enumerate(sentences):
-            summ = sent
-            # doc = " ".join([s for j, s in enumerate(sentences) if i != j])  # NOT: Burayı hızlandır. belki replace ile olabilir.
-            doc = temp_text.replace(sent, "", 1)
-            # If replace function fails, use the other approach with join function. This should not happen, but this check is placed here just in case.
-            if doc == temp_text:
-                doc = " ".join([s for j, s in enumerate(sentences) if i != j])
-
-            pmi_score = calculate_pmi(summ, doc)  # NOT: Burayı hızlandırmak için parallel yapabiliriz. T5'in burada olduğunu unutma.
-            temp_scores.append(pmi_score)
-        all_PMI_scores_dict[temp_text] = temp_scores"""
-
-
-def calc_pmi_for_all(training_dataset):
-    # global model
     def process_text(t):
         temp_text = t["text"]
         sentences = nltk.sent_tokenize(temp_text)
@@ -114,7 +99,31 @@ def calc_pmi_for_all(training_dataset):
             temp_scores.append(pmi_score)
         return temp_text, temp_scores
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        results = list(tqdm.tqdm(executor.map(process_text, training_dataset), total=len(training_dataset)))
+
+    for text, scores in results:
+        all_PMI_scores_dict[text] = scores"""
+
+
+def process_text(t):
+    temp_text = t["text"]
+    sentences = nltk.sent_tokenize(temp_text)
+
+    temp_scores = []
+    for i, sent in enumerate(sentences):
+        summ = sent
+        doc = temp_text.replace(sent, "", 1)
+        # If replace function fails, use the other approach with join function. This should not happen, but this check is placed here just in case.
+        if doc == temp_text:
+            doc = " ".join([s for j, s in enumerate(sentences) if i != j])
+
+        pmi_score = calculate_pmi(summ, doc)
+        temp_scores.append(pmi_score)
+    return temp_text, temp_scores
+
+def calc_pmi_for_all(training_dataset):
+    with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
         results = list(tqdm.tqdm(executor.map(process_text, training_dataset), total=len(training_dataset)))
 
     for text, scores in results:
@@ -125,13 +134,6 @@ def calc_pmi_score_and_select_top_k(example):
     temp_text = example["text"]
     sentences = nltk.sent_tokenize(temp_text)
 
-    """scores = []
-    for i, sent in enumerate(sentences):
-        summ = sent
-        doc = " ".join([s for j,s in enumerate(sentences) if i !=j])
-        pmi_score = calculate_pmi(summ, doc)
-        #  scores.append(pmi_score[args.rouge_type].fmeasure)
-        scores.append(pmi_score)"""
     scores = all_PMI_scores_dict[temp_text]
 
     # top k
@@ -147,19 +149,21 @@ def calc_pmi_score_and_select_top_k(example):
     return example
 
 
-dataset = load_dataset("c4", args.c4_split, cache_dir="./cache")
+if __name__ == "__main__":
 
-dataset.pop("validation")
-dataset["train"] = dataset["train"].select(list(range(1000)))
+    dataset = load_dataset("c4", args.c4_split, cache_dir="./cache")
 
-calc_pmi_for_all(dataset["train"])
+    dataset.pop("validation")
+    dataset["train"] = dataset["train"].select(list(range(1000)))
 
-dataset["train"] = dataset["train"].map(
-    calc_pmi_score_and_select_top_k,
-    remove_columns=["url", "text", "timestamp"],
-    batched=False,
-    num_proc=16,
-    keep_in_memory=True
-)
+    calc_pmi_for_all(dataset["train"])
 
-dataset.save_to_disk("c4_{}_processed_with_PMI".format(args.c4_split))
+    dataset["train"] = dataset["train"].map(
+        calc_pmi_score_and_select_top_k,
+        remove_columns=["url", "text", "timestamp"],
+        batched=False,
+        num_proc=16,
+        keep_in_memory=True
+    )
+
+    dataset.save_to_disk("c4_{}_processed_with_PMI".format(args.c4_split))
