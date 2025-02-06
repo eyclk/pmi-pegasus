@@ -1,5 +1,4 @@
 import argparse
-#  from rouge_score import rouge_scorer
 import nltk
 from datasets import load_dataset
 import numpy as np
@@ -9,7 +8,6 @@ import math
 import tqdm
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
-from transformers import pipeline
 import torch.nn.functional as F
 
 MAX_WORKERS = 1
@@ -22,14 +20,11 @@ multiprocessing.set_start_method('spawn', force=True)
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--c4_split", type=str, default="realnewslike", choices=["en", "realnewslike"])
-#  parser.add_argument("--rouge_type", type=str, default="rouge1", choices=["rouge1","rouge2","rougeL"])
 parser.add_argument("--topk", type=int, default=5)
 
 args = parser.parse_args()
 
 mask_token = "<mask>"
-
-#  scorer = rouge_scorer.RougeScorer([args.rouge_type])
 
 # Load pre-trained model tokenizer (vocabulary)
 tokenizer = T5Tokenizer.from_pretrained('t5-base')
@@ -88,11 +83,9 @@ def conditional_probability(target_sentences, context_sentences):
 
     with torch.no_grad():
         outputs = model(context_inputs['input_ids'], labels=target_inputs['input_ids'],
-                        return_dict=True)  # Bu şekilde gelen batch başına losslar ile yapamay dene. Düz mantık.
-    # print("Probability of target sentence given context sentence:", losses.loss.item())
+                        return_dict=True)
 
     #   print("\n\n", outputs.loss, "\n\n")
-
     # Extract logits
     logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)
 
@@ -119,24 +112,18 @@ def conditional_probability(target_sentences, context_sentences):
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
     # **Normalize Loss to Match Forward Pass Scaling**
-    total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
-
-    batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
+    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+    # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
     # Print per-example loss
     """for i in loss_per_example:
         print(f"Loss: {i.item()}\n")
-
     # Optional: Compute batch average loss (matches model.loss)
     # batch_avg_loss = loss_per_example.mean().item()
     print(f"\nTotal batch loss (averaged): {batch_avg_loss}")"""
 
-    # print("\n\n", context_inputs['input_ids'].shape, " ---->> ", len(losses), "\n\n")
+    #  pipe_output = pipe(context_sentences, labels=target_sentences, batch_size=16)
 
-    #   pipe_output = pipe(context_sentences, labels=target_sentences, batch_size=16)
-
-    #  return math.exp(-losses.loss.item())
-    # return [math.exp(-p['loss'].item()) for p in outputs.loss]
     return [math.exp(-l.item()) for l in loss_per_example]
 
 
@@ -170,7 +157,6 @@ def marginal_probability(context_sentences):
         outputs = model(context_inputs['input_ids'], labels=generated_labels["input_ids"])
 
     #   print("\n\n", outputs.loss, "\n\n")
-
     # Extract logits
     logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)
 
@@ -197,25 +183,15 @@ def marginal_probability(context_sentences):
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
     # **Normalize Loss to Match Forward Pass Scaling**
-    total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
-
-    batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
+    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+    # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
     # Print per-example loss
     """for i in loss_per_example:
         print(f"Loss: {i.item()}\n")
-
     # Optional: Compute batch average loss (matches model.loss)
     # batch_avg_loss = loss_per_example.mean().item()
     print(f"\nTotal batch loss (averaged): {batch_avg_loss}")"""
-
-    #   pipe_output = pipe(context_sentences, labels=generated_output, batch_size=16)
-
-    # Print probability
-    # print("Probability of target sentence given context sentence:", p_x_given_y)
-
-    # return math.exp(-losses.loss.item())
-    # return [math.exp(-p['loss'].item()) for p in outputs.loss]
 
     return [math.exp(-l.item()) for l in loss_per_example]
 
@@ -236,7 +212,6 @@ def process_text(t):
     sentences_per_text = []
     docs_per_text = []
 
-    # temp_scores = []
     for i, sent in enumerate(sentences):
         summ = sent
         doc = temp_text.replace(sent, "", 1)
@@ -244,13 +219,11 @@ def process_text(t):
         if doc == temp_text:
             doc = " ".join([s for j, s in enumerate(sentences) if i != j])
 
-        # pmi_score = calculate_pmi(summ, doc)
-        # temp_scores.append(pmi_score)
         sentences_per_text.append(summ)
         docs_per_text.append(doc)
 
     pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
-    return temp_text, pmi_scores_per_text  # temp_scores
+    return temp_text, pmi_scores_per_text
 
 
 def calc_pmi_for_all(training_dataset):
@@ -313,6 +286,7 @@ if __name__ == "__main__":
 
     if USE_SMALLER_SUBSET:
         dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
+
 
     # calc_pmi_for_all(dataset["train"])
 
