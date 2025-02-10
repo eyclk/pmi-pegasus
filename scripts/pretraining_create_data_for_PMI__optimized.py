@@ -1,4 +1,5 @@
 import argparse
+#  from rouge_score import rouge_scorer
 import nltk
 from datasets import load_dataset
 import numpy as np
@@ -8,9 +9,12 @@ import math
 import tqdm
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
+# from transformers import pipeline
 import torch.nn.functional as F
 
 MAX_WORKERS = 1
+
+SENTENCE_BATCH_SIZE = 32
 
 USE_SMALLER_SUBSET = True
 SUBSET_LIMIT = 1000
@@ -20,11 +24,14 @@ multiprocessing.set_start_method('spawn', force=True)
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--c4_split", type=str, default="realnewslike", choices=["en", "realnewslike"])
+#  parser.add_argument("--rouge_type", type=str, default="rouge1", choices=["rouge1","rouge2","rougeL"])
 parser.add_argument("--topk", type=int, default=5)
 
 args = parser.parse_args()
 
 mask_token = "<mask>"
+
+#  scorer = rouge_scorer.RougeScorer([args.rouge_type])
 
 # Load pre-trained model tokenizer (vocabulary)
 tokenizer = T5Tokenizer.from_pretrained('t5-base')
@@ -83,9 +90,11 @@ def conditional_probability(target_sentences, context_sentences):
 
     with torch.no_grad():
         outputs = model(context_inputs['input_ids'], labels=target_inputs['input_ids'],
-                        return_dict=True)
+                        return_dict=True)  # Bu şekilde gelen batch başına losslar ile yapamay dene. Düz mantık.
+    # print("Probability of target sentence given context sentence:", losses.loss.item())
 
     #   print("\n\n", outputs.loss, "\n\n")
+
     # Extract logits
     logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)
 
@@ -112,18 +121,24 @@ def conditional_probability(target_sentences, context_sentences):
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
     # **Normalize Loss to Match Forward Pass Scaling**
-    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+    total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+
     # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
     # Print per-example loss
     """for i in loss_per_example:
         print(f"Loss: {i.item()}\n")
+
     # Optional: Compute batch average loss (matches model.loss)
     # batch_avg_loss = loss_per_example.mean().item()
     print(f"\nTotal batch loss (averaged): {batch_avg_loss}")"""
 
-    #  pipe_output = pipe(context_sentences, labels=target_sentences, batch_size=16)
+    # print("\n\n", context_inputs['input_ids'].shape, " ---->> ", len(losses), "\n\n")
 
+    #   pipe_output = pipe(context_sentences, labels=target_sentences, batch_size=16)
+
+    #  return math.exp(-losses.loss.item())
+    # return [math.exp(-p['loss'].item()) for p in outputs.loss]
     return [math.exp(-l.item()) for l in loss_per_example]
 
 
@@ -157,6 +172,7 @@ def marginal_probability(context_sentences):
         outputs = model(context_inputs['input_ids'], labels=generated_labels["input_ids"])
 
     #   print("\n\n", outputs.loss, "\n\n")
+
     # Extract logits
     logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)
 
@@ -183,15 +199,25 @@ def marginal_probability(context_sentences):
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
     # **Normalize Loss to Match Forward Pass Scaling**
-    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+    total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+
     # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
     # Print per-example loss
     """for i in loss_per_example:
         print(f"Loss: {i.item()}\n")
+
     # Optional: Compute batch average loss (matches model.loss)
     # batch_avg_loss = loss_per_example.mean().item()
     print(f"\nTotal batch loss (averaged): {batch_avg_loss}")"""
+
+    #   pipe_output = pipe(context_sentences, labels=generated_output, batch_size=16)
+
+    # Print probability
+    # print("Probability of target sentence given context sentence:", p_x_given_y)
+
+    # return math.exp(-losses.loss.item())
+    # return [math.exp(-p['loss'].item()) for p in outputs.loss]
 
     return [math.exp(-l.item()) for l in loss_per_example]
 
@@ -212,6 +238,7 @@ def process_text(t):
     sentences_per_text = []
     docs_per_text = []
 
+    # temp_scores = []
     for i, sent in enumerate(sentences):
         summ = sent
         doc = temp_text.replace(sent, "", 1)
@@ -219,11 +246,13 @@ def process_text(t):
         if doc == temp_text:
             doc = " ".join([s for j, s in enumerate(sentences) if i != j])
 
+        # pmi_score = calculate_pmi(summ, doc)
+        # temp_scores.append(pmi_score)
         sentences_per_text.append(summ)
         docs_per_text.append(doc)
 
     pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
-    return temp_text, pmi_scores_per_text
+    return temp_text, pmi_scores_per_text  # temp_scores
 
 
 def calc_pmi_for_all(training_dataset):
@@ -235,12 +264,36 @@ def calc_pmi_for_all(training_dataset):
 
 
 def single_process_calc_pmi_for_all(training_dataset):
-    for t in tqdm.tqdm(training_dataset):
+
+    all_sentences = []
+    texts_corresponding_to_sentences = []
+    for s in tqdm.tqdm(training_dataset, desc="Splitting all texts into separate sentences"):
+        temp_text = s["text"]
+        sentences = nltk.sent_tokenize(temp_text)
+        all_sentences.extend(sentences)
+        texts_corresponding_to_sentences.extend([temp_text] * len(sentences))
+
+    # Batch all sentences according to SENTENCE_BATCH_SIZE and send them to calculate_pmi function
+    for i in tqdm.tqdm(range(0, len(all_sentences), SENTENCE_BATCH_SIZE), desc="Calculating PMI"):
+        sentences_per_batch = all_sentences[i : i+SENTENCE_BATCH_SIZE]
+        docs_per_batch = [t.replace(s, "", 1) for t, s in zip(texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE], sentences_per_batch)]
+        pmi_scores_per_batch = calculate_pmi(sentences_per_batch, docs_per_batch)
+
+        for score, text in zip(pmi_scores_per_batch, texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE]):
+            if all_PMI_scores_dict.get(text) is None:
+                all_PMI_scores_dict[text] = [score]
+            else:
+                all_PMI_scores_dict[text].append(score)
+
+
+    """for t in tqdm.tqdm(training_dataset):
         temp_text = t["text"]
         sentences = nltk.sent_tokenize(temp_text)
 
         sentences_per_text = []
         docs_per_text = []
+
+        temp_text_list = []
 
         # temp_scores = []
         for i, sent in enumerate(sentences):
@@ -255,8 +308,10 @@ def single_process_calc_pmi_for_all(training_dataset):
             sentences_per_text.append(summ)
             docs_per_text.append(doc)
 
+            temp_text_list.append(temp_text)
+
         pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
-        all_PMI_scores_dict[temp_text] = pmi_scores_per_text
+        all_PMI_scores_dict[temp_text] = pmi_scores_per_text"""
 
 
 def calc_pmi_score_and_select_top_k(example):
@@ -286,7 +341,6 @@ if __name__ == "__main__":
 
     if USE_SMALLER_SUBSET:
         dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
-
 
     # calc_pmi_for_all(dataset["train"])
 
