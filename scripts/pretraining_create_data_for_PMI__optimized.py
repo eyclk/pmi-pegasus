@@ -12,9 +12,11 @@ import multiprocessing
 # from transformers import pipeline
 import torch.nn.functional as F
 
-MAX_WORKERS = 1
+MAX_WORKERS = 2
 
-SENTENCE_BATCH_SIZE = 32
+SENTENCE_BATCH_SIZE = 16
+
+USE_MULTIPROCESSING = False
 
 USE_SMALLER_SUBSET = True
 SUBSET_LIMIT = 1000
@@ -121,7 +123,7 @@ def conditional_probability(target_sentences, context_sentences):
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
     # **Normalize Loss to Match Forward Pass Scaling**
-    total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
 
     # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
@@ -149,13 +151,14 @@ def marginal_probability(context_sentences):
     ).to(device)
 
     # **Step 2: Generate output sentences**
-    generated_output = model.generate(
-        context_inputs['input_ids'],
-        max_new_tokens=40,
-        num_beams=5,
-        no_repeat_ngram_size=2,
-        early_stopping=True
-    )
+    with torch.no_grad():
+        generated_output = model.generate(
+            context_inputs['input_ids'],
+            max_new_tokens=40,
+            num_beams=5,
+            no_repeat_ngram_size=2,
+            early_stopping=True
+        )
 
     # **Step 3: Decode & Tokenize the Generated Sentences Properly**
     generated_texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_output]
@@ -199,7 +202,7 @@ def marginal_probability(context_sentences):
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
     # **Normalize Loss to Match Forward Pass Scaling**
-    total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
+    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
 
     # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
@@ -251,7 +254,16 @@ def process_text(t):
         sentences_per_text.append(summ)
         docs_per_text.append(doc)
 
-    pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
+    if len(sentences_per_text) > SENTENCE_BATCH_SIZE:
+        # Split texts with too many paragraphs into smaller batches
+        pmi_scores_per_text = []
+        for i in range(0, len(sentences_per_text), SENTENCE_BATCH_SIZE):
+            sentences_per_batch = sentences_per_text[i : i+SENTENCE_BATCH_SIZE]
+            docs_per_batch = docs_per_text[i : i+SENTENCE_BATCH_SIZE]
+            pmi_scores_per_batch = calculate_pmi(sentences_per_batch, docs_per_batch)
+            pmi_scores_per_text.extend(pmi_scores_per_batch)
+    else:
+        pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
     return temp_text, pmi_scores_per_text  # temp_scores
 
 
@@ -342,9 +354,10 @@ if __name__ == "__main__":
     if USE_SMALLER_SUBSET:
         dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
 
-    # calc_pmi_for_all(dataset["train"])
-
-    single_process_calc_pmi_for_all(dataset["train"])
+    if USE_MULTIPROCESSING:
+        calc_pmi_for_all(dataset["train"])
+    else:
+        single_process_calc_pmi_for_all(dataset["train"])
 
     dataset["train"] = dataset["train"].map(
         calc_pmi_score_and_select_top_k,
