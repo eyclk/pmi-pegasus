@@ -19,7 +19,7 @@ SENTENCE_BATCH_SIZE = 32
 
 USE_MULTIPROCESSING = False
 
-USE_SMALLER_SUBSET = True
+USE_SMALLER_SUBSET = True  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBSET_LIMIT = 1000
 
 multiprocessing.set_start_method('spawn', force=True)
@@ -127,10 +127,10 @@ def conditional_probability(target_sentences, context_sentences):
     # Normalize Loss to Match Forward Pass Scaling
     # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
 
-    # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
+    """batch_avg_loss = loss_per_example.mean().item()
 
     # Print per-example loss
-    """for i in loss_per_example:
+    for i in loss_per_example:
         print(f"Loss: {i.item()}\n")
 
     # Optional: Compute batch average loss (matches model.loss)
@@ -211,11 +211,6 @@ def marginal_probability(context_sentences):
 
     # Step 6: Compute Corrected Per-Example Loss
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
-
-    # Normalize Loss to Match Forward Pass Scaling
-    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
-
-    # batch_avg_loss = outputs.loss * total_valid_tokens / total_valid_tokens  # This should exactly match outputs.loss
 
     # Print per-example loss
     """for i in loss_per_example:
