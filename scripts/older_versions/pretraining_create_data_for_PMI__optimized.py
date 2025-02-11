@@ -15,7 +15,7 @@ import torch.nn.functional as F
 
 MAX_WORKERS = 2
 
-SENTENCE_BATCH_SIZE = 32
+SENTENCE_BATCH_SIZE = 16
 
 USE_MULTIPROCESSING = False
 
@@ -156,19 +156,10 @@ def marginal_probability(context_sentences):
     generated_output = model.generate(
         context_inputs['input_ids'],
         max_new_tokens=40,
-        num_beams=4,   #  5 --> 4
-        no_repeat_ngram_size=3,  # 2 --> 3
+        num_beams=5,
+        no_repeat_ngram_size=2,
         early_stopping=True
     )
-    """max_length = 100,
-    min_length = 10,
-    num_beams = 2,
-    do_sample = True,
-    top_k = 50,
-    top_p = 0.9,
-    no_repeat_ngram_size = 3,
-    early_stopping = False,
-    return_dict_in_generate = True"""
 
     # Step 3: Decode & Tokenize the Generated Sentences Properly
     generated_texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_output]
