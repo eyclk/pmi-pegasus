@@ -1,6 +1,6 @@
 # NOTES FOR PMI-PEGASUS
 
-## Different Steps Necessary for Installation (Bu kısmı daha sonra düzgün bir şekilde yeniden yazacağım.)
+## Different Steps Necessary for Installation
 
 - conda create -n factP python=3.9 
 
@@ -18,34 +18,37 @@
 
 - pip install rouge_score==0.0.4
 
+**Additional Steps:**
 
--- pip install sentencepiece
+- pip install sentencepiece
 
--- pip install numpy==1.26.4
+- pip install numpy==1.26.4
 
--- (sh dosyasının başını GPU_IDX=0 olarak değiştirdim.)
+- (Changed GPU_IDX parameter inside the sh file as 0)
 
--- pip install protobuf==3.19.6
+- pip install protobuf==3.19.6
 
--- pip install tokenizers==0.14.1
+- pip install tokenizers==0.14.1
 
--- (sh dosyasındaki data_dir parametresine "./c4_realnewslike_processed_combined" yazdım.)
+- (Changed data_dir parameter inside sh file to the location of the output folder from combine code. In my case: "./c4_realnewslike_processed_PMI_combined")
 
--- (sh dosyasında per_device_train_batch_size'yi 16 yaptım. AYRICA max_steps 750000 çok fazlaydı. Deneme amaçlı olduğu için 500'e düşürdüm.)
+- (Changed per_device_train_batch_size to 16 in the sh file. It can be increased depending on VRAM capacity. Also, reduced the max_steps parameter from 750000 to 500 for our quick early trials.)
 
--- pmi-pegasus dosyasının içinde "models" dosyası oluşturdum.
+- (Created an empty folder called "models" inside the pmi-pegasus folder.)
 
-==> Not: factpegasus'un kodu deneme amaçlı olduğu için seçilen datasetin ilk 1000 row'u ile çalışacak şekilde ayarlanmıştı.
+==> Keep in mind that the pretraining_create_data code runs on only the first 1000 rows of the given training set for early trial. 
 
-Çalıştırmak için kullandığım komutlar:
+**Çalıştırmak için kullandığım komutlar:**
 
-python scripts/pretraining_create_data_for_PMI__optimized.py
+- python scripts/pretraining_create_data_for_PMI__optimized.py
 
-python scripts/pretraining_combine_scores_No_factcc_only_PMI.py
+- python scripts/pretraining_combine_scores_No_factcc_only_PMI.py
 
-./run_pretrain_factpegasus_No_factcc_only_PMI.sh
+- ./run_pretrain_factpegasus_No_factcc_only_PMI.sh
 
 
+
+# ORIGINAL README FROM FACTPEGASUS
 
 # FactPEGASUS: Factuality-Aware Pre-training and Fine-tuning for Abstractive Summarization (NAACL 2022)
 

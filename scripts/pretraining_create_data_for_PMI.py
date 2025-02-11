@@ -378,4 +378,4 @@ if __name__ == "__main__":
         keep_in_memory=True
     )
 
-    dataset.save_to_disk("c4_{}_processed_with_PMI".format(args.c4_split))
+    dataset.save_to_disk("c4_{}_processed_PMI".format(args.c4_split))
