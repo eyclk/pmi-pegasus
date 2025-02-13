@@ -1,5 +1,4 @@
 import argparse
-#  from rouge_score import rouge_scorer
 import nltk
 from datasets import load_dataset
 import numpy as np
@@ -9,20 +8,14 @@ import math
 import tqdm
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
-# from transformers import pipeline
 import torch.nn.functional as F
 
 
-MAX_WORKERS = 2
-
 SENTENCE_BATCH_SIZE = 32
 
-USE_MULTIPROCESSING = False
-
-USE_SMALLER_SUBSET = True  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
 SUBSET_LIMIT = 1000
 
-multiprocessing.set_start_method('spawn', force=True)
 
 parser = argparse.ArgumentParser()
 
@@ -33,8 +26,6 @@ parser.add_argument("--topk", type=int, default=5)
 args = parser.parse_args()
 
 mask_token = "<mask>"
-
-#  scorer = rouge_scorer.RougeScorer([args.rouge_type])
 
 # Load pre-trained model tokenizer (vocabulary)
 tokenizer = T5Tokenizer.from_pretrained('t5-base')
@@ -50,37 +41,6 @@ model.eval()
 
 all_PMI_scores_dict = {}
 
-#  pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer, return_loss=True)
-
-
-"""def conditional_probability(target_sentence, context_sentence):
-    # Tokenize the context sentence
-    context_inputs = tokenizer(context_sentence, return_tensors='pt', truncation=True, max_length=512).to(device)
-
-    # Tokenize the target sentence
-    target_inputs = tokenizer(target_sentence, return_tensors='pt', truncation=True, max_length=512).to(device)
-
-    with torch.no_grad():
-        losses = model(context_inputs['input_ids'], labels=target_inputs['input_ids'])
-    # print("Probability of target sentence given context sentence:", losses.loss.item())
-    return math.exp(-losses.loss.item())
-
-
-def marginal_probability(context_sentence):
-    # Tokenize the context sentence
-    context_inputs = tokenizer(context_sentence, return_tensors='pt', truncation=True, max_length=512).to(device)
-
-    # Generate output  -------------------> I SHOULD CHECK WHETHER THE GENERATION PARAMETERS CAN BE IMPROVED
-    output = model.generate(context_inputs['input_ids'], max_new_tokens=40, num_beams=5, no_repeat_ngram_size=2,
-                            early_stopping=True)
-
-    with torch.no_grad():
-        losses = model(context_inputs['input_ids'], labels=output)
-
-    # Print probability
-    # print("Probability of target sentence given context sentence:", p_x_given_y)
-    return math.exp(-losses.loss.item())"""
-
 
 def conditional_probability(target_sentences, context_sentences):
     # Tokenize the context sentence
@@ -95,7 +55,6 @@ def conditional_probability(target_sentences, context_sentences):
         with torch.autocast(device_type="cuda", dtype=torch.float16):
             outputs = model(context_inputs['input_ids'], labels=target_inputs['input_ids'],
                         return_dict=True)
-    # print("Probability of target sentence given context sentence:", losses.loss.item())
 
     #   print("\n\n", outputs.loss, "\n\n")
 
@@ -124,25 +83,14 @@ def conditional_probability(target_sentences, context_sentences):
     # Step 6: Compute Corrected Per-Example Loss
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_count_per_example
 
-    # Normalize Loss to Match Forward Pass Scaling
-    # total_valid_tokens = valid_token_mask.sum()  # Sum of all valid tokens in batch
-
-    """batch_avg_loss = loss_per_example.mean().item()
-
     # Print per-example loss
-    for i in loss_per_example:
+    """for i in loss_per_example:
         print(f"Loss: {i.item()}\n")
 
     # Optional: Compute batch average loss (matches model.loss)
     # batch_avg_loss = loss_per_example.mean().item()
     print(f"\nTotal batch loss (averaged): {batch_avg_loss}")"""
 
-    # print("\n\n", context_inputs['input_ids'].shape, " ---->> ", len(losses), "\n\n")
-
-    #   pipe_output = pipe(context_sentences, labels=target_sentences, batch_size=16)
-
-    #  return math.exp(-losses.loss.item())
-    # return [math.exp(-p['loss'].item()) for p in outputs.loss]
     return [math.exp(-l.item()) for l in loss_per_example]
 
 
@@ -160,15 +108,6 @@ def marginal_probability(context_sentences):
         no_repeat_ngram_size=3,  # 2 --> 3
         early_stopping=True
     )
-    """max_length = 100,
-    min_length = 10,
-    num_beams = 2,
-    do_sample = True,
-    top_k = 50,
-    top_p = 0.9,
-    no_repeat_ngram_size = 3,
-    early_stopping = False,
-    return_dict_in_generate = True"""
 
     # Step 3: Decode & Tokenize the Generated Sentences Properly
     generated_texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_output]
@@ -205,7 +144,7 @@ def marginal_probability(context_sentences):
     # Reshape back to (batch_size, seq_length - 1)
     loss_per_token = loss_per_token.view(labels_shifted.shape)
 
-    # **Mask out padding (-100) and count valid tokens per example**
+    # Mask out padding (-100) and count valid tokens per example
     valid_token_mask = (labels_shifted != -100).float()
     valid_token_count_per_example = valid_token_mask.sum(dim=1)  # Count valid tokens per example
 
@@ -214,19 +153,11 @@ def marginal_probability(context_sentences):
 
     # Print per-example loss
     """for i in loss_per_example:
-        print(f"Loss: {i.item()}\n")"""
+        print(f"Loss: {i.item()}\n")
 
     # Optional: Compute batch average loss (matches model.loss)
-    # batch_avg_loss = loss_per_example.mean().item()
-    # print(f"\nTotal batch loss (averaged): {batch_avg_loss}")
-
-    # pipe_output = pipe(context_sentences, labels=generated_output, batch_size=16)
-
-    # Print probability
-    # print("Probability of target sentence given context sentence:", p_x_given_y)
-
-    # return math.exp(-losses.loss.item())
-    # return [math.exp(-p['loss'].item()) for p in outputs.loss]
+    batch_avg_loss = loss_per_example.mean().item()
+    print(f"\nTotal batch loss (averaged): {batch_avg_loss}")"""
 
     return [math.exp(-l.item()) for l in loss_per_example]
 
@@ -236,49 +167,8 @@ def calculate_pmi(target_sentences_per_text, docs_without_target_sentences_per_t
     p_x_list = marginal_probability(docs_without_target_sentences_per_text)
 
     pmi_list = [math.log2(a / b) for a, b in zip(p_x_given_y_list, p_x_list)]
-    #  pmi = math.log2(p_x_given_y / p_x)
+
     return pmi_list
-
-
-def process_text(t):
-    temp_text = t["text"]
-    sentences = nltk.sent_tokenize(temp_text)
-
-    sentences_per_text = []
-    docs_per_text = []
-
-    # temp_scores = []
-    for i, sent in enumerate(sentences):
-        summ = sent
-        doc = temp_text.replace(sent, "", 1)
-        # If replace function fails, use the other approach with join function. This should not happen, but this check is placed here just in case.
-        if doc == temp_text:
-            doc = " ".join([s for j, s in enumerate(sentences) if i != j])
-
-        # pmi_score = calculate_pmi(summ, doc)
-        # temp_scores.append(pmi_score)
-        sentences_per_text.append(summ)
-        docs_per_text.append(doc)
-
-    if len(sentences_per_text) > SENTENCE_BATCH_SIZE:
-        # Split texts with too many paragraphs into smaller batches
-        pmi_scores_per_text = []
-        for i in range(0, len(sentences_per_text), SENTENCE_BATCH_SIZE):
-            sentences_per_batch = sentences_per_text[i : i+SENTENCE_BATCH_SIZE]
-            docs_per_batch = docs_per_text[i : i+SENTENCE_BATCH_SIZE]
-            pmi_scores_per_batch = calculate_pmi(sentences_per_batch, docs_per_batch)
-            pmi_scores_per_text.extend(pmi_scores_per_batch)
-    else:
-        pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
-    return temp_text, pmi_scores_per_text  # temp_scores
-
-
-def calc_pmi_for_all_multi(training_dataset):
-    with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        results = list(tqdm.tqdm(executor.map(process_text, training_dataset), total=len(training_dataset)))
-
-    for text, scores in results:
-        all_PMI_scores_dict[text] = scores
 
 
 def single_process_calc_pmi_for_all(training_dataset):
@@ -304,34 +194,6 @@ def single_process_calc_pmi_for_all(training_dataset):
                 all_PMI_scores_dict[text].append(score)
 
 
-    """for t in tqdm.tqdm(training_dataset):
-        temp_text = t["text"]
-        sentences = nltk.sent_tokenize(temp_text)
-
-        sentences_per_text = []
-        docs_per_text = []
-
-        temp_text_list = []
-
-        # temp_scores = []
-        for i, sent in enumerate(sentences):
-            summ = sent
-            doc = temp_text.replace(sent, "", 1)
-            # If replace function fails, use the other approach with join function. This should not happen, but this check is placed here just in case.
-            if doc == temp_text:
-                doc = " ".join([s for j, s in enumerate(sentences) if i != j])
-
-            # pmi_score = calculate_pmi(summ, doc)
-            # temp_scores.append(pmi_score)
-            sentences_per_text.append(summ)
-            docs_per_text.append(doc)
-
-            temp_text_list.append(temp_text)
-
-        pmi_scores_per_text = calculate_pmi(sentences_per_text, docs_per_text)
-        all_PMI_scores_dict[temp_text] = pmi_scores_per_text"""
-
-
 def calc_pmi_score_and_select_top_k(example):
     temp_text = example["text"]
     sentences = nltk.sent_tokenize(temp_text)
@@ -346,7 +208,7 @@ def calc_pmi_score_and_select_top_k(example):
 
     example["documents"] = [" ".join([s if j != i else mask_token for j, s in enumerate(sentences)]) for i in ind]
     example["summaries"] = [sentences[i] for i in ind]
-    example["pmi"] = [scores[i] for i in ind]  # ["rouge"]
+    example["pmi"] = [scores[i] for i in ind]
 
     return example
 
@@ -360,10 +222,7 @@ if __name__ == "__main__":
     if USE_SMALLER_SUBSET:
         dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
 
-    if USE_MULTIPROCESSING:
-        calc_pmi_for_all_multi(dataset["train"])
-    else:
-        single_process_calc_pmi_for_all(dataset["train"])
+    single_process_calc_pmi_for_all(dataset["train"])
 
     dataset["train"] = dataset["train"].map(
         calc_pmi_score_and_select_top_k,
