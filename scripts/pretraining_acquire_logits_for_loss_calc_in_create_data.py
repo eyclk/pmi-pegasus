@@ -9,9 +9,12 @@ import tqdm
 # import torch.nn.functional as F
 
 
-SENTENCE_BATCH_SIZE = 32
+SENTENCE_BATCH_SIZE = 48
 
-logits_and_labels_save_location = "./logits_and_labels/limited_test_1000_rows"
+# Transfer to CPU every N batches
+N = 55
+
+logits_and_labels_save_location = "./scripts/logits_and_labels/limited_test_1000_rows/"
 
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
 SUBSET_LIMIT = 1000
@@ -173,11 +176,13 @@ def save_logits_and_labels(target_sentences_per_text, docs_without_target_senten
     # return pmi_list
 
     # Save the logits and labels
-    torch.save(cond_logits, logits_and_labels_save_location + "cond_logits.pt")
+    """torch.save(cond_logits, logits_and_labels_save_location + "cond_logits.pt")
     torch.save(cond_labels, logits_and_labels_save_location + "cond_labels.pt")
 
     torch.save(marg_logits, logits_and_labels_save_location + "marg_logits.pt")
-    torch.save(marg_labels, logits_and_labels_save_location + "marg_labels.pt")
+    torch.save(marg_labels, logits_and_labels_save_location + "marg_labels.pt")"""
+
+    return cond_logits, cond_labels, marg_logits, marg_labels
 
 
 def acquire_logits_from_forward_passes(training_dataset):
@@ -190,18 +195,46 @@ def acquire_logits_from_forward_passes(training_dataset):
         all_sentences.extend(sentences)
         texts_corresponding_to_sentences.extend([temp_text] * len(sentences))
 
+    # Create lists to store all logits and labels
+    all_cond_logits = []
+    all_cond_labels = []
+    all_marg_logits = []
+    all_marg_labels = []
+
     # Batch all sentences according to SENTENCE_BATCH_SIZE and send them to calculate_pmi function
     for i in tqdm.tqdm(range(0, len(all_sentences), SENTENCE_BATCH_SIZE), desc="Calculating PMI"):
         sentences_per_batch = all_sentences[i : i+SENTENCE_BATCH_SIZE]
         docs_per_batch = [t.replace(s, "", 1) for t, s in zip(texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE], sentences_per_batch)]
 
-        save_logits_and_labels(sentences_per_batch, docs_per_batch)
+        cond_logits, cond_labels, marg_logits, marg_labels = save_logits_and_labels(sentences_per_batch, docs_per_batch)
+
+        """all_cond_logits.append(cond_logits.to("cpu"))   #  AN EXTREMELY COSTLY OPERATION !!!!!!!!!!!!!!!!!!
+        all_cond_labels.append(cond_labels.to("cpu"))   #  AN EXTREMELY COSTLY OPERATION !!!!!!!!!!!!!!!!!!
+        all_marg_logits.append(marg_logits.to("cpu"))   #  AN EXTREMELY COSTLY OPERATION !!!!!!!!!!!!!!!!!!
+        all_marg_labels.append(marg_labels.to("cpu"))   #  AN EXTREMELY COSTLY OPERATION !!!!!!!!!!!!!!!!!!"""
+
+        all_cond_logits.append(cond_logits)  # Keep on GPU
+        all_cond_labels.append(cond_labels)  # Keep on GPU
+        all_marg_logits.append(marg_logits)  # Keep on GPU
+        all_marg_labels.append(marg_labels)  # Keep on GPU
+
+        if (i // SENTENCE_BATCH_SIZE) % N == 0:  # Transfer to CPU every N batches
+            all_cond_logits = [logits.to("cpu") for logits in all_cond_logits]
+            all_cond_labels = [labels.to("cpu") for labels in all_cond_labels]
+            all_marg_logits = [logits.to("cpu") for logits in all_marg_logits]
+            all_marg_labels = [labels.to("cpu") for labels in all_marg_labels]
 
         """for score, text in zip(pmi_scores_per_batch, texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE]):
             if all_PMI_scores_dict.get(text) is None:
                 all_PMI_scores_dict[text] = [score]
             else:
                 all_PMI_scores_dict[text].append(score)"""
+
+    torch.save(all_cond_logits, logits_and_labels_save_location + "cond_logits.pt")
+    torch.save(all_cond_labels, logits_and_labels_save_location + "cond_labels.pt")
+
+    torch.save(all_marg_logits, logits_and_labels_save_location + "marg_logits.pt")
+    torch.save(all_marg_labels, logits_and_labels_save_location + "marg_labels.pt")
 
 
 """def calc_pmi_score_and_select_top_k(example):
