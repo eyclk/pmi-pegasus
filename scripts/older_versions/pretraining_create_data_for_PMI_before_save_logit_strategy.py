@@ -11,8 +11,6 @@ import torch.nn.functional as F
 
 SENTENCE_BATCH_SIZE = 32
 
-logits_and_labels_save_location = "./logits_and_labels/limited_test_1000_rows"
-
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
 SUBSET_LIMIT = 1000
 
@@ -42,9 +40,9 @@ model.eval()
 all_PMI_scores_dict = {}
 
 
-def conditional_probability(logits, target_inputs):
+def conditional_probability(target_sentences, context_sentences):
     # Tokenize the context sentence
-    """context_inputs = tokenizer(context_sentences, return_tensors='pt', padding=True, truncation=True,
+    context_inputs = tokenizer(context_sentences, return_tensors='pt', padding=True, truncation=True,
                                max_length=512).to(device)
 
     # Tokenize the target sentence
@@ -59,7 +57,7 @@ def conditional_probability(logits, target_inputs):
     #   print("\n\n", outputs.loss, "\n\n")
 
     # Extract logits
-    logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)"""
+    logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)
 
     # Shift labels left to align with logits
     labels_shifted = target_inputs["input_ids"][:, 1:].contiguous()
@@ -94,9 +92,9 @@ def conditional_probability(logits, target_inputs):
     return [math.exp(-l.item()) for l in loss_per_example]
 
 
-def marginal_probability(logits, generated_labels):
+def marginal_probability(context_sentences):
     # Step 1: Tokenize the context sentence (input)
-    """context_inputs = tokenizer(
+    context_inputs = tokenizer(
         context_sentences, return_tensors='pt', padding=True, truncation=True, max_length=512
     ).to(device)
 
@@ -127,10 +125,10 @@ def marginal_probability(logits, generated_labels):
     # print("\n\n", outputs.loss, "\n\n")
 
     # Extract logits
-    logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)"""
+    logits = outputs.logits  # Shape: (batch_size, seq_length, vocab_size)
 
     # Shift labels left to align with logits
-    labels_shifted = generated_labels[:, 1:].contiguous()     #   ["input_ids"]
+    labels_shifted = generated_labels["input_ids"][:, 1:].contiguous()
     logits_shifted = logits[:, :-1, :].contiguous()
 
     # Step 5: Compute Per-Token Loss Correctly
@@ -162,15 +160,9 @@ def marginal_probability(logits, generated_labels):
     return [math.exp(-l.item()) for l in loss_per_example]
 
 
-def calculate_pmi():    #  target_sentences_per_text, docs_without_target_sentences_per_text
-    # Read logits and labels from the pt files
-    cond_logits = torch.load(logits_and_labels_save_location + "/cond_logits.pt")
-    cond_labels = torch.load(logits_and_labels_save_location + "/cond_labels.pt")
-    marg_logits = torch.load(logits_and_labels_save_location + "/marg_logits.pt")
-    marg_labels = torch.load(logits_and_labels_save_location + "/marg_labels.pt")
-
-    p_x_given_y_list = conditional_probability(cond_logits, cond_labels)
-    p_x_list = marginal_probability(marg_logits, marg_labels)
+def calculate_pmi(target_sentences_per_text, docs_without_target_sentences_per_text):
+    p_x_given_y_list = conditional_probability(target_sentences_per_text, docs_without_target_sentences_per_text)
+    p_x_list = marginal_probability(docs_without_target_sentences_per_text)
 
     pmi_list = [math.log2(a / b) for a, b in zip(p_x_given_y_list, p_x_list)]
 
@@ -179,21 +171,19 @@ def calculate_pmi():    #  target_sentences_per_text, docs_without_target_senten
 
 def single_process_calc_pmi_for_all(training_dataset):
 
-    # all_sentences = []
+    all_sentences = []
     texts_corresponding_to_sentences = []
     for s in tqdm.tqdm(training_dataset, desc="Splitting all texts into separate sentences"):
         temp_text = s["text"]
         sentences = nltk.sent_tokenize(temp_text)
-        # all_sentences.extend(sentences)
-
+        all_sentences.extend(sentences)
         texts_corresponding_to_sentences.extend([temp_text] * len(sentences))
 
     # Batch all sentences according to SENTENCE_BATCH_SIZE and send them to calculate_pmi function
-    for i in tqdm.tqdm(range(0, len(texts_corresponding_to_sentences), SENTENCE_BATCH_SIZE), desc="Calculating PMI"):
-        # sentences_per_batch = all_sentences[i : i+SENTENCE_BATCH_SIZE]
-        # docs_per_batch = [t.replace(s, "", 1) for t, s in zip(texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE], sentences_per_batch)]
-
-        pmi_scores_per_batch = calculate_pmi()    # sentences_per_batch, docs_per_batch
+    for i in tqdm.tqdm(range(0, len(all_sentences), SENTENCE_BATCH_SIZE), desc="Calculating PMI"):
+        sentences_per_batch = all_sentences[i : i+SENTENCE_BATCH_SIZE]
+        docs_per_batch = [t.replace(s, "", 1) for t, s in zip(texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE], sentences_per_batch)]
+        pmi_scores_per_batch = calculate_pmi(sentences_per_batch, docs_per_batch)
 
         for score, text in zip(pmi_scores_per_batch, texts_corresponding_to_sentences[i : i + SENTENCE_BATCH_SIZE]):
             if all_PMI_scores_dict.get(text) is None:
