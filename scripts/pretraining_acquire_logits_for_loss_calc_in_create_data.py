@@ -213,10 +213,10 @@ def acquire_logits_from_forward_passes(training_dataset):
         all_marg_logits.append(marg_logits.to("cpu"))   #  AN EXTREMELY COSTLY OPERATION !!!!!!!!!!!!!!!!!!
         all_marg_labels.append(marg_labels.to("cpu"))   #  AN EXTREMELY COSTLY OPERATION !!!!!!!!!!!!!!!!!!"""
 
-        all_cond_logits.append(cond_logits)  # Keep on GPU
-        all_cond_labels.append(cond_labels)  # Keep on GPU
-        all_marg_logits.append(marg_logits)  # Keep on GPU
-        all_marg_labels.append(marg_labels)  # Keep on GPU
+        all_cond_logits.append(cond_logits)  # Keep on GPU for a while
+        all_cond_labels.append(cond_labels)  # Keep on GPU for a while
+        all_marg_logits.append(marg_logits)  # Keep on GPU for a while
+        all_marg_labels.append(marg_labels)  # Keep on GPU for a while
 
         if (i // SENTENCE_BATCH_SIZE) % N == 0:  # Transfer to CPU every N batches
             all_cond_logits = [logits.to("cpu") for logits in all_cond_logits]
