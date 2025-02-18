@@ -45,24 +45,30 @@ def conditional_probability(context_inputs, target_inputs):
         with torch.cuda.amp.autocast():
             outputs = model(context_inputs['input_ids'], labels=target_inputs['input_ids'], return_dict=True)
 
-    logits = outputs.logits
+        logits = outputs.logits
 
-    labels_shifted = target_inputs["input_ids"][:, 1:].contiguous()
-    logits_shifted = logits[:, :-1, :].contiguous()
+        labels_shifted = target_inputs["input_ids"][:, 1:].contiguous()
+        logits_shifted = logits[:, :-1, :].contiguous()
 
-    loss_per_token = F.cross_entropy(
-        logits_shifted.view(-1, model.config.vocab_size),
-        labels_shifted.view(-1),
-        ignore_index=-100,
-        reduction="none"
-    )
+        loss_per_token = F.cross_entropy(
+            logits_shifted.view(-1, model.config.vocab_size),
+            labels_shifted.view(-1),
+            ignore_index=-100,
+            reduction="none"
+        )
 
-    loss_per_token = loss_per_token.view(labels_shifted.shape)
+        loss_per_token = loss_per_token.view(labels_shifted.shape)
 
-    valid_token_mask = (labels_shifted != -100).float()
-    loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
+        valid_token_mask = (labels_shifted != -100).float()
+        loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
-    return [math.exp(-l.item()) for l in loss_per_example]
+        conditional_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
+
+        # del target_inputs, logits, labels_shifted, logits_shifted, loss_per_token, valid_token_mask, loss_per_example
+        # torch.cuda.empty_cache()
+        # torch.cuda.synchronize()
+
+    return conditional_probabilities_per_example
 
 
 def marginal_probability(context_inputs):
@@ -89,24 +95,30 @@ def marginal_probability(context_inputs):
         with torch.cuda.amp.autocast():
             outputs = model(input_ids=context_inputs['input_ids'], labels=generated_output)
 
-    logits = outputs.logits
+        logits = outputs.logits
 
-    labels_shifted = generated_output[:, 1:].contiguous()
-    logits_shifted = logits[:, :-1, :].contiguous()
+        labels_shifted = generated_output[:, 1:].contiguous()
+        logits_shifted = logits[:, :-1, :].contiguous()
 
-    loss_per_token = F.cross_entropy(
-        logits_shifted.view(-1, model.config.vocab_size),
-        labels_shifted.view(-1),
-        ignore_index=-100,
-        reduction="none"
-    )
+        loss_per_token = F.cross_entropy(
+            logits_shifted.view(-1, model.config.vocab_size),
+            labels_shifted.view(-1),
+            ignore_index=-100,
+            reduction="none"
+        )
 
-    loss_per_token = loss_per_token.view(labels_shifted.shape)
+        loss_per_token = loss_per_token.view(labels_shifted.shape)
 
-    valid_token_mask = (labels_shifted != -100).float()
-    loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
+        valid_token_mask = (labels_shifted != -100).float()
+        loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
-    return [math.exp(-l.item()) for l in loss_per_example]
+        marginal_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
+
+        # del context_inputs, logits, labels_shifted, logits_shifted, loss_per_token, valid_token_mask, loss_per_example
+        # torch.cuda.empty_cache()
+        # torch.cuda.synchronize()
+
+    return marginal_probabilities_per_example
 
 
 def calculate_pmi(target_sentences_per_text, docs_without_target_sentences_per_text):
