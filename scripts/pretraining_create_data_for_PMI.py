@@ -2,14 +2,20 @@ import argparse
 import nltk
 from datasets import load_dataset
 import numpy as np
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 import math
 import tqdm
 import torch.nn.functional as F
+# from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import BartTokenizer, BartForConditionalGeneration
+
+# from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# from fastT5 import export_and_get_onnx_model
+# from transformers import T5Tokenizer
 
 
-SENTENCE_BATCH_SIZE = 32
+SENTENCE_BATCH_SIZE = 64
 
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
 SUBSET_LIMIT = 1000
@@ -26,10 +32,20 @@ args = parser.parse_args()
 mask_token = "<mask>"
 
 # Load pre-trained model tokenizer (vocabulary)
-tokenizer = T5Tokenizer.from_pretrained('t5-base')
+tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
 
 # Load pre-trained model (weights)
-model = T5ForConditionalGeneration.from_pretrained('t5-base')
+model = BartForConditionalGeneration.from_pretrained('facebook/bart-base', forced_bos_token_id=0)
+
+
+# model = AutoModelForCausalLM.from_pretrained("gpt2")
+# tokenizer = AutoTokenizer.from_pretrained("gpt2")
+# tokenizer.pad_token = tokenizer.eos_token
+
+"""model_name = 't5-base'
+model = export_and_get_onnx_model(model_name)
+tokenizer = T5Tokenizer.from_pretrained(model_name)"""
+
 
 # Set the device (GPU or CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -63,10 +79,6 @@ def conditional_probability(context_inputs, target_inputs):
         loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
         conditional_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
-
-        # del target_inputs, logits, labels_shifted, logits_shifted, loss_per_token, valid_token_mask, loss_per_example
-        # torch.cuda.empty_cache()
-        # torch.cuda.synchronize()
 
     return conditional_probabilities_per_example
 
@@ -113,10 +125,6 @@ def marginal_probability(context_inputs):
         loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
         marginal_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
-
-        # del context_inputs, logits, labels_shifted, logits_shifted, loss_per_token, valid_token_mask, loss_per_example
-        # torch.cuda.empty_cache()
-        # torch.cuda.synchronize()
 
     return marginal_probabilities_per_example
 
