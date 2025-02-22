@@ -7,12 +7,10 @@ import math
 import tqdm
 import torch.nn.functional as F
 # from transformers import T5Tokenizer, T5ForConditionalGeneration
-from transformers import BartTokenizer, BartForConditionalGeneration
-
 # from transformers import AutoModelForCausalLM, AutoTokenizer
-
 # from fastT5 import export_and_get_onnx_model
 # from transformers import T5Tokenizer
+from transformers import BartTokenizer, BartForConditionalGeneration
 
 
 SENTENCE_BATCH_SIZE = 64
@@ -59,23 +57,21 @@ all_PMI_scores_dict = {}
 def conditional_probability(context_inputs, target_inputs):
     with torch.no_grad():
         with torch.cuda.amp.autocast():
-            outputs = model(context_inputs['input_ids'], labels=target_inputs['input_ids'], return_dict=True)
+            outputs = model(input_ids=context_inputs['input_ids'], labels=target_inputs['input_ids'], return_dict=True)
 
-        logits = outputs.logits
+        logits = outputs.logits  # (batch_size, seq_length, vocab_size)
 
-        labels_shifted = target_inputs["input_ids"][:, 1:].contiguous()
-        logits_shifted = logits[:, :-1, :].contiguous()
-
+        # No manual shifting needed for BART!
         loss_per_token = F.cross_entropy(
-            logits_shifted.view(-1, model.config.vocab_size),
-            labels_shifted.view(-1),
+            logits.view(-1, model.config.vocab_size),
+            target_inputs["input_ids"].view(-1),  # Directly use the labels
             ignore_index=-100,
             reduction="none"
         )
 
-        loss_per_token = loss_per_token.view(labels_shifted.shape)
+        loss_per_token = loss_per_token.view(target_inputs["input_ids"].shape)
 
-        valid_token_mask = (labels_shifted != -100).float()
+        valid_token_mask = (target_inputs["input_ids"] != -100).float()
         loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
         conditional_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
@@ -92,36 +88,25 @@ def marginal_probability(context_inputs):
         early_stopping=True
     )
 
-    """generated_texts = [tokenizer.decode(output, skip_special_tokens=True) for output in generated_output]
-
-        generated_labels = tokenizer(
-            generated_texts, return_tensors='pt', padding=True, truncation=True, max_length=512
-        ).to(device)
-
-        # Ensure padding tokens (-100) are ignored in loss computation
-        generated_labels["input_ids"][generated_labels["input_ids"] == tokenizer.pad_token_id] = -100"""
-
-    generated_output[generated_output == tokenizer.pad_token_id] = -100
+    generated_output[generated_output == tokenizer.pad_token_id] = -100  # Mask padding tokens
 
     with torch.no_grad():
         with torch.cuda.amp.autocast():
             outputs = model(input_ids=context_inputs['input_ids'], labels=generated_output)
 
-        logits = outputs.logits
+        logits = outputs.logits  # (batch_size, seq_length, vocab_size)
 
-        labels_shifted = generated_output[:, 1:].contiguous()
-        logits_shifted = logits[:, :-1, :].contiguous()
-
+        # No shifting needed for BART!
         loss_per_token = F.cross_entropy(
-            logits_shifted.view(-1, model.config.vocab_size),
-            labels_shifted.view(-1),
+            logits.view(-1, model.config.vocab_size),
+            generated_output.view(-1),  # Directly use generated labels
             ignore_index=-100,
             reduction="none"
         )
 
-        loss_per_token = loss_per_token.view(labels_shifted.shape)
+        loss_per_token = loss_per_token.view(generated_output.shape)
 
-        valid_token_mask = (labels_shifted != -100).float()
+        valid_token_mask = (generated_output != -100).float()
         loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
         marginal_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
