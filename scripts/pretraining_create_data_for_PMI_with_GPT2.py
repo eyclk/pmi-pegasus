@@ -8,11 +8,10 @@ import tqdm
 import torch.nn.functional as F
 # from transformers import T5Tokenizer, T5ForConditionalGeneration
 # from transformers import BartTokenizer, BartForConditionalGeneration
-
-from transformers import AutoModelForCausalLM, GPT2Tokenizer
-
 # from fastT5 import export_and_get_onnx_model
 # from transformers import T5Tokenizer
+
+from transformers import AutoModelForCausalLM, GPT2Tokenizer
 
 
 SENTENCE_BATCH_SIZE = 32
@@ -41,6 +40,7 @@ mask_token = "<mask>"
 model = AutoModelForCausalLM.from_pretrained("gpt2")
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "left"  # Ensure left-padding for GPT-2
 
 """model_name = 't5-base'
 model = export_and_get_onnx_model(model_name)
@@ -95,9 +95,6 @@ def conditional_probability(context_inputs, target_inputs):
 
 
 def marginal_probability(context_inputs):
-    # batch_size = context_inputs['input_ids'].shape[0]
-
-    # Generate text continuation using GPT-2
     generated_output = model.generate(
         input_ids=context_inputs['input_ids'],
         attention_mask=context_inputs['attention_mask'],
@@ -107,40 +104,46 @@ def marginal_probability(context_inputs):
         early_stopping=True
     )
 
-    # Concatenate context and generated text to form a single input sequence
-    combined_inputs = torch.cat([context_inputs['input_ids'], generated_output], dim=1)
-    combined_attention_mask = torch.cat([context_inputs['attention_mask'], torch.ones_like(generated_output)], dim=1)
+    # Ensure generated_output has the correct shape
+    generated_output = generated_output[:, context_inputs['input_ids'].shape[1]:]
 
-    # Ensure generated_output is correctly padded for loss computation
-    generated_output[generated_output == tokenizer.pad_token_id] = -100
+    # Concatenate context and generated text
+    combined_inputs = torch.cat([context_inputs['input_ids'], generated_output], dim=1)
+
+    # Fix attention mask to match combined input
+    combined_attention_mask = torch.cat(
+        [context_inputs['attention_mask'], torch.ones_like(generated_output, device=device)], dim=1
+    )
+
+    """max_length = min(1024, combined_inputs.shape[1])  # Ensure max length does not exceed 1024
+    combined_inputs = combined_inputs[:, :max_length]
+    combined_attention_mask = combined_attention_mask[:, :max_length]"""
+
+    # Ensure shape consistency
+    assert combined_inputs.shape == combined_attention_mask.shape, "Mismatch in input and attention mask size!"
 
     with torch.no_grad():
         with torch.cuda.amp.autocast():
             outputs = model(input_ids=combined_inputs, attention_mask=combined_attention_mask)
 
-    logits = outputs.logits  # Shape: (batch_size, seq_len, vocab_size)
+    logits = outputs.logits
 
-    # Extract logits for the generated portion (last generated_output.shape[1] tokens)
+    # Extract generated portion
     labels = generated_output.to(device)
-
-    # Ensure padding tokens (-100) are ignored in loss computation
     labels[labels == tokenizer.pad_token_id] = -100
 
     loss_per_token = F.cross_entropy(
         logits[:, -labels.shape[1]:, :].contiguous().view(-1, model.config.vocab_size),
-        labels.view(-1),
+        labels.reshape(-1),
         ignore_index=-100,
         reduction="none"
     )
 
     loss_per_token = loss_per_token.view(labels.shape)
-
     valid_token_mask = (labels != -100).float()
     loss_per_example = loss_per_token.sum(dim=1) / valid_token_mask.sum(dim=1)
 
-    marginal_probabilities_per_example = [math.exp(-l.item()) for l in loss_per_example]
-
-    return marginal_probabilities_per_example
+    return [math.exp(-l.item()) for l in loss_per_example]
 
 
 def calculate_pmi(target_sentences_per_text, docs_without_target_sentences_per_text):
