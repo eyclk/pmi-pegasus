@@ -6,10 +6,6 @@ import torch
 import math
 import tqdm
 import torch.nn.functional as F
-# from transformers import T5Tokenizer, T5ForConditionalGeneration
-# from transformers import AutoModelForCausalLM, AutoTokenizer
-# from fastT5 import export_and_get_onnx_model
-# from transformers import T5Tokenizer
 from transformers import BartTokenizer, BartForConditionalGeneration
 
 
@@ -34,16 +30,6 @@ tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
 
 # Load pre-trained model (weights)
 model = BartForConditionalGeneration.from_pretrained('facebook/bart-base', forced_bos_token_id=0)
-
-
-# model = AutoModelForCausalLM.from_pretrained("gpt2")
-# tokenizer = AutoTokenizer.from_pretrained("gpt2")
-# tokenizer.pad_token = tokenizer.eos_token
-
-"""model_name = 't5-base'
-model = export_and_get_onnx_model(model_name)
-tokenizer = T5Tokenizer.from_pretrained(model_name)"""
-
 
 # Set the device (GPU or CPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -122,9 +108,6 @@ def calculate_pmi(target_sentences_per_text, docs_without_target_sentences_per_t
 
     p_x_given_y_list = conditional_probability(context_inputs, target_inputs)
     p_x_list = marginal_probability(context_inputs)
-
-    """p_x_given_y_list = conditional_probability(target_sentences_per_text, docs_without_target_sentences_per_text)
-    p_x_list = marginal_probability(docs_without_target_sentences_per_text)"""
 
     pmi_list = [math.log2(a / b) for a, b in zip(p_x_given_y_list, p_x_list)]
 
