@@ -40,12 +40,13 @@
 
 **Çalıştırmak için kullandığım komutlar:**
 
-- python scripts/pretraining_create_data_for_PMI__optimized.py
+- python scripts/pretraining_create_data_for_PMI.py
 
-- python scripts/pretraining_combine_scores_No_factcc_only_PMI.py
+- python scripts/pretraining_combine_scores_for_PMI.py
 
-- ./run_pretrain_factpegasus_No_factcc_only_PMI.sh
+- ./run_pretrain_factpegasus_PMI.sh
 
+**--->To speed up pretraining_create_data_for_PMI.py, it is possible to downgrade Transformers library to "4.10.0". However, after this step is complete, the following libraries' versions should be restored to the specified versions: "transformers==4.17.0", "pip install protobuf==3.19.6", and "pip install tokenizers==0.14.1"**
 
 
 # ORIGINAL README FROM FACTPEGASUS
