@@ -48,6 +48,15 @@
 
 **--->To speed up pretraining_create_data_for_PMI.py, it is possible to downgrade Transformers library to "4.10.0". However, after this step is complete, the following libraries' versions should be restored to the specified versions: "transformers==4.17.0", "pip install protobuf==3.19.6", and "pip install tokenizers==0.14.1"**
 
+## To Finetune on CNN-Dailymail
+
+python scripts/create_dataset_for_cnn_dailymail.py 
+
+python scripts/run_spacy_for_cnn_dailymail.py 
+
+python scripts/corrector.py --data_dir finetune_data/cnn_dailymail_tokens --save_dir finetune_data/cnn_dailymail_comb --correction_type [all,remove,replace] --lowercase
+
+
 
 # ORIGINAL README FROM FACTPEGASUS
 
