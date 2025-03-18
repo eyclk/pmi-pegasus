@@ -54,7 +54,7 @@ python scripts/create_dataset_for_cnn_dailymail.py
 
 python scripts/run_spacy_for_cnn_dailymail.py 
 
-python scripts/corrector.py --data_dir finetune_data/cnn_dailymail_tokens --save_dir finetune_data/cnn_dailymail_comb --correction_type [all,remove,replace] --lowercase
+python scripts/corrector.py --data_dir ./cnn_dailymail_tokens --save_dir ./cnn_dailymail_comb --correction_type all --lowercase
 
 
 
