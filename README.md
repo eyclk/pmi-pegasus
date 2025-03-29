@@ -52,9 +52,15 @@
 
 python scripts/create_dataset_for_cnn_dailymail.py 
 
+---> Before running these commands: 'pip install datasets==2.16.1', and other packages related to spacy and cupy
+
 python scripts/run_spacy_for_cnn_dailymail.py 
 
-python scripts/corrector.py --data_dir finetune_data/cnn_dailymail_tokens --save_dir finetune_data/cnn_dailymail_comb --correction_type [all,remove,replace] --lowercase
+python scripts/corrector_no_shards.py --data_dir ./finetune_data/cnn_dailymail_tokens --save_dir ./finetune_data/cnn_dailymail_comb --correction_type all --lowercase
+
+---> After finetuning, you can return the version of all necessary packages to their previously stated versions. Specifically datasets==2.16.1 is necessary to read the datasets that are split to shards.
+
+---> Paste dataset_dict.json file in the cnn_dailymail_comb folder. This file has a single line, which is {"splits": ["train", "validation", "test"]}.
 
 
 
