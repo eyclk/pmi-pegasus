@@ -97,6 +97,7 @@ qafacteval_scores = qafe.compute_scores(
 )
 qafacteval_df = pd.DataFrame({"qafacteval_score": qafacteval_scores})"""
 
+
 # Combine all results
 df_results = pd.concat([df, rouge_df, bert_df], axis=1)  # , qafacteval_df
 
