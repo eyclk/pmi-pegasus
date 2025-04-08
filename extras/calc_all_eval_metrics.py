@@ -12,6 +12,7 @@ AutoModel.from_pretrained("roberta-large")  # , force_download=True   # Download
 
 test_dataset_path = "xsum_comb/test/dataset.arrow"  # Path to the test dataset
 generated_predictions_file_path = "temp_xsum_generated_predictions_from_rouge_model.txt"  # Path to the generated predictions file
+metrics_path = "all_result_metrics.csv"  # Path to save the evaluation metrics
 
 
 # Function to compute ROUGE scores
@@ -102,7 +103,7 @@ qafacteval_df = pd.DataFrame({"qafacteval_score": qafacteval_scores})"""
 df_results = pd.concat([df, rouge_df, bert_df], axis=1)  # , qafacteval_df
 
 # Save results to CSV
-df_results.to_csv("summarization_metrics.csv", index=False)
+df_results.to_csv(metrics_path, index=False)
 
 # Compute and print average scores
 avg_scores = df_results.iloc[:, 3:].mean()
