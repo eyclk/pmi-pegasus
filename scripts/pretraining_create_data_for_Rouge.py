@@ -6,7 +6,8 @@ import numpy as np
 
 
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
-SUBSET_LIMIT = 1000000
+SUBSET_LOWER_LIMIT = 1000000
+SUBSET_UPPER_LIMIT = 4000000
 
 
 parser = argparse.ArgumentParser()
@@ -16,6 +17,9 @@ parser.add_argument("--rouge_type", type=str, default="rouge1", choices=["rouge1
 parser.add_argument("--topk", type=int, default=5)
 
 args = parser.parse_args()
+
+OUTPUT_PATH = "c4_{}_processed_ROUGE_1_to_4_mil".format(args.c4_split)
+
 
 mask_token = "<mask>"
 
@@ -50,7 +54,7 @@ dataset = load_dataset("c4",args.c4_split, cache_dir="./cache")
 dataset.pop("validation")
 
 if USE_SMALLER_SUBSET:
-    dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
+    dataset["train"] = dataset["train"].select(list(range(SUBSET_LOWER_LIMIT, SUBSET_UPPER_LIMIT)))
 
 dataset["train"] = dataset["train"].map(
     calc_rouge_score_and_select_top_k,
@@ -60,4 +64,4 @@ dataset["train"] = dataset["train"].map(
     keep_in_memory=True
 )
 
-dataset.save_to_disk("c4_{}_processed_rouge".format(args.c4_split))
+dataset.save_to_disk(OUTPUT_PATH)

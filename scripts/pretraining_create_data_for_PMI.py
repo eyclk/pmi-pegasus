@@ -12,7 +12,8 @@ from transformers import BartTokenizer, BartForConditionalGeneration
 SENTENCE_BATCH_SIZE = 64
 
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
-SUBSET_LIMIT = 1000
+SUBSET_LOWER_LIMIT = 1000000
+SUBSET_UPPER_LIMIT = 4000000
 
 
 parser = argparse.ArgumentParser()
@@ -22,6 +23,9 @@ parser.add_argument("--c4_split", type=str, default="realnewslike", choices=["en
 parser.add_argument("--topk", type=int, default=5)
 
 args = parser.parse_args()
+
+OUTPUT_PATH = "c4_{}_processed_PMI_1_to_4_mil".format(args.c4_split)
+
 
 mask_token = "<mask>"
 
@@ -163,7 +167,7 @@ if __name__ == "__main__":
     dataset.pop("validation")
 
     if USE_SMALLER_SUBSET:
-        dataset["train"] = dataset["train"].select(list(range(SUBSET_LIMIT)))
+        dataset["train"] = dataset["train"].select(list(range(SUBSET_LOWER_LIMIT, SUBSET_UPPER_LIMIT)))
 
     single_process_calc_pmi_for_all(dataset["train"])
 
@@ -175,4 +179,4 @@ if __name__ == "__main__":
         keep_in_memory=True
     )
 
-    dataset.save_to_disk("c4_{}_processed_PMI".format(args.c4_split))
+    dataset.save_to_disk(OUTPUT_PATH)
