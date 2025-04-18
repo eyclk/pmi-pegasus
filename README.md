@@ -2,7 +2,7 @@
 
 ## Different Steps Necessary for Installation
 
-- conda create -n factP python=3.9 
+- conda create -n factP python=3.9   ------>> (I can also create another environment named "factP_preprocess" only for preprocessing. The regular "factP" environement can be used for finetuning and evaluation.)
 
 - conda install python=3.9
 
