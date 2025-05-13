@@ -5,6 +5,7 @@ from datasets import Dataset
 from transformers import AutoModel
 from tqdm import tqdm
 from transformers import logging
+import json
 
 # Set the logging level to ERROR to suppress warnings
 logging.set_verbosity_error()
@@ -133,7 +134,7 @@ def combine_results_of_xsum():
     })
 
     # Save the DataFrame to a JSON file with pretty formatting
-    results_df.to_json(combined_output_path, orient="records", lines=True, indent=4)
+    results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
     print(f"Combined results saved to {combined_output_path}")
 
 
@@ -247,12 +248,44 @@ def combine_results_of_cnn():
     })
 
     # Save the DataFrame to a JSON file with pretty formatting
-    results_df.to_json(combined_output_path, orient="records", lines=True, indent=4)
+    results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
     print(f"Combined results saved to {combined_output_path}")
+
+
+def reformat_combined_results_for_llm_models(path_to_combined_results):
+
+    # Load the combined results file from the specified path using json module
+    with open(path_to_combined_results, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Create a DataFrame from the loaded data
+    df = pd.DataFrame(data)
+
+    # Rename pmi_pegasus_generated_summary column to model_A_generated_summary
+    df.rename(columns={"pmi_pegasus_generated_summary": "model_A_generated_summary"}, inplace=True)
+
+    # Rename rouge_pegasus_generated_summary column to model_B_generated_summary
+    df.rename(columns={"rouge_pegasus_generated_summary": "model_B_generated_summary"}, inplace=True)
+
+    # Remove all score columns
+    df.drop(columns=["pmi_pegasus_rouge1_score", "rouge_pegasus_rouge1_score", "pmi_pegasus_bert_score", "rouge_pegasus_bert_score"], inplace=True)
+
+    # Add two columns named "reasoning_behind_the_comparison" and "comparison_result"
+    df["reasoning_behind_the_comparison"] = ""
+    df["comparison_result"] = ""
+
+    # Save the reformatted DataFrame to a new JSON file
+    reformatted_output_path = path_to_combined_results.replace(".json", "_reformatted.json")
+    df.to_json(reformatted_output_path, orient="records", indent=4)  #  , lines=True
+    print(f"Reformatted results saved to {reformatted_output_path}")
 
 
 if __name__ == "__main__":
 
     # combine_results_of_xsum()
 
-    combine_results_of_cnn()
+    # combine_results_of_cnn()
+
+    reformat_combined_results_for_llm_models("cnn_result_files/cnn_combined_results_for_analysis.json")
+
+    reformat_combined_results_for_llm_models("xsum_result_files/xsum_combined_results_for_analysis.json")
