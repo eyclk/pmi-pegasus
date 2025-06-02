@@ -101,11 +101,15 @@ if __name__ == "__main__":
     # count_instances_where_both_metrics_agree(dataset_name="cnn")
 
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1")
+    """paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="bert")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rouge1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert")"""
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval")
 
