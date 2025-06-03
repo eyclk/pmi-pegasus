@@ -48,8 +48,10 @@ def calc_qaeval_metric_of_xsum():
     all_pmi_predicted_summaries = []
     all_rouge_predicted_summaries = []
 
-    all_pmi_qaeval_scores = []
-    all_rouge_qaeval_scores = []
+    all_pmi_qaeval_f1_scores = []
+    all_rouge_qaeval_f1_scores = []
+    all_pmi_qaeval_scores_is_answered = []
+    all_rouge_qaeval_scores_is_answered = []
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating QAeval scores for XSUM dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
@@ -69,18 +71,26 @@ def calc_qaeval_metric_of_xsum():
             batch_target_summaries_for_metric
         )
 
-        qaeval_scores_pmi_model_only_f1 = [s["qa-eval"]["f1"] for s in
+        qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
                                            qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_pmi_qaeval_scores.extend(qaeval_scores_pmi_model_only_f1)
+        all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
+
+        qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                  qaeval_scores_pmi_model]
+        all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
 
         qaeval_scores_rouge_model = qa_metric.score_all(
             batch_rouge_generated_summaries,
             batch_target_summaries_for_metric
         )
 
-        qaeval_scores_rouge_model_only_f1 = [s["qa-eval"]["f1"] for s in
+        qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
                                              qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_rouge_qaeval_scores.extend(qaeval_scores_rouge_model_only_f1)
+        all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
+
+        qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                               qaeval_scores_rouge_model]
+        all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
 
     # Open the combined output file in write mode. Then, add each model's QAeval scores to the file. For each dictionary in the list stored in the combined results file, add the QAeval scores for both models inside the dictionary.
     with open(combined_output_path, "r", encoding="utf-8") as f:
@@ -91,8 +101,10 @@ def calc_qaeval_metric_of_xsum():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_qaeval_score"] = all_pmi_qaeval_scores[i]
-        result["rouge_pegasus_qaeval_score"] = all_rouge_qaeval_scores[i]
+        result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
+        result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
+        result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
+        result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_qaeval, "w", encoding="utf-8") as f:
@@ -139,8 +151,10 @@ def calc_qaeval_metric_of_cnn():
     all_pmi_predicted_summaries = []
     all_rouge_predicted_summaries = []
 
-    all_pmi_qaeval_scores = []
-    all_rouge_qaeval_scores = []
+    all_pmi_qaeval_f1_scores = []
+    all_rouge_qaeval_f1_scores = []
+    all_pmi_qaeval_scores_is_answered = []
+    all_rouge_qaeval_scores_is_answered = []
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating QAeval scores for CNN dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
@@ -160,18 +174,26 @@ def calc_qaeval_metric_of_cnn():
             batch_target_summaries_for_metric
         )
 
-        qaeval_scores_pmi_model_only_f1 = [s["qa-eval"]["f1"] for s in
-                                           qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_pmi_qaeval_scores.extend(qaeval_scores_pmi_model_only_f1)
+        qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
+                                      qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
+        all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
+
+        qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                               qaeval_scores_pmi_model]
+        all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
 
         qaeval_scores_rouge_model = qa_metric.score_all(
             batch_rouge_generated_summaries,
             batch_target_summaries_for_metric
         )
 
-        qaeval_scores_rouge_model_only_f1 = [s["qa-eval"]["f1"] for s in
-                                             qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_rouge_qaeval_scores.extend(qaeval_scores_rouge_model_only_f1)
+        qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
+                                        qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
+        all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
+
+        qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                 qaeval_scores_rouge_model]
+        all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
 
     # Open the combined output file in write mode. Then, add each model's QAeval scores to the file. For each dictionary in the list stored in the combined results file, add the QAeval scores for both models inside the dictionary.
     with open(combined_output_path, "r", encoding="utf-8") as f:
@@ -182,8 +204,10 @@ def calc_qaeval_metric_of_cnn():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_qaeval_score"] = all_pmi_qaeval_scores[i]
-        result["rouge_pegasus_qaeval_score"] = all_rouge_qaeval_scores[i]
+        result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
+        result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
+        result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
+        result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_qaeval, "w", encoding="utf-8") as f:
@@ -194,6 +218,7 @@ def calc_qaeval_metric_of_cnn():
 
 
 if __name__ == "__main__":
+
     calc_qaeval_metric_of_xsum()
 
     print("\n\n**********************************************************\n\n")

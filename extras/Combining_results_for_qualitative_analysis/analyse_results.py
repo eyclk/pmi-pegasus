@@ -12,6 +12,7 @@ def count_better_model_instances(dataset_name="xsum", metric_name="rouge1"):
 
     better_pmi_count = 0
     better_rouge_count = 0
+    equal_count = 0
 
     pmi_metric_name_in_df = f"pmi_pegasus_{metric_name}_score"
     rouge_metric_name_in_df = f"rouge_pegasus_{metric_name}_score"
@@ -20,11 +21,15 @@ def count_better_model_instances(dataset_name="xsum", metric_name="rouge1"):
     for index, row in df.iterrows():
         if row[pmi_metric_name_in_df] > row[rouge_metric_name_in_df]:
             better_pmi_count += 1
-        elif row[pmi_metric_name_in_df] <= row[rouge_metric_name_in_df]:
+        elif row[pmi_metric_name_in_df] < row[rouge_metric_name_in_df]:
             better_rouge_count += 1
+        else:
+            equal_count += 1
+
 
     print(f"\nNumber of instances where PMI-Pegasus Model is better in {dataset_name} dataset for {metric_name} metric: {better_pmi_count}")
-    print(f"\nNumber of instances where ROUGE-Pegasus Model is better in {dataset_name} dataset for {metric_name} metric: {better_rouge_count}\n\n")
+    print(f"\nNumber of instances where ROUGE-Pegasus Model is better in {dataset_name} dataset for {metric_name} metric: {better_rouge_count}")
+    print(f"\nNumber of instances where both models are equal in {dataset_name} dataset for {metric_name} metric: {equal_count}\n\n")
 
 
 def count_instances_where_both_metrics_agree(dataset_name="xsum"):
@@ -66,9 +71,18 @@ def paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="ro
     pmi_metric_name_in_df = f"pmi_pegasus_{metric_name}_score"
     rouge_metric_name_in_df = f"rouge_pegasus_{metric_name}_score"
 
+
+    # Remove all 0 values from df[pmi_metric_name_in_df] and df[rouge_metric_name_in_df] only when both are 0
+    # ----------------->>> NEW !!
+    pmi_metric_values_without_zeros = df[pmi_metric_name_in_df][(df[pmi_metric_name_in_df] != 0) | (df[rouge_metric_name_in_df] != 0)].values
+    rouge_metric_values_without_zeros = df[rouge_metric_name_in_df][(df[pmi_metric_name_in_df] != 0) | (df[rouge_metric_name_in_df] != 0)].values
+    #  print(pmi_metric_values_without_zeros[:10])
+    # ----------------->>> NEW !!
+
+
     # Perform paired t-test
     from scipy import stats
-    t_statistic, p_value = stats.ttest_rel(df[pmi_metric_name_in_df], df[rouge_metric_name_in_df])
+    t_statistic, p_value = stats.ttest_rel(pmi_metric_values_without_zeros, rouge_metric_values_without_zeros)
 
     print(f"\nPaired t-test statistic for {dataset_name} dataset for {metric_name} metric between both models: {t_statistic}")
     print(f"\nPaired t-test p-value for {dataset_name} dataset for {metric_name} metric between both models: {p_value}\n")
@@ -87,13 +101,17 @@ def paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="ro
 
 
 if __name__ == "__main__":
-    """count_better_model_instances(dataset_name="xsum", metric_name="rouge1")
+    count_better_model_instances(dataset_name="xsum", metric_name="rouge1")
 
     count_better_model_instances(dataset_name="xsum", metric_name="bert")
 
     count_better_model_instances(dataset_name="cnn", metric_name="rouge1")
 
-    count_better_model_instances(dataset_name="cnn", metric_name="bert")"""
+    count_better_model_instances(dataset_name="cnn", metric_name="bert")
+
+    count_better_model_instances(dataset_name="xsum", metric_name="qaeval")
+
+    count_better_model_instances(dataset_name="cnn", metric_name="qaeval")
 
 
     # count_instances_where_both_metrics_agree(dataset_name="xsum")
@@ -107,9 +125,9 @@ if __name__ == "__main__":
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rouge1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert")"""
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval")"""
 
