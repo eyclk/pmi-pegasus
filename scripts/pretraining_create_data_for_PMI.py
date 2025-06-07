@@ -13,7 +13,7 @@ SENTENCE_BATCH_SIZE = 64
 
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
 SUBSET_LOWER_LIMIT = 1000000
-SUBSET_UPPER_LIMIT = 4000000
+SUBSET_UPPER_LIMIT = 2000000
 
 
 parser = argparse.ArgumentParser()
@@ -167,6 +167,8 @@ if __name__ == "__main__":
     dataset.pop("validation")
 
     if USE_SMALLER_SUBSET:
+        ###  SUBSET_UPPER_LIMIT = len(dataset["train"])
+
         dataset["train"] = dataset["train"].select(list(range(SUBSET_LOWER_LIMIT, SUBSET_UPPER_LIMIT)))
 
     single_process_calc_pmi_for_all(dataset["train"])

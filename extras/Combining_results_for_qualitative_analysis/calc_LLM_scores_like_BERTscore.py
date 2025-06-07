@@ -61,7 +61,7 @@ def calc_llm_f1_metric_of_xsum():
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis.json"
+    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__with_qaeval.json"
     combined_output_path_with_llm_score = "xsum_result_files/xsum_combined_results_for_analysis__with_llm_score.json"
 
     # Load test dataset
@@ -138,7 +138,7 @@ def calc_llm_f1_metric_of_cnn():
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis.json"
+    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__with_qaeval.json"
     combined_output_path_with_llm_score = "cnn_result_files/cnn_combined_results_for_analysis__with_llm_score.json"
 
     # Load test dataset
@@ -213,5 +213,5 @@ if __name__ == "__main__":
     calc_llm_f1_metric_of_xsum()
 
     # Calculate LLM F1 metric for CNN dataset
-    #####  calc_llm_f1_metric_of_cnn()
+    calc_llm_f1_metric_of_cnn()
 
