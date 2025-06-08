@@ -101,17 +101,21 @@ def paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="ro
 
 
 if __name__ == "__main__":
-    count_better_model_instances(dataset_name="xsum", metric_name="rouge1")
+    """count_better_model_instances(dataset_name="xsum", metric_name="rouge1")
 
     count_better_model_instances(dataset_name="xsum", metric_name="bert")
 
     count_better_model_instances(dataset_name="cnn", metric_name="rouge1")
 
-    count_better_model_instances(dataset_name="cnn", metric_name="bert")
+    count_better_model_instances(dataset_name="cnn", metric_name="bert")"""
 
-    count_better_model_instances(dataset_name="xsum", metric_name="qaeval")
+    count_better_model_instances(dataset_name="xsum", metric_name="qaeval_f1")
 
-    count_better_model_instances(dataset_name="cnn", metric_name="qaeval")
+    count_better_model_instances(dataset_name="cnn", metric_name="qaeval_f1")
+
+    count_better_model_instances(dataset_name="xsum", metric_name="qaeval_is_answered")
+
+    count_better_model_instances(dataset_name="cnn", metric_name="qaeval_is_answered")
 
 
     # count_instances_where_both_metrics_agree(dataset_name="xsum")
@@ -125,9 +129,13 @@ if __name__ == "__main__":
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rouge1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert")"""
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_f1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval")"""
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_f1")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_is_answered")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_is_answered")
 
