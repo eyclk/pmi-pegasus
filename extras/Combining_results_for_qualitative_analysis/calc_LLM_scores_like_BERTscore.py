@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, LlamaModel   #  AutoModel
 import torch.nn.functional as F
 from datasets import Dataset
 from tqdm import tqdm
@@ -7,16 +7,51 @@ import json
 
 
 model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"
-
 token = "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"
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+
+# Initialize tokenizer with explicit padding and max_length
 tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
-model = AutoModel.from_pretrained(model_name, token=token).to(device)
+if tokenizer.pad_token is None:
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+# Set max_length according to the model
+if hasattr(tokenizer, "model_max_length") and tokenizer.model_max_length and tokenizer.model_max_length < 100_000:
+    max_length = tokenizer.model_max_length
+else:
+    # Fallback: set a reasonable default
+    if "llama" in model_name.lower():
+        max_length = 4096
+    elif "bert" in model_name.lower():
+        max_length = 512
+    elif "mistral" in model_name.lower():
+        max_length = 8192
+    else:
+        max_length = 1024
+
+model = LlamaModel.from_pretrained(model_name, token=token).to(device)
+
+
+# --- CRITICAL NEW STEP: Resize model's token embeddings if tokenizer size changed ---
+# This ensures the model's embedding layer can handle the ID of the new pad token.
+if len(tokenizer) > model.config.vocab_size:
+    print(f"Resizing model embeddings from {model.config.vocab_size} to {len(tokenizer)}")
+    model.resize_token_embeddings(len(tokenizer))
+    # Update model's config vocab size for consistency if needed, though resize_token_embeddings usually handles it.
+    model.config.vocab_size = len(tokenizer)
+
+# Ensure pad_token_id is correctly set in the model's generation config for consistency,
+# though it's not strictly necessary for embedding extraction.
+if tokenizer.pad_token_id is not None:
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.eos_token_id = tokenizer.eos_token_id # Often useful for generation, good practice to set
+    model.config.bos_token_id = tokenizer.bos_token_id
+
+
 model.eval()
 
-batch_size = 32
+batch_size = 2  ### I had to reduce it until 2. Even a single instance of the model takes up 14 GBs of VRAM.  !!!!!
 
 
 def compute_llm_score_batch(candidates, references):
@@ -29,13 +64,27 @@ def compute_llm_score_batch(candidates, references):
 
     f1_results = []
 
-    """for i in range(0, len(candidates), batch_size):
-        batch_cands = candidates[i:i+batch_size]
-        batch_refs = references[i:i+batch_size]"""
+    # Tokenize with explicit padding and truncation
+    inputs_cand = tokenizer(
+        candidates,
+        return_tensors="pt",
+        truncation=True,
+        padding="max_length",
+        max_length=max_length
+    ).to(device)
+    inputs_ref = tokenizer(
+        references,
+        return_tensors="pt",
+        truncation=True,
+        padding="max_length",
+        max_length=max_length
+    ).to(device)
 
-    # Tokenize
-    inputs_cand = tokenizer(candidates, return_tensors="pt", truncation=True, padding=True).to(device)
-    inputs_ref = tokenizer(references, return_tensors="pt", truncation=True, padding=True).to(device)
+    # Added these lines to print the tokenized lengths of candidates and references
+    """for i, seq_ids in enumerate(inputs_cand.input_ids):
+        print(f"Candidate {i} tokenized length: {seq_ids.shape[0]}")
+    for i, seq_ids in enumerate(inputs_ref.input_ids):
+        print(f"Reference {i} tokenized length: {seq_ids.shape[0]}")"""
 
     with torch.no_grad():
         cand_embs = model(**inputs_cand).last_hidden_state  # (batch, cand_len, hidden)
@@ -214,4 +263,3 @@ if __name__ == "__main__":
 
     # Calculate LLM F1 metric for CNN dataset
     calc_llm_f1_metric_of_cnn()
-
