@@ -1,12 +1,12 @@
 import torch
-from transformers import AutoTokenizer, LlamaModel   #  AutoModel
+from transformers import AutoTokenizer, LlamaModel   #  AutoModel      # LlamaModel
 import torch.nn.functional as F
 from datasets import Dataset
 from tqdm import tqdm
 import json
 
 
-model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"
+model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"    # roberta-large
 token = "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"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -49,6 +49,9 @@ if tokenizer.pad_token_id is not None:
     model.config.bos_token_id = tokenizer.bos_token_id
 
 
+# Special tokens to exclude (NEW)
+special_token_ids = set(tokenizer.all_special_ids)
+
 model.eval()
 
 batch_size = 2  ### I had to reduce it until 2. Even a single instance of the model takes up 14 GBs of VRAM.  !!!!!
@@ -62,17 +65,15 @@ def compute_llm_score_batch(candidates, references):
     """
     assert len(candidates) == len(references), "Candidates and references must be the same length"
 
-    f1_results = []
-
     # Tokenize with explicit padding and truncation
-    inputs_cand = tokenizer(
+    cand_inputs = tokenizer(
         candidates,
         return_tensors="pt",
         truncation=True,
         padding="max_length",
         max_length=max_length
     ).to(device)
-    inputs_ref = tokenizer(
+    ref_inputs = tokenizer(
         references,
         return_tensors="pt",
         truncation=True,
@@ -87,21 +88,45 @@ def compute_llm_score_batch(candidates, references):
         print(f"Reference {i} tokenized length: {seq_ids.shape[0]}")"""
 
     with torch.no_grad():
-        cand_embs = model(**inputs_cand).last_hidden_state  # (batch, cand_len, hidden)
-        ref_embs = model(**inputs_ref).last_hidden_state    # (batch, ref_len, hidden)
+        cand_outputs = model(**cand_inputs).last_hidden_state  # (batch, seq_len, hidden)
+        ref_outputs = model(**ref_inputs).last_hidden_state
 
-        for j in range(len(candidates)):
-            cand_emb = cand_embs[j]  # (cand_len, hidden)
-            ref_emb = ref_embs[j]    # (ref_len, hidden)
-            cand_emb = F.normalize(cand_emb, p=2, dim=-1)
-            ref_emb = F.normalize(ref_emb, p=2, dim=-1)
-            sim_matrix = torch.matmul(cand_emb, ref_emb.T)
-            precision = sim_matrix.max(dim=1).values.mean()
-            recall = sim_matrix.max(dim=0).values.mean()
-            f1 = 2 * precision * recall / (precision + recall + 1e-8)
-            f1_results.append(f1.item())
+    f1_scores = []
 
-    return f1_results
+    for i in range(len(candidates)):
+        # Get attention mask and filter out special tokens
+        cand_mask = cand_inputs.attention_mask[i].bool()
+        ref_mask = ref_inputs.attention_mask[i].bool()
+
+        cand_ids = cand_inputs.input_ids[i]
+        ref_ids = ref_inputs.input_ids[i]
+
+        # Create boolean masks to filter out padding and special tokens
+        cand_valid = [idx not in special_token_ids for idx in cand_ids[cand_mask]]
+        ref_valid = [idx not in special_token_ids for idx in ref_ids[ref_mask]]
+
+        cand_emb = cand_outputs[i][cand_mask][cand_valid]  # (cand_len_valid, hidden)
+        ref_emb = ref_outputs[i][ref_mask][ref_valid]      # (ref_len_valid, hidden)
+
+        # Normalize
+        cand_emb = F.normalize(cand_emb, p=2, dim=-1)
+        ref_emb = F.normalize(ref_emb, p=2, dim=-1)
+
+        # Cosine similarity matrix
+        sim_matrix = torch.matmul(cand_emb, ref_emb.T)  # (cand_len, ref_len)
+
+        # Precision: max sim for each candidate token
+        precision = sim_matrix.max(dim=1).values.mean()
+
+        # Recall: max sim for each reference token
+        recall = sim_matrix.max(dim=0).values.mean()
+
+        f1 = 2 * precision * recall / (precision + recall + 1e-8)
+        f1_scores.append(f1.item())
+
+        #   print(f"\nCandidate {i} F1 score: {f1.item()}\n")
+
+    return f1_scores
 
 
 def calc_llm_f1_metric_of_xsum():
