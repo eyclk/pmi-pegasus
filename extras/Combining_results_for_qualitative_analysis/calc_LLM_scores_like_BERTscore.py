@@ -1,12 +1,12 @@
 import torch
-from transformers import AutoTokenizer, LlamaModel   #  AutoModel      # LlamaModel
+from transformers import AutoTokenizer, AutoModel   #  AutoModel      # LlamaModel
 import torch.nn.functional as F
 from datasets import Dataset
 from tqdm import tqdm
 import json
 
 
-model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"    # roberta-large
+model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"    # roberta-large    # sentence-transformers/all-MiniLM-L6-v2
 token = "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"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -30,7 +30,7 @@ else:
     else:
         max_length = 1024
 
-model = LlamaModel.from_pretrained(model_name, token=token).to(device)
+model = AutoModel.from_pretrained(model_name, token=token).to(device)
 
 
 # --- CRITICAL NEW STEP: Resize model's token embeddings if tokenizer size changed ---
@@ -54,7 +54,7 @@ special_token_ids = set(tokenizer.all_special_ids)
 
 model.eval()
 
-batch_size = 2  ### I had to reduce it until 2. Even a single instance of the model takes up 14 GBs of VRAM.  !!!!!
+batch_size = 1  ### I had to reduce it until 2. Even a single instance of the model takes up 14 GBs of VRAM.  !!!!! -------> 1 is better
 
 
 def compute_llm_score_batch(candidates, references):
@@ -124,7 +124,7 @@ def compute_llm_score_batch(candidates, references):
         f1 = 2 * precision * recall / (precision + recall + 1e-8)
         f1_scores.append(f1.item())
 
-        #   print(f"\nCandidate {i} F1 score: {f1.item()}\n")
+        #  print(f"\nCandidate {i} F1 score: {f1.item()}\n")
 
     return f1_scores
 
@@ -288,3 +288,4 @@ if __name__ == "__main__":
 
     # Calculate LLM F1 metric for CNN dataset
     calc_llm_f1_metric_of_cnn()
+
