@@ -169,6 +169,10 @@ if __name__ == "__main__":
     if USE_SMALLER_SUBSET:
         ###  SUBSET_UPPER_LIMIT = len(dataset["train"])
 
+        # If subset upper limit is larger than the dataset size, select until the end of the dataset.
+        if SUBSET_UPPER_LIMIT > len(dataset["train"]):
+            SUBSET_UPPER_LIMIT = len(dataset["train"])
+
         dataset["train"] = dataset["train"].select(list(range(SUBSET_LOWER_LIMIT, SUBSET_UPPER_LIMIT)))
 
     single_process_calc_pmi_for_all(dataset["train"])
