@@ -9,6 +9,7 @@ import json
 model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"    # roberta-large    # sentence-transformers/all-MiniLM-L6-v2
 token = "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"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+llm_name = "llama"
 
 
 # Initialize tokenizer with explicit padding and max_length
@@ -70,14 +71,14 @@ def compute_llm_score_batch(candidates, references):
         candidates,
         return_tensors="pt",
         truncation=True,
-        padding="max_length",
+        padding=True,
         max_length=max_length
     ).to(device)
     ref_inputs = tokenizer(
         references,
         return_tensors="pt",
         truncation=True,
-        padding="max_length",
+        padding=True,
         max_length=max_length
     ).to(device)
 
@@ -87,9 +88,15 @@ def compute_llm_score_batch(candidates, references):
     for i, seq_ids in enumerate(inputs_ref.input_ids):
         print(f"Reference {i} tokenized length: {seq_ids.shape[0]}")"""
 
-    with torch.no_grad():
+    """with torch.no_grad():
         cand_outputs = model(**cand_inputs).last_hidden_state  # (batch, seq_len, hidden)
-        ref_outputs = model(**ref_inputs).last_hidden_state
+        ref_outputs = model(**ref_inputs).last_hidden_state"""
+
+
+    ### NEW: Use the second-to-last hidden state since it is generally used like this for BERTScore's many different models.
+    with torch.no_grad():
+        cand_outputs = model(**cand_inputs, output_hidden_states=True).hidden_states[-2]
+        ref_outputs = model(**ref_inputs, output_hidden_states=True).hidden_states[-2]
 
     f1_scores = []
 
@@ -135,8 +142,8 @@ def calc_llm_f1_metric_of_xsum():
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__with_qaeval.json"
-    combined_output_path_with_llm_score = "xsum_result_files/xsum_combined_results_for_analysis__with_llm_score.json"
+    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__with_deberta_score.json"
+    combined_output_path_with_llm_score = f"xsum_result_files/xsum_combined_results_for_analysis__with_{llm_name}_score.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -166,7 +173,7 @@ def calc_llm_f1_metric_of_xsum():
     all_pmi_llm_f1_scores = []
     all_rouge_llm_f1_scores = []
 
-    for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating LLM scores for XSUM dataset"):
+    for i in tqdm(range(0, len(pd_ds), batch_size), desc=f"Calculating LLM ({llm_name}) scores for XSUM dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
         batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
         batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
@@ -195,15 +202,15 @@ def calc_llm_f1_metric_of_xsum():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_llm_f1_score"] = all_pmi_llm_f1_scores[i]
-        result["rouge_pegasus_llm_f1_score"] = all_rouge_llm_f1_scores[i]
+        result[f"pmi_pegasus_{llm_name}_f1_score"] = all_pmi_llm_f1_scores[i]
+        result[f"rouge_pegasus_{llm_name}_f1_score"] = all_rouge_llm_f1_scores[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_llm_score, "w", encoding="utf-8") as f:
         json.dump(combined_results, f, indent=4)
 
     # Print a message indicating that the new combined results file that contains new custom LLM scores have been written (xsum dataset)
-    print(f"\nThe new custom LLM F1 scores written to {combined_output_path_with_llm_score}")
+    print(f"\nThe new custom LLM ({llm_name}) F1 scores written to {combined_output_path_with_llm_score}")
 
 
 def calc_llm_f1_metric_of_cnn():
@@ -212,8 +219,8 @@ def calc_llm_f1_metric_of_cnn():
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__with_qaeval.json"
-    combined_output_path_with_llm_score = "cnn_result_files/cnn_combined_results_for_analysis__with_llm_score.json"
+    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__with_deberta_score.json"
+    combined_output_path_with_llm_score = f"cnn_result_files/cnn_combined_results_for_analysis__with_{llm_name}_score.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -243,7 +250,7 @@ def calc_llm_f1_metric_of_cnn():
     all_pmi_llm_f1_scores = []
     all_rouge_llm_f1_scores = []
 
-    for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating LLM scores for CNN dataset"):
+    for i in tqdm(range(0, len(pd_ds), batch_size), desc=f"Calculating LLM ({llm_name}) scores for CNN dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
         batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
         batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
@@ -271,15 +278,15 @@ def calc_llm_f1_metric_of_cnn():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_llm_f1_score"] = all_pmi_llm_f1_scores[i]
-        result["rouge_pegasus_llm_f1_score"] = all_rouge_llm_f1_scores[i]
+        result[f"pmi_pegasus_{llm_name}_f1_score"] = all_pmi_llm_f1_scores[i]
+        result[f"rouge_pegasus_{llm_name}_f1_score"] = all_rouge_llm_f1_scores[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_llm_score, "w", encoding="utf-8") as f:
         json.dump(combined_results, f, indent=4)
 
     # Print a message indicating that the new combined results file that contains new custom LLM scores have been written (cnn dataset)
-    print(f"\nThe new custom LLM F1 scores written to {combined_output_path_with_llm_score}")
+    print(f"\nThe new custom LLM ({llm_name}) F1 scores written to {combined_output_path_with_llm_score}")
 
 
 if __name__ == "__main__":

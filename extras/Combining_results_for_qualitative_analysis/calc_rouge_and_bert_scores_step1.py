@@ -252,6 +252,7 @@ def combine_results_of_cnn():
     print(f"Combined results saved to {combined_output_path}")
 
 
+### ONLY USED FOR BASIC TEST WITH CHATGPT
 def reformat_combined_results_for_llm_models(path_to_combined_results):
 
     # Load the combined results file from the specified path using json module
@@ -282,10 +283,10 @@ def reformat_combined_results_for_llm_models(path_to_combined_results):
 
 if __name__ == "__main__":
 
-    # combine_results_of_xsum()
+    combine_results_of_xsum()
 
-    # combine_results_of_cnn()
+    combine_results_of_cnn()
 
-    reformat_combined_results_for_llm_models("cnn_result_files/cnn_combined_results_for_analysis.json")
+    # reformat_combined_results_for_llm_models("cnn_result_files/cnn_combined_results_for_analysis.json")
 
-    reformat_combined_results_for_llm_models("xsum_result_files/xsum_combined_results_for_analysis.json")
+    # reformat_combined_results_for_llm_models("xsum_result_files/xsum_combined_results_for_analysis.json")
