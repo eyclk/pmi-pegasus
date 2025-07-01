@@ -7,9 +7,21 @@ import json
 
 
 model_name = "meta-llama/Llama-2-7b-hf"   # "bert-base-uncased"  # "mistralai/Mistral-7B-v0.3"   # "meta-llama/Llama-2-7b-hf"    # roberta-large    # sentence-transformers/all-MiniLM-L6-v2
-token = "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"
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 llm_name = "llama"
+
+
+# Read HF token for Llama model from a local file named "HF_TOKEN.txt"
+token_file_path = "HF_TOKEN.txt"
+try:
+    with open(token_file_path, "r", encoding="utf-8") as token_file:
+        token = token_file.read().strip()
+except FileNotFoundError:
+    raise FileNotFoundError(f"Token file '{token_file_path}' not found. Please create it with your Hugging Face token.")
+# Ensure the token is not empty
+if not token:
+    raise ValueError("The token file is empty. Please provide a valid Hugging Face token.")
 
 
 # Initialize tokenizer with explicit padding and max_length
