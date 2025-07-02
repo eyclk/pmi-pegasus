@@ -143,7 +143,7 @@ def compute_llm_score_batch(candidates, references):
         f1 = 2 * precision * recall / (precision + recall + 1e-8)
         f1_scores.append(f1.item())
 
-        print(f"\nCandidate {i} F1 score: {f1.item()}\n")
+        #  print(f"\nCandidate {i} F1 score: {f1.item()}\n")
 
     return f1_scores
 
