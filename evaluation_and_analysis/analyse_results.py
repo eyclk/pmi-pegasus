@@ -116,13 +116,19 @@ if __name__ == "__main__":
 
     count_better_model_instances(dataset_name="xsum", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")
 
-    count_better_model_instances(dataset_name="cnn", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")"""
+    count_better_model_instances(dataset_name="cnn", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")
 
     count_better_model_instances(dataset_name="xsum", metric_name="deberta_f1",
                                  complete_file_name="__with_deberta_score")
 
     count_better_model_instances(dataset_name="cnn", metric_name="deberta_f1",
-                                 complete_file_name="__with_deberta_score")
+                                 complete_file_name="__with_deberta_score")"""
+
+    count_better_model_instances(dataset_name="xsum", metric_name="llama_f1",
+                                 complete_file_name="__with_llama_score")
+
+    count_better_model_instances(dataset_name="cnn", metric_name="llama_f1",
+                                 complete_file_name="__with_llama_score")
 
 
     # count_instances_where_both_metrics_agree(dataset_name="xsum")
@@ -144,11 +150,16 @@ if __name__ == "__main__":
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")"""
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="deberta_f1",
                                             complete_file_name="__with_deberta_score")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="deberta_f1",
-                                            complete_file_name="__with_deberta_score")
+                                            complete_file_name="__with_deberta_score")"""
 
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="llama_f1",
+                                            complete_file_name="__with_llama_score")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="llama_f1",
+                                            complete_file_name="__with_llama_score")
