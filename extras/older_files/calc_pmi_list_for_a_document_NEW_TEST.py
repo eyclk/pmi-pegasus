@@ -3,7 +3,7 @@ import torch
 import math
 from rouge_score import rouge_scorer
 import re
-# import numpy as np
+import numpy as np
 # from itertools import combinations
 # import itertools
 import torch.nn.functional as F
@@ -213,13 +213,13 @@ def split_into_sentences(text):
     return pmi_list"""
 
 
-"""def select_principal_sentence(doc):
-    pmi_list = get_pmi_list_from_doc(doc)
-    sentences = split_into_sentences(doc)
+def select_principal_sentence(score_list, sentences):
+    # pmi_list = get_pmi_list_from_doc(doc)
+    # sentences = split_into_sentences(doc)
 
     # Select sentence with maximum PMI using argmax
-    principal_sentence = sentences[np.argmax(pmi_list)]
-    return principal_sentence"""
+    principal_sentence = sentences[np.argmax(score_list)]
+    return principal_sentence
 
 
 def calc_pmi_list_for_paragraph(text):
@@ -232,8 +232,8 @@ def calc_pmi_list_for_paragraph(text):
     pmi_list = calculate_pmi(sentences, docs)
 
     # print elements of docs
-    for d in range(len(docs)):
-        print(f"Docs {d+1} ---> {docs[d]}\n")
+    """for d in range(len(docs)):
+        print(f"Docs {d+1} ---> {docs[d]}\n")"""
 
     return pmi_list
 
@@ -254,13 +254,29 @@ def calc_rouge_list_for_paragraph(text):
     return rouge_scores
 
 
-doc1 = "US Treasury Secretary Robert Rubin arrived in Malaysia Sunday for a two-day visit to discuss the " \
+doc1 = ("Elliott opens with a valuable introduction explaining terminology, sources, which are extensive but often "
+        "opaque, and his methodology. There follow chapters reviewing imperial institutions and political "
+        "organization, the nature of the Roman armed forces in Septimius’s time, and the history of Roman Britain. "
+        "Elliott then gives us a look at Septimius’s early life and his rise to the purple. He follows with a chapter "
+        "on conditions in Britain that called Septimius there for the last three years of his life. A dangerous "
+        "attempt at usurpation had emerged from Britain, which, although suppressed, had drawn troops from the "
+        "island, which had encouraged raids by various “barbarians” from Caledonia, what is now known as Scotland. "
+        "Although Elliott unfortunately gives us a just single chapter on the series of campaigns conducted by the emperor and his son and successor Caracalla in Caledonia north of Hadrian’s Wall, with what may have been the largest Roman army ever assembled, it is a good one. He correctly stresses that there was no intention of subjecting the region, but a deliberate policy "
+        "of essentially genocidal destruction of the Caledonian tribes. Operations were remarkably extensive, "
+        "apparently reaching well beyond the old Antonine Wall, apparently reaching as far as Moray Firth, "
+        "where some evidence for marching camps has been found. Elliot concludes with a look at the longer term "
+        "consequences of these operations, which led to nearly a century of peace on the Caledonian frontier. "
+        "Although Elliott’s treatment is at times repetitive, and one could wish for more detail on the actual "
+        "campaigns, perhaps a brief survey of archaeological remains from the war, Septimius Severus in Scotland is a "
+        "valuable read for anyone with an interest Roman history.")
+
+"""doc1 = "US Treasury Secretary Robert Rubin arrived in Malaysia Sunday for a two-day visit to discuss the " \
             "regional economic situation, the US Embassy said. Rubin, on a tour of Asia's economic trouble spots, " \
             "arrived from Beijing, where he had accompanied US President Bill Clinton on a visit. Rubin was " \
             "scheduled to meet and have dinner with Finance Minister Anwar Ibrahim on Sunday. On Monday, Rubin will " \
             "meet privately with Prime Minister Mahathir Mohamad and separately with senior Malaysian and American " \
             "business leaders, the embassy said in a statement. Rubin will leave Monday for Thailand and South Korea."
-
+"""
 
 """doc1 = ("Artificial intelligence (AI) is transforming various industries, from healthcare to finance. Machine learning "
         "algorithms analyze vast amounts of data, uncovering patterns that humans might overlook. In healthcare, AI "
@@ -294,9 +310,9 @@ print()
 for i in range(len(sentences_doc1)):
     print(f"PMI score of sentence {i+1} = {pmi_list_doc1[i]}\n\t{sentences_doc1[i]}\n")
 
-# Select the principal sentence
-"""principal_sentence_doc1 = select_principal_sentence(doc1)
-print(f"\nPrincipal sentence --->  {principal_sentence_doc1}\n")"""
+# Select the principal sentence for PMI
+principal_sentence_doc1 = select_principal_sentence(pmi_list_doc1, sentences_doc1)
+print(f"\nPrincipal sentence according to PMI --->  {principal_sentence_doc1}\n")
 
 print("\n")
 
@@ -304,3 +320,7 @@ rouge_list_doc1 = calc_rouge_list_for_paragraph(doc1)
 # Print the sentences and their ROUGE scores
 for i in range(len(sentences_doc1)):
     print(f"ROUGE score of sentence {i+1} = {rouge_list_doc1[i]}\n\t{sentences_doc1[i]}\n")
+
+# Select the principal sentence for ROUGE
+principal_sentence_doc1 = select_principal_sentence(rouge_list_doc1, sentences_doc1)
+print(f"\nPrincipal sentence according to ROUGE --->  {principal_sentence_doc1}\n")
