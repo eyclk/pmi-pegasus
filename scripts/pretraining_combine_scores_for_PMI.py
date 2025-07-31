@@ -6,7 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--processed_data", type=str, default="./PREPROCESSED_DATASETS/c4_realnewslike_processed_PMI_1_to_2_mil")
+parser.add_argument("--processed_data", type=str, default="./PREPROCESSED_DATASETS/c4_realnewslike_processed_PMI_13_to_14_mil")
 parser.add_argument("--topk", type=int, default=5)
 #  parser.add_argument("--factcc_pred", type=str, default="scripts/factcc_dummy.json")
 
@@ -33,7 +33,7 @@ dataset["train"] = dataset["train"].map(
     combine_scores,
     remove_columns=["pmi","documents","summaries"],  # remove_columns=["rouge","factcc","documents","summaries"],
     keep_in_memory=True,
-    num_proc=16,       ##### Can be reduced to 4 if necessary
+    num_proc=16,
 )
 
 dataset.save_to_disk("{}_combined".format(args.processed_data))

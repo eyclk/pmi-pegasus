@@ -1,6 +1,6 @@
 import datasets
 
-
+#### IMPORTANT NOTE: If these relative paths do not work, you need to change them to absolute paths.
 dataset_parts_folder = "../../PREPROCESSED_DATASETS/"
 
 new_complete_dataset_folder = "../../PREPROCESSED_DATASETS/COMPLETE_c4_realnewslike_processed_PMI/"

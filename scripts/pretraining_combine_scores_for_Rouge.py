@@ -6,7 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--processed_data", type=str, default="c4_realnewslike_processed_rouge")
+parser.add_argument("--processed_data", type=str, default="./PREPROCESSED_DATASETS/c4_realnewslike_processed_ROUGE__before_combine")
 parser.add_argument("--topk", type=int, default=5)
 # parser.add_argument("--factcc_pred", type=str, default="scripts/factcc_dummy.json")
 

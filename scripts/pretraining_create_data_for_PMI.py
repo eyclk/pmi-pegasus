@@ -9,11 +9,11 @@ import torch.nn.functional as F
 from transformers import BartTokenizer, BartForConditionalGeneration
 
 
-SENTENCE_BATCH_SIZE = 64       ##### Can be reduced to 16 if necessary
+SENTENCE_BATCH_SIZE = 64
 
 USE_SMALLER_SUBSET = True    # MODIFY HERE TO USE A SMALLER SUBSET OF THE DATASET
-SUBSET_LOWER_LIMIT = 1000000
-SUBSET_UPPER_LIMIT = 2000000
+SUBSET_LOWER_LIMIT = 13000000
+SUBSET_UPPER_LIMIT = 14000000
 
 
 parser = argparse.ArgumentParser()
@@ -24,7 +24,8 @@ parser.add_argument("--topk", type=int, default=5)
 
 args = parser.parse_args()
 
-OUTPUT_PATH = "./PREPROCESSED_DATASETS/c4_{}_processed_PMI_1_to_2_mil".format(args.c4_split)
+
+OUTPUT_PATH = "./PREPROCESSED_DATASETS/c4_{}_processed_PMI_13_to_14_mil".format(args.c4_split)
 
 
 mask_token = "<mask>"
@@ -181,7 +182,7 @@ if __name__ == "__main__":
         calc_pmi_score_and_select_top_k,
         remove_columns=["url", "text", "timestamp"],
         batched=False,
-        num_proc=16,       ##### Can be reduced to 4 if necessary
+        num_proc=16,
         keep_in_memory=True
     )
 
