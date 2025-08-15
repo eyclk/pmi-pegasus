@@ -18,8 +18,8 @@ def calc_deberta_f1_metric_of_xsum():
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__with_qaeval.json"
-    combined_output_path_with_deberta_score = "xsum_result_files/xsum_combined_results_for_analysis__with_deberta_score.json"
+    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step2.json"
+    combined_output_path_with_deberta_score = "xsum_result_files/xsum_combined_results_for_analysis__step3.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -49,7 +49,7 @@ def calc_deberta_f1_metric_of_xsum():
     all_pmi_llm_f1_scores = []
     all_rouge_llm_f1_scores = []"""
 
-    print("Starting to calculate BERTScore F1 metric with DeBERTa...")
+    print("\nStarting to calculate BERTScore F1 metric with DeBERTa...")
 
     _, _, f1_pmi = bert_score.score(
         cands=pmi_generated_summaries,
@@ -111,6 +111,13 @@ def calc_deberta_f1_metric_of_xsum():
     # Print a message indicating that the new combined results file that contains deberta F1 scores have been written (xsum dataset)
     print(f"\nThe BERTscore (with Deberta) F1 scores written to {combined_output_path_with_deberta_score}")
 
+    # Print average F1 scores for both models
+    avg_pmi_f1 = sum(all_pmi_deberta_f1_scores) / len(all_pmi_deberta_f1_scores)
+    avg_rouge_f1 = sum(all_rouge_deberta_f1_scores) / len(all_rouge_deberta_f1_scores)
+
+    print(f"\nAverage PMI DeBERTa F1 score for XSUM: {avg_pmi_f1}")
+    print(f"Average ROUGE DeBERTa F1 score for XSUM: {avg_rouge_f1}")
+
 
 def calc_deberta_f1_metric_of_cnn():
 
@@ -118,8 +125,8 @@ def calc_deberta_f1_metric_of_cnn():
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__with_qaeval.json"
-    combined_output_path_with_deberta_score = "cnn_result_files/cnn_combined_results_for_analysis__with_deberta_score.json"
+    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__step2.json"
+    combined_output_path_with_deberta_score = "cnn_result_files/cnn_combined_results_for_analysis__step3.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -142,7 +149,7 @@ def calc_deberta_f1_metric_of_cnn():
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
 
-    print("Starting to calculate BERTScore F1 metric with DeBERTa...")
+    print("\nStarting to calculate BERTScore F1 metric with DeBERTa...")
 
     _, _, f1_pmi = bert_score.score(
         cands=pmi_generated_summaries,
@@ -211,11 +218,19 @@ def calc_deberta_f1_metric_of_cnn():
     # Print a message indicating that the new combined results file that contains deberta F1 scores have been written (cnn dataset)
     print(f"\nThe BERTscore (with Deberta) F1 scores written to {combined_output_path_with_deberta_score}")
 
+    # Print average F1 scores for both models
+    avg_pmi_f1 = sum(all_pmi_deberta_f1_scores) / len(all_pmi_deberta_f1_scores)
+    avg_rouge_f1 = sum(all_rouge_deberta_f1_scores) / len(all_rouge_deberta_f1_scores)
+
+    print(f"\nAverage PMI DeBERTa F1 score for CNN: {avg_pmi_f1}")
+    print(f"Average ROUGE DeBERTa F1 score for CNN: {avg_rouge_f1}")
 
 
 if __name__ == "__main__":
     # Calculate deberta F1 metric for XSUM dataset
-    #  calc_deberta_f1_metric_of_xsum()
+    calc_deberta_f1_metric_of_xsum()
+
+    print("\n\n**********************************************************\n\n")
 
     # Calculate deberta F1 metric for CNN dataset
     calc_deberta_f1_metric_of_cnn()

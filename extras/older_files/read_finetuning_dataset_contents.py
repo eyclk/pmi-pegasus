@@ -2,9 +2,14 @@ from datasets import Dataset
 # import pandas as pd
 
 
-ds = Dataset.from_file("xsum_comb/train/dataset.arrow")  # cnn_comb/test/data-00000-of-00001.arrow
+ds = Dataset.from_file("../xsum_comb/test/dataset.arrow")  # cnn_comb/test/data-00000-of-00001.arrow
 
 pd_ds = ds.to_pandas()
+
+"""
+print(pd_ds["document"][3], "\n\n")  ### View a single example from the TEST dataset
+print(pd_ds["summary"][3], "\n\n")
+"""
 
 print(pd_ds.head(), "\n", pd_ds.columns, "\n", pd_ds.shape, "\n\n")
 

@@ -154,8 +154,8 @@ def calc_llm_f1_metric_of_xsum():
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__with_deberta_score.json"
-    combined_output_path_with_llm_score = f"xsum_result_files/xsum_combined_results_for_analysis__with_{llm_name}_score.json"
+    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step3.json"
+    combined_output_path_with_llm_score = f"xsum_result_files/xsum_combined_results_for_analysis__step4.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -224,6 +224,13 @@ def calc_llm_f1_metric_of_xsum():
     # Print a message indicating that the new combined results file that contains new custom LLM scores have been written (xsum dataset)
     print(f"\nThe new custom LLM ({llm_name}) F1 scores written to {combined_output_path_with_llm_score}")
 
+    # Print average LLM F1 scores for both models
+    avg_pmi_llm_f1_score = sum(all_pmi_llm_f1_scores) / len(all_pmi_llm_f1_scores)
+    avg_rouge_llm_f1_score = sum(all_rouge_llm_f1_scores) / len(all_rouge_llm_f1_scores)
+
+    print(f"\nAverage PMI Pegasus {llm_name} F1 score for XSUM: {avg_pmi_llm_f1_score}")
+    print(f"Average ROUGE Pegasus {llm_name} F1 score for XSUM: {avg_rouge_llm_f1_score}")
+
 
 def calc_llm_f1_metric_of_cnn():
 
@@ -231,8 +238,8 @@ def calc_llm_f1_metric_of_cnn():
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__with_deberta_score.json"
-    combined_output_path_with_llm_score = f"cnn_result_files/cnn_combined_results_for_analysis__with_{llm_name}_score.json"
+    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__step3.json"
+    combined_output_path_with_llm_score = f"cnn_result_files/cnn_combined_results_for_analysis__step4.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -300,10 +307,19 @@ def calc_llm_f1_metric_of_cnn():
     # Print a message indicating that the new combined results file that contains new custom LLM scores have been written (cnn dataset)
     print(f"\nThe new custom LLM ({llm_name}) F1 scores written to {combined_output_path_with_llm_score}")
 
+    # Print average LLM F1 scores for both models
+    avg_pmi_llm_f1_score = sum(all_pmi_llm_f1_scores) / len(all_pmi_llm_f1_scores)
+    avg_rouge_llm_f1_score = sum(all_rouge_llm_f1_scores) / len(all_rouge_llm_f1_scores)
+
+    print(f"\nAverage PMI Pegasus {llm_name} F1 score for CNN: {avg_pmi_llm_f1_score}")
+    print(f"Average ROUGE Pegasus {llm_name} F1 score for CNN: {avg_rouge_llm_f1_score}")
+
 
 if __name__ == "__main__":
     # Calculate LLM F1 metric for XSUM dataset
     calc_llm_f1_metric_of_xsum()
+
+    print("\n\n**********************************************************\n\n")
 
     # Calculate LLM F1 metric for CNN dataset
     calc_llm_f1_metric_of_cnn()

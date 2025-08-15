@@ -33,7 +33,7 @@ def combine_results_of_xsum():
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis.json"
+    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step1.json"
 
 
     # Load test dataset
@@ -62,9 +62,13 @@ def combine_results_of_xsum():
     all_pmi_predicted_summaries = []
     all_rouge_predicted_summaries = []
     all_pmi_rouge1_scores = []
+    all_pmi_rouge2_scores = []
+    all_pmi_rougeL_scores = []
     all_pmi_bert_scores = []
     all_rouge_rouge1_scores = []
     all_rouge_bert_scores = []
+    all_rouge_rouge2_scores = []
+    all_rouge_rougeL_scores = []
 
     # Iterate through the test dataset and calculate the scores
     """for i in tqdm(range(len(pd_ds)), desc="Calculating scores"):
@@ -105,6 +109,8 @@ def combine_results_of_xsum():
         for target, pmi_summary in zip(batch_target_summaries, batch_pmi_generated_summaries):
             rouge_scores = compute_rouge(target, pmi_summary)
             all_pmi_rouge1_scores.append(rouge_scores["rouge1_f1"])
+            all_pmi_rouge2_scores.append(rouge_scores["rouge2_f1"])
+            all_pmi_rougeL_scores.append(rouge_scores["rougeL_f1"])
 
         # Calculate BERT F1 scores for the PMI generated summaries
         pmi_bert_scores = bert_score(batch_pmi_generated_summaries, batch_target_summaries, lang="en",
@@ -115,6 +121,8 @@ def combine_results_of_xsum():
         for target, rouge_summary in zip(batch_target_summaries, batch_rouge_generated_summaries):
             rouge_scores = compute_rouge(target, rouge_summary)
             all_rouge_rouge1_scores.append(rouge_scores["rouge1_f1"])
+            all_rouge_rouge2_scores.append(rouge_scores["rouge2_f1"])
+            all_rouge_rougeL_scores.append(rouge_scores["rougeL_f1"])
 
         # Calculate BERT F1 scores for the ROUGE generated summaries
         rouge_bert_scores = bert_score(batch_rouge_generated_summaries, batch_target_summaries, lang="en",
@@ -129,6 +137,10 @@ def combine_results_of_xsum():
         "rouge_pegasus_generated_summary": all_rouge_predicted_summaries,
         "pmi_pegasus_rouge1_score": all_pmi_rouge1_scores,
         "rouge_pegasus_rouge1_score": all_rouge_rouge1_scores,
+        "pmi_pegasus_rouge2_score": all_pmi_rouge2_scores,
+        "rouge_pegasus_rouge2_score": all_rouge_rouge2_scores,
+        "pmi_pegasus_rougeL_score": all_pmi_rougeL_scores,
+        "rouge_pegasus_rougeL_score": all_rouge_rougeL_scores,
         "pmi_pegasus_bert_score": all_pmi_bert_scores,
         "rouge_pegasus_bert_score": all_rouge_bert_scores
     })
@@ -136,6 +148,27 @@ def combine_results_of_xsum():
     # Save the DataFrame to a JSON file with pretty formatting
     results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
     print(f"Combined results saved to {combined_output_path}")
+
+    # Print average scores for both models
+    avg_pmi_rouge1 = sum(all_pmi_rouge1_scores) / len(all_pmi_rouge1_scores)
+    avg_pmi_rouge2 = sum(all_pmi_rouge2_scores) / len(all_pmi_rouge2_scores)
+    avg_pmi_rougeL = sum(all_pmi_rougeL_scores) / len(all_pmi_rougeL_scores)
+    avg_pmi_bert = sum(all_pmi_bert_scores) / len(all_pmi_bert_scores)
+
+    avg_rouge_rouge1 = sum(all_rouge_rouge1_scores) / len(all_rouge_rouge1_scores)
+    avg_rouge_rouge2 = sum(all_rouge_rouge2_scores) / len(all_rouge_rouge2_scores)
+    avg_rouge_rougeL = sum(all_rouge_rougeL_scores) / len(all_rouge_rougeL_scores)
+    avg_rouge_bert = sum(all_rouge_bert_scores) / len(all_rouge_bert_scores)
+
+    print(f"\n\nAverage PMI-Pegasus ROUGE1 score for XSUM: {avg_pmi_rouge1:.8f}")
+    print(f"Average PMI-Pegasus ROUGE2 score for XSUM: {avg_pmi_rouge2:.8f}")
+    print(f"Average PMI-Pegasus ROUGE-L score for XSUM: {avg_pmi_rougeL:.8f}")
+    print(f"Average PMI-Pegasus BERT score for XSUM: {avg_pmi_bert:.8f}")
+
+    print(f"\nAverage ROUGE-Pegasus ROUGE1 score for XSUM: {avg_rouge_rouge1:.8f}")
+    print(f"Average ROUGE-Pegasus ROUGE2 score for XSUM: {avg_rouge_rouge2:.8f}")
+    print(f"Average ROUGE-Pegasus ROUGE-L score for XSUM: {avg_rouge_rougeL:.8f}")
+    print(f"Average ROUGE-Pegasus BERT score for XSUM: {avg_rouge_bert:.8f}")
 
 
 def combine_results_of_cnn():
@@ -146,7 +179,7 @@ def combine_results_of_cnn():
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis.json"
+    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__step1.json"
 
 
     # Load test dataset
@@ -178,6 +211,10 @@ def combine_results_of_cnn():
     all_pmi_bert_scores = []
     all_rouge_rouge1_scores = []
     all_rouge_bert_scores = []
+    all_pmi_rouge2_scores = []
+    all_pmi_rougeL_scores = []
+    all_rouge_rouge2_scores = []
+    all_rouge_rougeL_scores = []
 
     # Iterate through the test dataset and calculate the scores
     """for i in tqdm(range(len(pd_ds)), desc="Calculating scores"):
@@ -219,6 +256,8 @@ def combine_results_of_cnn():
         for target, pmi_summary in zip(batch_target_summaries, batch_pmi_generated_summaries):
             rouge_scores = compute_rouge(target, pmi_summary)
             all_pmi_rouge1_scores.append(rouge_scores["rouge1_f1"])
+            all_pmi_rouge2_scores.append(rouge_scores["rouge2_f1"])
+            all_pmi_rougeL_scores.append(rouge_scores["rougeL_f1"])
 
         # Calculate BERT F1 scores for the PMI generated summaries
         pmi_bert_scores = bert_score(batch_pmi_generated_summaries, batch_target_summaries, lang="en",
@@ -229,6 +268,8 @@ def combine_results_of_cnn():
         for target, rouge_summary in zip(batch_target_summaries, batch_rouge_generated_summaries):
             rouge_scores = compute_rouge(target, rouge_summary)
             all_rouge_rouge1_scores.append(rouge_scores["rouge1_f1"])
+            all_rouge_rouge2_scores.append(rouge_scores["rouge2_f1"])
+            all_rouge_rougeL_scores.append(rouge_scores["rougeL_f1"])
 
         # Calculate BERT F1 scores for the ROUGE generated summaries
         rouge_bert_scores = bert_score(batch_rouge_generated_summaries, batch_target_summaries, lang="en",
@@ -243,6 +284,10 @@ def combine_results_of_cnn():
         "rouge_pegasus_generated_summary": all_rouge_predicted_summaries,
         "pmi_pegasus_rouge1_score": all_pmi_rouge1_scores,
         "rouge_pegasus_rouge1_score": all_rouge_rouge1_scores,
+        "pmi_pegasus_rouge2_score": all_pmi_rouge2_scores,
+        "rouge_pegasus_rouge2_score": all_rouge_rouge2_scores,
+        "pmi_pegasus_rougeL_score": all_pmi_rougeL_scores,
+        "rouge_pegasus_rougeL_score": all_rouge_rougeL_scores,
         "pmi_pegasus_bert_score": all_pmi_bert_scores,
         "rouge_pegasus_bert_score": all_rouge_bert_scores
     })
@@ -250,6 +295,27 @@ def combine_results_of_cnn():
     # Save the DataFrame to a JSON file with pretty formatting
     results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
     print(f"Combined results saved to {combined_output_path}")
+
+    # Print average scores for both models
+    avg_pmi_rouge1 = sum(all_pmi_rouge1_scores) / len(all_pmi_rouge1_scores)
+    avg_pmi_rouge2 = sum(all_pmi_rouge2_scores) / len(all_pmi_rouge2_scores)
+    avg_pmi_rougeL = sum(all_pmi_rougeL_scores) / len(all_pmi_rougeL_scores)
+    avg_pmi_bert = sum(all_pmi_bert_scores) / len(all_pmi_bert_scores)
+
+    avg_rouge_rouge1 = sum(all_rouge_rouge1_scores) / len(all_rouge_rouge1_scores)
+    avg_rouge_rouge2 = sum(all_rouge_rouge2_scores) / len(all_rouge_rouge2_scores)
+    avg_rouge_rougeL = sum(all_rouge_rougeL_scores) / len(all_rouge_rougeL_scores)
+    avg_rouge_bert = sum(all_rouge_bert_scores) / len(all_rouge_bert_scores)
+
+    print(f"\n\nAverage PMI-Pegasus ROUGE1 score for CNN: {avg_pmi_rouge1:.8f}")
+    print(f"Average PMI-Pegasus ROUGE2 score for CNN: {avg_pmi_rouge2:.8f}")
+    print(f"Average PMI-Pegasus ROUGE-L score for CNN: {avg_pmi_rougeL:.8f}")
+    print(f"Average PMI-Pegasus BERT score for CNN: {avg_pmi_bert:.8f}")
+
+    print(f"\nAverage ROUGE-Pegasus ROUGE1 score for CNN: {avg_rouge_rouge1:.8f}")
+    print(f"Average ROUGE-Pegasus ROUGE2 score for CNN: {avg_rouge_rouge2:.8f}")
+    print(f"Average ROUGE-Pegasus ROUGE-L score for CNN: {avg_rouge_rougeL:.8f}")
+    print(f"Average ROUGE-Pegasus BERT score for CNN: {avg_rouge_bert:.8f}")
 
 
 ### ONLY USED FOR BASIC TEST WITH CHATGPT
@@ -285,8 +351,6 @@ if __name__ == "__main__":
 
     combine_results_of_xsum()
 
+    print("\n\n**********************************************************\n\n")
+
     combine_results_of_cnn()
-
-    # reformat_combined_results_for_llm_models("cnn_result_files/cnn_combined_results_for_analysis.json")
-
-    # reformat_combined_results_for_llm_models("xsum_result_files/xsum_combined_results_for_analysis.json")

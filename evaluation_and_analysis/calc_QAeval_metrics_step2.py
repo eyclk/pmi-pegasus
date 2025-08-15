@@ -20,8 +20,8 @@ def calc_qaeval_metric_of_xsum():
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis.json"
-    combined_output_path_with_qaeval = "xsum_result_files/xsum_combined_results_for_analysis__with_qaeval.json"
+    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step1.json"
+    combined_output_path_with_qaeval = "xsum_result_files/xsum_combined_results_for_analysis__step2.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -113,6 +113,19 @@ def calc_qaeval_metric_of_xsum():
     # Print a message indicating that the new combined results file that contains QAeval scores have been written (xsum dataset)
     print(f"\nQAeval scores written to {combined_output_path_with_qaeval}")
 
+    # Print average QAeval scores for both models
+    avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
+    avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
+
+    avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
+    avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
+
+    print(f"\nAverage PMI Pegasus QAEval F1 Score for XSUM: {avg_pmi_qaeval_f1}")
+    print(f"Average ROUGE Pegasus QAEval F1 Score for XSUM: {avg_rouge_qaeval_f1}")
+
+    print(f"\nAverage PMI Pegasus QAEval Is Answered Score for XSUM: {avg_pmi_qaeval_is_answered}")
+    print(f"Average ROUGE Pegasus QAEval Is Answered Score for XSUM: {avg_rouge_qaeval_is_answered}")
+
 
 def calc_qaeval_metric_of_cnn():
     batch_size = 32
@@ -121,8 +134,8 @@ def calc_qaeval_metric_of_cnn():
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis.json"
-    combined_output_path_with_qaeval = "cnn_result_files/cnn_combined_results_for_analysis__with_qaeval.json"
+    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__step1.json"
+    combined_output_path_with_qaeval = "cnn_result_files/cnn_combined_results_for_analysis__step2.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -213,8 +226,21 @@ def calc_qaeval_metric_of_cnn():
     with open(combined_output_path_with_qaeval, "w", encoding="utf-8") as f:
         json.dump(combined_results, f, indent=4)
 
-        # Print a message indicating that the new combined results file that contains QAeval scores have been written (CNN dataset)
-        print(f"\nQAeval scores written to {combined_output_path_with_qaeval}")
+    # Print a message indicating that the new combined results file that contains QAeval scores have been written (CNN dataset)
+    print(f"\nQAeval scores written to {combined_output_path_with_qaeval}")
+
+    # Print average QAeval scores for both models
+    avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
+    avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
+
+    avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
+    avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
+
+    print(f"\nAverage PMI Pegasus QAEval F1 Score for CNN: {avg_pmi_qaeval_f1}")
+    print(f"Average ROUGE Pegasus QAEval F1 Score for CNN: {avg_rouge_qaeval_f1}")
+
+    print(f"\nAverage PMI Pegasus QAEval Is Answered Score for CNN: {avg_pmi_qaeval_is_answered}")
+    print(f"Average ROUGE Pegasus QAEval Is Answered Score for CNN: {avg_rouge_qaeval_is_answered}")
 
 
 if __name__ == "__main__":
