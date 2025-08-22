@@ -11,12 +11,16 @@ model_name = "microsoft/deberta-xlarge-mnli"  # Use a BERTScore-compatible model
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 batch_size = 32  # Adjust as needed for your GPU
 
+eval_for_FactPEGASUS = True
+
 
 def calc_deberta_f1_metric_of_xsum():
 
     test_dataset_path = "xsum_result_files/test_set_xsum/dataset.arrow"
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
+    if eval_for_FactPEGASUS:
+        factPegasus_generated_predictions_file_path = "xsum_result_files/factpegasus_public_xsum_generated_summaries/generated_predictions.txt"
 
     combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step2.json"
     combined_output_path_with_deberta_score = "xsum_result_files/xsum_combined_results_for_analysis__step3.json"
@@ -35,12 +39,19 @@ def calc_deberta_f1_metric_of_xsum():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_FactPEGASUS:
+        with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            factPegasus_generated_summaries = f.readlines()
+        factPegasus_generated_summaries = [line.strip() for line in factPegasus_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
     if len(pmi_generated_summaries) != len(pd_ds):
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_FactPEGASUS:
+        if len(factPegasus_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
 
     #  all_target_summaries = []
     """all_pmi_predicted_summaries = []
@@ -58,7 +69,7 @@ def calc_deberta_f1_metric_of_xsum():
         device=device,
         batch_size=batch_size,
         lang="en",
-        rescale_with_baseline=False
+        rescale_with_baseline=True  ## NEW
     )
     all_pmi_deberta_f1_scores = f1_pmi.tolist()
 
@@ -69,9 +80,21 @@ def calc_deberta_f1_metric_of_xsum():
         device=device,
         batch_size=batch_size,
         lang="en",
-        rescale_with_baseline=False
+        rescale_with_baseline=True  ## NEW
     )
     all_rouge_deberta_f1_scores = f1_rouge.tolist()
+
+    if eval_for_FactPEGASUS:
+        _, _, f1_factPegasus = bert_score.score(
+            cands=factPegasus_generated_summaries,
+            refs=target_summaries,
+            model_type=model_name,
+            device=device,
+            batch_size=batch_size,
+            lang="en",
+            rescale_with_baseline=True  ## NEW
+        )
+        all_factPegasus_deberta_f1_scores = f1_factPegasus.tolist()
 
     all_target_summaries = target_summaries
 
@@ -103,6 +126,8 @@ def calc_deberta_f1_metric_of_xsum():
 
         result["pmi_pegasus_deberta_f1_score"] = all_pmi_deberta_f1_scores[i]
         result["rouge_pegasus_deberta_f1_score"] = all_rouge_deberta_f1_scores[i]
+        if eval_for_FactPEGASUS:
+            result["factpegasus_public_deberta_f1_score"] = all_factPegasus_deberta_f1_scores[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_deberta_score, "w", encoding="utf-8") as f:
@@ -118,12 +143,18 @@ def calc_deberta_f1_metric_of_xsum():
     print(f"\nAverage PMI DeBERTa F1 score for XSUM: {avg_pmi_f1}")
     print(f"Average ROUGE DeBERTa F1 score for XSUM: {avg_rouge_f1}")
 
+    if eval_for_FactPEGASUS:
+        avg_factPegasus_f1 = sum(all_factPegasus_deberta_f1_scores) / len(all_factPegasus_deberta_f1_scores)
+        print(f"Average FactPEGASUS DeBERTa F1 score for XSUM: {avg_factPegasus_f1}")
+
 
 def calc_deberta_f1_metric_of_cnn():
 
     test_dataset_path = "cnn_result_files/test_set_cnn/data-00000-of-00001.arrow"
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
+    if eval_for_FactPEGASUS:
+        factPegasus_generated_predictions_file_path = "cnn_result_files/factpegasus_public_cnn_generated_summaries/generated_predictions.txt"
 
     combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__step2.json"
     combined_output_path_with_deberta_score = "cnn_result_files/cnn_combined_results_for_analysis__step3.json"
@@ -142,12 +173,19 @@ def calc_deberta_f1_metric_of_cnn():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_FactPEGASUS:
+        with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            factPegasus_generated_summaries = f.readlines()
+        factPegasus_generated_summaries = [line.strip() for line in factPegasus_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
     if len(pmi_generated_summaries) != len(pd_ds):
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_FactPEGASUS:
+        if len(factPegasus_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
 
     print("\nStarting to calculate BERTScore F1 metric with DeBERTa...")
 
@@ -158,7 +196,7 @@ def calc_deberta_f1_metric_of_cnn():
         device=device,
         batch_size=batch_size,
         lang="en",
-        rescale_with_baseline=True
+        rescale_with_baseline=True  ## NEW
     )
     all_pmi_deberta_f1_scores = f1_pmi.tolist()
 
@@ -169,9 +207,21 @@ def calc_deberta_f1_metric_of_cnn():
         device=device,
         batch_size=batch_size,
         lang="en",
-        rescale_with_baseline=True
+        rescale_with_baseline=True  ## NEW
     )
     all_rouge_deberta_f1_scores = f1_rouge.tolist()
+
+    if eval_for_FactPEGASUS:
+        _, _, f1_factPegasus = bert_score.score(
+            cands=factPegasus_generated_summaries,
+            refs=target_summaries,
+            model_type=model_name,
+            device=device,
+            batch_size=batch_size,
+            lang="en",
+            rescale_with_baseline=True  ## NEW
+        )
+        all_factPegasus_deberta_f1_scores = f1_factPegasus.tolist()
 
     all_target_summaries = target_summaries
 
@@ -210,6 +260,8 @@ def calc_deberta_f1_metric_of_cnn():
 
         result["pmi_pegasus_deberta_f1_score"] = all_pmi_deberta_f1_scores[i]
         result["rouge_pegasus_deberta_f1_score"] = all_rouge_deberta_f1_scores[i]
+        if eval_for_FactPEGASUS:
+            result["factpegasus_public_deberta_f1_score"] = all_factPegasus_deberta_f1_scores[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_deberta_score, "w", encoding="utf-8") as f:
@@ -224,6 +276,10 @@ def calc_deberta_f1_metric_of_cnn():
 
     print(f"\nAverage PMI DeBERTa F1 score for CNN: {avg_pmi_f1}")
     print(f"Average ROUGE DeBERTa F1 score for CNN: {avg_rouge_f1}")
+
+    if eval_for_FactPEGASUS:
+        avg_factPegasus_f1 = sum(all_factPegasus_deberta_f1_scores) / len(all_factPegasus_deberta_f1_scores)
+        print(f"Average FactPEGASUS DeBERTa F1 score for CNN: {avg_factPegasus_f1}")
 
 
 if __name__ == "__main__":
