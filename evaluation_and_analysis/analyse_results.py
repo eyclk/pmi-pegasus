@@ -84,20 +84,20 @@ def paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="ro
     from scipy import stats
     t_statistic, p_value = stats.ttest_rel(pmi_metric_values_without_zeros, rouge_metric_values_without_zeros)
 
-    print(f"\nPaired t-test statistic for {dataset_name} dataset for {metric_name} metric between both models: {t_statistic}")
-    print(f"\nPaired t-test p-value for {dataset_name} dataset for {metric_name} metric between both models: {p_value}\n")
+    print(f"\nPaired t-test statistic for <{dataset_name}> dataset for \'{metric_name}\' metric between both models: {t_statistic}")
+    print(f"\nPaired t-test p-value for <{dataset_name}> dataset for \'{metric_name}\' metric between both models: {p_value}\n")
 
     # Interpretation
     if p_value < 0.05:
-        print(f"--> There is \"a statistically significant difference\" between the metrics for {dataset_name} dataset.\n")
+        print(f"--> There is \"a statistically significant difference\" between the metrics for <{dataset_name}> dataset.\n")
     else:
-        print(f"--> There is \"NO statistically significant difference\" between the metrics for {dataset_name} dataset.\n")
+        print(f"--> There is \"NO statistically significant difference\" between the metrics for <{dataset_name}> dataset.\n")
 
     # Interpret t-statistic: If it is negative, it means the first metric (PMI) is lower than the second metric (ROUGE), and vice versa.
     if t_statistic < 0:
-        print(f"--> The first metric (PMI) mean is lower than the second metric (ROUGE) for {dataset_name} dataset.\n\n")
+        print(f"--> The first metric (PMI) mean is LOWER than the second metric (ROUGE) for <{dataset_name}> dataset.\n\n")
     else:
-        print(f"--> The first metric (PMI) mean is higher than the second metric (ROUGE) for {dataset_name} dataset.\n\n")
+        print(f"--> The first metric (PMI) mean is HIGHER than the second metric (ROUGE) for <{dataset_name}> dataset.\n\n")
 
 
 if __name__ == "__main__":
@@ -122,13 +122,13 @@ if __name__ == "__main__":
                                  complete_file_name="__with_deberta_score")
 
     count_better_model_instances(dataset_name="cnn", metric_name="deberta_f1",
-                                 complete_file_name="__with_deberta_score")"""
+                                 complete_file_name="__with_deberta_score")
 
     count_better_model_instances(dataset_name="xsum", metric_name="llama_f1",
                                  complete_file_name="__with_llama_score")
 
     count_better_model_instances(dataset_name="cnn", metric_name="llama_f1",
-                                 complete_file_name="__with_llama_score")
+                                 complete_file_name="__with_llama_score")"""
 
 
     # count_instances_where_both_metrics_agree(dataset_name="xsum")
@@ -136,30 +136,44 @@ if __name__ == "__main__":
     # count_instances_where_both_metrics_agree(dataset_name="cnn")
 
 
-    """paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1", complete_file_name="")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="bert", complete_file_name="")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge2", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rouge1", complete_file_name="")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rougeL", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert", complete_file_name="")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="bert", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_f1", complete_file_name="__with_qaeval")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rouge1", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_f1", complete_file_name="__with_qaeval")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rouge2", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="rougeL", complete_file_name="__step1")
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_is_answered", complete_file_name="__with_qaeval")
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="bert", complete_file_name="__step1")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_f1", complete_file_name="__step2")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_f1", complete_file_name="__step2")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="qaeval_is_answered", complete_file_name="__step2")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="qaeval_is_answered", complete_file_name="__step2")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="deberta_f1",
-                                            complete_file_name="__with_deberta_score")
+                                            complete_file_name="__step3")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="deberta_f1",
-                                            complete_file_name="__with_deberta_score")"""
+                                            complete_file_name="__step3")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="llama_f1",
-                                            complete_file_name="__with_llama_score")
+                                            complete_file_name="__step4")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="llama_f1",
-                                            complete_file_name="__with_llama_score")
+                                            complete_file_name="__step4")

@@ -11,7 +11,7 @@ model_name = "microsoft/deberta-xlarge-mnli"  # Use a BERTScore-compatible model
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 batch_size = 32  # Adjust as needed for your GPU
 
-eval_for_FactPEGASUS = True
+eval_for_FactPEGASUS = False
 
 
 def calc_deberta_f1_metric_of_xsum():

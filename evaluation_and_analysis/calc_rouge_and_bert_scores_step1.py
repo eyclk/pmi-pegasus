@@ -12,7 +12,7 @@ logging.set_verbosity_error()
 
 AutoModel.from_pretrained("roberta-large")  # , force_download=True   # Download the model early to avoid errors when importing bert_score
 
-eval_for_FactPEGASUS = True  # Set to False if you want to evaluate only for PMI-Pegasus and ROUGE-Pegasus
+eval_for_FactPEGASUS = False  # Set to False if you want to evaluate only for PMI-Pegasus and ROUGE-Pegasus
 
 
 # Function to compute ROUGE scores

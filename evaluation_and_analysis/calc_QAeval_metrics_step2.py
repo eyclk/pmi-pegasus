@@ -116,9 +116,13 @@ def calc_qaeval_metric_of_xsum():
                 batch_factPegasus_generated_summaries,
                 batch_target_summaries_for_metric
             )
-
             qaeval_scores_factPegasus_model_f1 = [s["qa-eval"]["f1"] for s in
                                                  qaeval_scores_factPegasus_model]
+            all_factPegasus_qaeval_f1_scores.extend(qaeval_scores_factPegasus_model_f1)
+
+            qaeval_scores_factPegasus_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                    qaeval_scores_factPegasus_model]
+            all_factPegasus_qaeval_scores_is_answered.extend(qaeval_scores_factPegasus_model_is_answered)
 
     # Open the combined output file in write mode. Then, add each model's QAeval scores to the file. For each dictionary in the list stored in the combined results file, add the QAeval scores for both models inside the dictionary.
     with open(combined_output_path, "r", encoding="utf-8") as f:
@@ -261,15 +265,17 @@ def calc_qaeval_metric_of_cnn():
         all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
 
         if eval_for_FactPEGASUS:
-            batch_factPegasus_predicted_summaries = []
+            # batch_factPegasus_predicted_summaries = []
             batch_factPegasus_generated_summaries = factPegasus_generated_summaries[i:i + batch_size]
             all_factPegasus_predicted_summaries.extend(batch_factPegasus_generated_summaries)
+
             qaeval_scores_factPegasus_model = qa_metric.score_all(
                 batch_factPegasus_generated_summaries,
                 batch_target_summaries_for_metric
             )
             qaeval_scores_factPegasus_model_f1 = [s["qa-eval"]["f1"] for s in qaeval_scores_factPegasus_model]
             all_factPegasus_qaeval_f1_scores.extend(qaeval_scores_factPegasus_model_f1)
+
             qaeval_scores_factPegasus_model_is_answered = [s["qa-eval"]["is_answered"] for s in qaeval_scores_factPegasus_model]
             all_factPegasus_qaeval_scores_is_answered.extend(qaeval_scores_factPegasus_model_is_answered)
 
