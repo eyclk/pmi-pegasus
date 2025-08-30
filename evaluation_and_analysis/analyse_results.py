@@ -89,15 +89,15 @@ def paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="ro
 
     # Interpretation
     if p_value < 0.05:
-        print(f"--> There is \"a statistically significant difference\" between the metrics for <{dataset_name}> dataset.\n")
+        print(f"--> There is \"a statistically significant difference\" between the metrics of models for <{dataset_name}> dataset.\n")
     else:
-        print(f"--> There is \"NO statistically significant difference\" between the metrics for <{dataset_name}> dataset.\n")
+        print(f"--> There is \"NO statistically significant difference\" between the metrics of models for <{dataset_name}> dataset.\n")
 
     # Interpret t-statistic: If it is negative, it means the first metric (PMI) is lower than the second metric (ROUGE), and vice versa.
     if t_statistic < 0:
-        print(f"--> The first metric (PMI) mean is LOWER than the second metric (ROUGE) for <{dataset_name}> dataset.\n\n")
+        print(f"--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <{dataset_name}> dataset.\n\n")
     else:
-        print(f"--> The first metric (PMI) mean is HIGHER than the second metric (ROUGE) for <{dataset_name}> dataset.\n\n")
+        print(f"--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <{dataset_name}> dataset.\n\n")
 
 
 if __name__ == "__main__":
