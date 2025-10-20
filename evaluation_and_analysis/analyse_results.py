@@ -62,6 +62,7 @@ def count_instances_where_both_metrics_agree(dataset_name="xsum"):
 
 def paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1", complete_file_name=""):
     result_file_path = f"./{dataset_name}_result_files/{dataset_name}_combined_results_for_analysis{complete_file_name}.json"
+    ###### Use this name for the previous version:  "{dataset_name}_result_files__1_mil_subset__old"
 
     # Load the combined results into a DataFrame
     with open(result_file_path, 'r') as f:
@@ -177,3 +178,4 @@ if __name__ == "__main__":
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="llama_f1",
                                             complete_file_name="__step4")
+

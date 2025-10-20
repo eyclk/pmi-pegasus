@@ -69,7 +69,7 @@ class MyTrainer(Seq2SeqTrainer):
         gen_kwargs = {
             "synced_gpus": True if is_deepspeed_zero3_enabled() else False,
             "length_penalty": 1.0,
-            "max_length": 60,
+            "max_length": 64, ######################## 64 or 128 ############################ HARDCODED generation max length parameter ****************
             "min_length": 10,
             "num_beams": 6,
         }
