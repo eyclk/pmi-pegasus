@@ -79,7 +79,7 @@ def judge_with_prometheus(
     pmi_summary: str,
     rouge_summary: str,
     sample_idx: int,
-) -> str:
+) -> (str, str):
     """
     Returns decoded winner: 'pmi', 'rouge', or 'tie'
     """
@@ -184,7 +184,7 @@ FEEDBACK:
 
     print("=" * 80 + "\n")"""
 
-    return decoded_winner
+    return decoded_winner, feedback
 
 ###############################################################################
 # MAIN EVALUATION LOOP
@@ -196,6 +196,7 @@ def run_llm_judge_evaluation(
     rouge_path: str,
     combined_input_path: str,
     combined_output_path: str,
+    feedback_output_path: str = None,
 ):
 
     ds = Dataset.from_file(test_dataset_path)
@@ -210,15 +211,17 @@ def run_llm_judge_evaluation(
         rouge_summaries = [line.strip() for line in f]
 
     winners = []
+    feedbacks = []
 
     for i in tqdm(range(len(reference_summaries))):
-        winner = judge_with_prometheus(
+        winner, feedback = judge_with_prometheus(
             reference_summaries[i],
             pmi_summaries[i],
             rouge_summaries[i],
             i,
         )
         winners.append(winner)
+        feedbacks.append(feedback)
 
     with open(combined_input_path, "r", encoding="utf-8") as f:
         combined_results = json.load(f)
@@ -229,13 +232,28 @@ def run_llm_judge_evaluation(
     with open(combined_output_path, "w", encoding="utf-8") as f:
         json.dump(combined_results, f, indent=4, ensure_ascii=False)
 
+    # Save feedbacks if path is provided. Write them in json file alongside, reference summary, pmi summary, rouge summary, and winner.
+    if feedback_output_path is not None:
+        feedback_entries = []
+        for i in range(len(reference_summaries)):
+            feedback_entry = {
+                "reference_summary": reference_summaries[i],
+                "pmi_summary": pmi_summaries[i],
+                "rouge_summary": rouge_summaries[i],
+                "llm_judge_winner": winners[i],
+                "llm_judge_feedback": feedbacks[i],
+            }
+            feedback_entries.append(feedback_entry)
+        with open(feedback_output_path, "w", encoding="utf-8") as f:
+            json.dump(feedback_entries, f, indent=4, ensure_ascii=False)
+
     counts = Counter(winners)
 
     print("\nFINAL AGGREGATE RESULTS")
     print("----------------------")
-    print(f"PMI wins   : {counts['pmi']}")
-    print(f"ROUGE wins : {counts['rouge']}")
-    print(f"TIES       : {counts['tie']}")
+    print(f"PMI wins   : {counts['pmi']}  ({counts['pmi'] / len(winners) * 100:.4f}%)")
+    print(f"ROUGE wins : {counts['rouge']} ({counts['rouge'] / len(winners) * 100:.4f}%)")
+    print(f"TIES       : {counts['tie']} ({counts['tie'] / len(winners) * 100:.4f}%)")
     print("----------------------\n")
 
 
@@ -252,6 +270,7 @@ if __name__ == "__main__":
         rouge_path="xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt",
         combined_input_path="xsum_result_files/xsum_combined_results_for_analysis__step4.json",
         combined_output_path="xsum_result_files/xsum_combined_results_for_analysis__step5.json",
+        feedback_output_path="xsum_result_files/xsum_llm_judge_feedbacks.json",
     )
 
     print("\n\n**********************************************************\n\n")
@@ -263,4 +282,5 @@ if __name__ == "__main__":
         rouge_path="cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt",
         combined_input_path="cnn_result_files/cnn_combined_results_for_analysis__step4.json",
         combined_output_path="cnn_result_files/cnn_combined_results_for_analysis__step5.json",
+        feedback_output_path="cnn_result_files/cnn_llm_judge_feedbacks.json",
     )
