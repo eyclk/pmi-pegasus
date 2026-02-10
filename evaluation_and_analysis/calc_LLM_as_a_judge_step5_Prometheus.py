@@ -258,7 +258,7 @@ def run_llm_judge_evaluation(
 
 
 ###############################################################################
-# MAIN ENTRY POINT (XSUM + CNN)
+# MAIN ENTRY POINT (XSUM + CNN + WIKIHOW)
 ###############################################################################
 
 if __name__ == "__main__":
@@ -283,4 +283,16 @@ if __name__ == "__main__":
         combined_input_path="cnn_result_files/cnn_combined_results_for_analysis__step4.json",
         combined_output_path="cnn_result_files/cnn_combined_results_for_analysis__step5.json",
         feedback_output_path="cnn_result_files/cnn_llm_judge_feedbacks.json",
+    )
+
+    print("\n\n************************************************************\n\n")
+
+    # ------------------------------- WIKIHOW ------------------------------------
+    run_llm_judge_evaluation(
+        test_dataset_path="wikihow_result_files/test_set_wikihow/dataset.arrow",
+        pmi_path="wikihow_result_files/pmi_pegasus_wikihow_generated_summaries/generated_predictions.txt",
+        rouge_path="wikihow_result_files/rouge_pegasus_wikihow_generated_summaries/generated_predictions.txt",
+        combined_input_path="wikihow_result_files/wikihow_combined_results_for_analysis__step4.json",
+        combined_output_path="wikihow_result_files/wikihow_combined_results_for_analysis__step5.json",
+        feedback_output_path="wikihow_result_files/wikihow_llm_judge_feedbacks.json",
     )

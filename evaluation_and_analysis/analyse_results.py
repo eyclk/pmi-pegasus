@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # count_instances_where_both_metrics_agree(dataset_name="cnn")
 
 
-    paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1", complete_file_name="__step1")
+    """paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge1", complete_file_name="__step1")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="xsum", metric_name="rouge2", complete_file_name="__step1")
 
@@ -177,5 +177,31 @@ if __name__ == "__main__":
                                             complete_file_name="__step4")
 
     paired_t_test_of_both_scores_of_a_model(dataset_name="cnn", metric_name="llama_f1",
-                                            complete_file_name="__step4")
+                                            complete_file_name="__step4")"""
 
+    ################################################################################################################
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="rouge1", complete_file_name="__step1")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="rouge2", complete_file_name="__step1")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="rougeL", complete_file_name="__step1")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="bert", complete_file_name="__step1")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="qaeval_f1", complete_file_name="__step2")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="qaeval_is_answered",
+                                            complete_file_name="__step2")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="deberta_f1",
+                                            complete_file_name="__step3")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    paired_t_test_of_both_scores_of_a_model(dataset_name="wikihow", metric_name="llama_f1",
+                                            complete_file_name="__step4")
