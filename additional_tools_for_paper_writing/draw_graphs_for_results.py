@@ -1,5 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib.colors import TwoSlopeNorm
+from matplotlib.colors import LinearSegmentedColormap
 
 
 # ==========================================
@@ -81,6 +83,44 @@ rouge_peg__wikihow__deberta_score = [0.243046, 0.2451, 0.2515, 0.2453, 0.2442, 0
 pmi_peg__wikihow__qaeval_f1 = [0.0705, 0.07447, 0.07939, 0.07848, 0.07461, 0.07885, 0.0805, 0.07929]
 
 rouge_peg__wikihow__qaeval_f1 = [0.0687, 0.07799, 0.07815, 0.07567, 0.07704, 0.07472, 0.0761, 0.07375]
+
+
+# ==========================================
+# PAIRED T-TEST STATISTICS (PMI vs ROUGE)
+# ==========================================
+
+t_xsum = [
+    [  2.2078,   0.3696,   0.9108,  -6.8150,  -3.7496,  -1.5417],  # 1M
+    [-10.1644,  -6.0686, -10.0064, -21.2501, -20.0794, -10.2338],  # 2M
+    [ -3.8618,  -2.8849,  -4.2702, -14.6449,  -7.6571,  -7.2322],  # 3M
+    [ -1.4461,  -1.8536,  -2.5937, -11.1289,  -7.2944,  -5.9885],  # 4M
+    [ -5.3408,  -3.3351,  -4.8155, -12.2793, -10.6004,  -7.5471],  # 5M
+    [ -1.4356,  -2.4031,  -1.6889, -17.0313, -14.5838,  -5.7672],  # 6M
+    [  0.1295,  -0.0286,  -1.1763,  -6.5773,  -4.0984,  -5.8399],  # 7M
+    [ -1.3549,  -1.4935,  -3.0393,  -3.7012,  -4.1592,  -5.2235],  # 8M
+]
+
+t_cnn = [
+    [  3.0896,   1.6579,  -0.0069,   2.7279,  -0.1703,  -0.1248],  # 1M
+    [ -2.8986,  -4.2144,  -5.6999,   1.1617,  -3.2921,  -1.8489],  # 2M
+    [ -0.2811,   1.4925,   1.2662,  -0.3211,   0.8061,  -4.6792],  # 3M
+    [  7.1739,   7.3094,   7.9291,   7.7300,  10.0851,   5.2495],  # 4M
+    [  1.0389,   3.2012,   4.6485,   3.6864,   4.6745,   0.9590],  # 5M
+    [ 11.4495,  12.3562,  15.3020,  16.1603,  21.2899,  13.3516],  # 6M
+    [  9.8197,  10.6989,  11.9054,  12.8271,  17.1773,  10.1576],  # 7M
+    [ -1.9731,  -1.1204,   2.0434,   0.2375,   2.4308,  -2.5164],  # 8M
+]
+
+t_wikihow = [
+    [ -4.9286,  -1.2748,  -2.7106,   0.1124,  -4.3716,   1.3679],  # 1M
+    [-14.3317,  -3.9449,  -6.1794,   5.2300,   3.8878,  -2.7242],  # 2M
+    [  0.4965,   1.9403,   2.1671,   4.0682,   4.2367,   0.9453],  # 3M
+    [  2.8734,   1.3504,   2.9817,   5.6375,   5.7925,   2.2086],  # 4M
+    [ -6.3022,  -2.2853,  -3.2292,  -1.9597,  -1.7196,  -1.8348],  # 5M
+    [  0.1591,   2.1724,   2.9578,   5.6052,   7.0256,   3.0064],  # 6M
+    [  2.6608,   4.3265,   6.6635,   6.9022,   7.2204,   3.2882],  # 7M
+    [  3.5800,   6.8640,   9.7389,  11.9770,  14.4631,   4.1965],  # 8M
+]
 
 
 # ==========================================
@@ -269,12 +309,204 @@ wikihow_metrics = {
 
 
 # ==========================================
+# HEATMAP PLOTTING FUNCTION
+# ==========================================
+
+
+def plot_multi_dataset_heatmaps():
+    model_sizes = ["1M","2M","3M","4M","5M","6M","7M","8M"]
+
+    def build_matrix(dataset_prefix):
+        rows = []
+        for i in range(8):
+            pmi_row = [
+                globals()[f"pmi_peg__{dataset_prefix}__rouge1"][i],
+                globals()[f"pmi_peg__{dataset_prefix}__rouge2"][i],
+                globals()[f"pmi_peg__{dataset_prefix}__rougeL"][i],
+                globals()[f"pmi_peg__{dataset_prefix}__roberta_score"][i],
+                globals()[f"pmi_peg__{dataset_prefix}__deberta_score"][i],
+                globals()[f"pmi_peg__{dataset_prefix}__qaeval_f1"][i],
+            ]
+
+            rouge_row = [
+                globals()[f"rouge_peg__{dataset_prefix}__rouge1"][i],
+                globals()[f"rouge_peg__{dataset_prefix}__rouge2"][i],
+                globals()[f"rouge_peg__{dataset_prefix}__rougeL"][i],
+                globals()[f"rouge_peg__{dataset_prefix}__roberta_score"][i],
+                globals()[f"rouge_peg__{dataset_prefix}__deberta_score"][i],
+                globals()[f"rouge_peg__{dataset_prefix}__qaeval_f1"][i],
+            ]
+
+            rows.append(pmi_row)
+            rows.append(rouge_row)
+
+        return np.array(rows)
+
+    xsum = build_matrix("xsum")
+    cnn = build_matrix("cnn")
+    wikihow = build_matrix("wikihow")
+
+    model_labels = []
+    for m in model_sizes:
+        model_labels.append(f"{m} PMI")
+        model_labels.append(f"{m} ROUGE")
+
+    metric_labels = ["R-1", "R-2", "R-L",
+                     "RoBERTa", "DeBERTa", "QA-F1"]
+
+    yor_cmap = LinearSegmentedColormap.from_list(
+        "yor",
+        ["#ffffcc", "#fd8d3c", "#b10026"]
+    )
+
+    fig, axes = plt.subplots(1, 3, figsize=(30, 18))
+
+    datasets = [
+        ("XSUM", xsum),
+        ("CNN/DailyMail", cnn),
+        ("WikiHow", wikihow)
+    ]
+
+    im = None
+
+    for ax, (title, matrix) in zip(axes, datasets):
+
+        im = ax.imshow(matrix, aspect="auto", cmap="Greens")
+
+        ax.set_yticks(np.arange(len(model_labels)))
+        ax.set_yticklabels(model_labels, fontsize=8)
+
+        ax.set_xticks(np.arange(len(metric_labels)))
+        ax.set_xticklabels(metric_labels,
+                           rotation=45,
+                           ha="right",
+                           fontsize=9)
+
+        ax.set_title(title, fontsize=16, pad=12)
+
+        for i in range(matrix.shape[0]):
+            for j in range(matrix.shape[1]):
+                ax.text(j, i,
+                        f"{matrix[i, j]:.4f}",
+                        ha="center", va="center",
+                        fontsize=9)
+
+        for sep in range(2, 16, 2):
+            ax.axhline(sep - 0.5, color="black", linewidth=2)
+
+    plt.subplots_adjust(left=0.05, right=0.90, wspace=0.20)
+
+    # ---- Proper external colorbar ----
+    cbar = fig.colorbar(
+        im,
+        ax=axes,
+        location="right",
+        fraction=0.025,
+        pad=0.04
+    )
+
+    cbar.ax.tick_params(labelsize=10)
+
+    fig.suptitle("Model Performance Heatmaps Across Datasets",
+                 fontsize=20, y=0.97)
+
+    # plt.subplots_adjust(wspace=0.20)
+    plt.show()
+
+
+# ==========================================
+# HEATMAP PLOTTING FUNCTION FOR T-STATISTICS
+# ==========================================
+
+def plot_t_stat_heatmaps():
+
+    model_labels = ["1M","2M","3M","4M","5M","6M","7M","8M"]
+
+    metric_labels = ["R-1","R-2","R-L",
+                     "DeBERTa","RoBERTa","QA-F1"]
+
+    # Convert to numpy
+    xsum = np.array(t_xsum)
+    cnn = np.array(t_cnn)
+    wikihow = np.array(t_wikihow)
+
+    # Global symmetric normalization
+    max_abs = max(
+        np.abs(xsum).max(),
+        np.abs(cnn).max(),
+        np.abs(wikihow).max()
+    )
+
+    norm = TwoSlopeNorm(vmin=-max_abs, vcenter=0, vmax=max_abs)
+
+    fig, axes = plt.subplots(1, 3, figsize=(24, 10))
+
+    datasets = [
+        ("XSUM (PMI − ROUGE t-stat)", xsum),
+        ("CNN/DailyMail (PMI − ROUGE t-stat)", cnn),
+        ("WikiHow (PMI − ROUGE t-stat)", wikihow)
+    ]
+
+    im = None
+
+    for ax, (title, matrix) in zip(axes, datasets):
+
+        im = ax.imshow(matrix,
+                       aspect="auto",
+                       cmap="RdBu_r",   # red=positive, blue=negative
+                       norm=norm)
+
+        ax.set_yticks(np.arange(len(model_labels)))
+        ax.set_yticklabels(model_labels, fontsize=10)
+
+        ax.set_xticks(np.arange(len(metric_labels)))
+        ax.set_xticklabels(metric_labels,
+                           rotation=45,
+                           ha="right",
+                           fontsize=10)
+
+        ax.set_title(title, fontsize=14)
+
+        # annotate
+        for i in range(matrix.shape[0]):
+            for j in range(matrix.shape[1]):
+                ax.text(j, i,
+                        f"{matrix[i,j]:.4f}",
+                        ha="center",
+                        va="center",
+                        fontsize=9)
+
+    # external colorbar
+    plt.subplots_adjust(left=0.05, right=0.90, wspace=0.20)
+
+    # ---- Proper external colorbar ----
+    cbar = fig.colorbar(
+        im,
+        ax=axes,
+        location="right",
+        fraction=0.025,
+        pad=0.04
+    )
+
+    cbar.ax.tick_params(labelsize=10)
+    cbar.set_label("Paired t-statistic (PMI − ROUGE)", fontsize=11)
+
+    fig.suptitle("PMI vs ROUGE Pegasus Paired t-Test Statistics",
+                 fontsize=16)
+
+    plt.show()
+
+
+# ==========================================
 # DRAW FIGURES
 # ==========================================
 
-plot_multi_panel("XSUM Results", xsum_metrics)
+"""plot_multi_panel("XSUM Results", xsum_metrics)
 plot_multi_panel("CNN/DailyMail Results", cnn_metrics)
 plot_multi_panel("WikiHow Results", wikihow_metrics)
 
+plot_llm_judge_grouped_columns()"""
 
-plot_llm_judge_grouped_columns()
+plot_multi_dataset_heatmaps()
+
+plot_t_stat_heatmaps()
