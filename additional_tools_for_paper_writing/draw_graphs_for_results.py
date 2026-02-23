@@ -375,6 +375,8 @@ def plot_multi_dataset_heatmaps():
 
         ax.set_yticks(np.arange(len(model_labels)))
         ax.set_yticklabels(model_labels, fontsize=8)
+        for tick, label in zip(ax.get_yticklabels(), model_labels):
+            tick.set_color("red" if "PMI" in label else "blue")
 
         ax.set_xticks(np.arange(len(metric_labels)))
         ax.set_xticklabels(metric_labels,
@@ -391,8 +393,13 @@ def plot_multi_dataset_heatmaps():
                         ha="center", va="center",
                         fontsize=9)
 
-        for sep in range(2, 16, 2):
-            ax.axhline(sep - 0.5, color="black", linewidth=2)
+        for sep in range(1, 16):
+            if sep % 2 == 0:
+                # between model groups (e.g. 2M PMI / 2M ROUGE | 3M PMI ...)
+                ax.axhline(sep - 0.5, color="black", linewidth=2.2, linestyle="-")
+            else:
+                # between PMI and ROUGE rows of the same model size
+                ax.axhline(sep - 0.5, color="black", linewidth=0.9, linestyle="--")
 
     plt.subplots_adjust(left=0.05, right=0.90, wspace=0.20)
 
