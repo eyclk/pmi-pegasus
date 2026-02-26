@@ -234,16 +234,16 @@ def plot_llm_judge_grouped_columns():
     # =========================
     # CNN percentages
     # =========================
-    cnn_pmi =  [45.9182,46.5535,47.4761,47.4500,47.4761,46.5883,46.0313,48.7554]
-    cnn_rouge = [46.6057,46.6667,45.4743,45.5962,45.4917,46.9104,47.0409,44.4560]
-    cnn_tie = [7.4761,6.7798,7.0496,6.9539,7.0322,6.5013,6.9278,6.7885]
+    cnn_pmi =  [45.9182,46.5535,47.4761,47.4500,47.4761,46.8030,46.0313,48.7554]
+    cnn_rouge = [46.6057,46.6667,45.4743,45.5962,45.4917,46.4926,47.0409,44.4560]
+    cnn_tie = [7.4761,6.7798,7.0496,6.9539,7.0322,6.7044,6.9278,6.7885]
 
     # =========================
     # WikiHow percentages
     # =========================
-    wiki_pmi =  [44.5401,47.7318,42.8546,42.1732,46.2973,45.6697,46.9428,49.0228]
-    wiki_rouge=[39.6629,37.7802,42.1553,43.1056,38.9995,40.7387,38.0491,36.9912]
-    wiki_tie = [15.7970,14.4881,14.9901,14.7212,14.7032,13.5915,15.0081,13.9860]
+    wiki_pmi =  [44.5401,47.7318,42.8546,42.8845,46.2973,45.6697,46.9428,49.0228]
+    wiki_rouge=[39.6629,37.7802,42.1553,42.4003,38.9995,40.7387,38.0491,36.9912]
+    wiki_tie = [15.7970,14.4881,14.9901,14.7152,14.7032,13.5915,15.0081,13.9860]
 
     # =========================
     # plotting helper
@@ -510,10 +510,10 @@ def plot_t_stat_heatmaps():
 
 """plot_multi_panel("XSUM Results", xsum_metrics)
 plot_multi_panel("CNN/DailyMail Results", cnn_metrics)
-plot_multi_panel("WikiHow Results", wikihow_metrics)
+plot_multi_panel("WikiHow Results", wikihow_metrics)"""
 
-plot_llm_judge_grouped_columns()"""
+plot_llm_judge_grouped_columns()
 
-plot_multi_dataset_heatmaps()
+#  plot_multi_dataset_heatmaps()
 
-plot_t_stat_heatmaps()
+#  plot_t_stat_heatmaps()
