@@ -53,6 +53,11 @@ python scripts/pretraining_create_data_for_Rouge.py
 python scripts/pretraining_combine_scores_for_Rouge.py
 ```
 
+### Additional Training Dataset Preprocessing Notes
+
+You can modify the parameters at the of the pretraining_create_data and pretraining_combine_data files. It is possible to change input/output paths and partial dataset preprocessing details.
+
+
 ##  2. Pretraining and Fine-Tuning Environment
 
 This environment is used for both **pretraining** and **fine-tuning** with the PMI and ROUGE approaches.
@@ -379,6 +384,10 @@ pip install accelerate
 pip install fastchat
 pip install sentencepiece
 ```
+
+## Evaluation Notes
+
+You can run evaluation step files inside the "evaluation_and_analysis" directory one by one to acquire result JSON files that contain very detailed outputs for all metrics and datasets.
 
 ## 📝 Reproducibility Notes
 
