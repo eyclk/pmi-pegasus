@@ -380,7 +380,7 @@ pip install fastchat
 pip install sentencepiece
 ```
 
-## Evaluaion Notes
+## Evaluation Notes
 
 You can run evaluation step files inside the "evaluation_and_analysis" directory one by one to acquire result JSON files that contain very detailed outputs for all metrics and datasets.
 
