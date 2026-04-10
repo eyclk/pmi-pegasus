@@ -13,3 +13,4 @@ deepspeed --include=localhost:"$GPU_IDX" src/main.py --fp16 \
 --max_source_length 512 --max_target_length 256 \
 --output_dir ./models/PMI_pegasus__complete_realnewslike_3_MIL_steps --pretrain_model_type bart_base --tokenize_on_fly
 
+
