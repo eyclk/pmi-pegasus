@@ -1,0 +1,169 @@
+C:\Users\yigit\miniconda3\envs\pmi_pegasus\python.exe D:\PycharmProjects\pmi-pegasus\evaluation_and_analysis\analyse_results.py 
+
+Paired t-test statistic for <xsum> dataset for 'rouge1' metric between both models: -5.34083865247964
+
+Paired t-test p-value for <xsum> dataset for 'rouge1' metric between both models: 9.430953557199522e-08
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <xsum> dataset for 'rouge2' metric between both models: -3.33508834705126
+
+Paired t-test p-value for <xsum> dataset for 'rouge2' metric between both models: 0.0008557882776912659
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <xsum> dataset for 'rougeL' metric between both models: -4.815464160939141
+
+Paired t-test p-value for <xsum> dataset for 'rougeL' metric between both models: 1.4876014253224643e-06
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <xsum> dataset for 'bert' metric between both models: -10.60038960983354
+
+Paired t-test p-value for <xsum> dataset for 'bert' metric between both models: 3.9326463350086487e-26
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'rouge1' metric between both models: 1.0388977786895723
+
+Paired t-test p-value for <cnn> dataset for 'rouge1' metric between both models: 0.2988741426575583
+
+--> There is "NO statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'rouge2' metric between both models: 3.2012225988060092
+
+Paired t-test p-value for <cnn> dataset for 'rouge2' metric between both models: 0.0013722189529522106
+
+--> There is "a statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'rougeL' metric between both models: 4.648506906422925
+
+Paired t-test p-value for <cnn> dataset for 'rougeL' metric between both models: 3.380686896584076e-06
+
+--> There is "a statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'bert' metric between both models: 4.674489305912138
+
+Paired t-test p-value for <cnn> dataset for 'bert' metric between both models: 2.9803796997478653e-06
+
+--> There is "a statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Paired t-test statistic for <xsum> dataset for 'qaeval_f1' metric between both models: -7.5471111443758305
+
+Paired t-test p-value for <xsum> dataset for 'qaeval_f1' metric between both models: 4.9777757405659664e-14
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'qaeval_f1' metric between both models: 0.9589806009891907
+
+Paired t-test p-value for <cnn> dataset for 'qaeval_f1' metric between both models: 0.3375899317936989
+
+--> There is "NO statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+
+Paired t-test statistic for <xsum> dataset for 'qaeval_is_answered' metric between both models: -11.410555265411853
+
+Paired t-test p-value for <xsum> dataset for 'qaeval_is_answered' metric between both models: 5.8549176154910714e-30
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'qaeval_is_answered' metric between both models: -3.319598805357268
+
+Paired t-test p-value for <cnn> dataset for 'qaeval_is_answered' metric between both models: 0.0009043163546785612
+
+--> There is "a statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <cnn> dataset.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Paired t-test statistic for <xsum> dataset for 'deberta_f1' metric between both models: -12.279282441003973
+
+Paired t-test p-value for <xsum> dataset for 'deberta_f1' metric between both models: 1.9366811744851648e-34
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'deberta_f1' metric between both models: 3.686420819246028
+
+Paired t-test p-value for <cnn> dataset for 'deberta_f1' metric between both models: 0.00022847716546142707
+
+--> There is "a statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Paired t-test statistic for <xsum> dataset for 'llama_f1' metric between both models: -22.708202068255996
+
+Paired t-test p-value for <xsum> dataset for 'llama_f1' metric between both models: 1.1288674606316346e-111
+
+--> There is "a statistically significant difference" between the metrics of models for <xsum> dataset.
+
+--> The first model (PMI) mean is LOWER than the second model (ROUGE) for <xsum> dataset.
+
+
+
+Paired t-test statistic for <cnn> dataset for 'llama_f1' metric between both models: 5.505644838944301
+
+Paired t-test p-value for <cnn> dataset for 'llama_f1' metric between both models: 3.7572249398962594e-08
+
+--> There is "a statistically significant difference" between the metrics of models for <cnn> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <cnn> dataset.
+
+
+
+Process finished with exit code 0

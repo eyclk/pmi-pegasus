@@ -1,0 +1,89 @@
+C:\Users\yigit\miniconda3\envs\pmi_pegasus\python.exe D:\PycharmProjects\pmi-pegasus\evaluation_and_analysis\analyse_results.py 
+
+Paired t-test statistic for <wikihow> dataset for 'rouge1' metric between both models: 3.5800298248808664
+
+Paired t-test p-value for <wikihow> dataset for 'rouge1' metric between both models: 0.0003464883046044703
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+
+Paired t-test statistic for <wikihow> dataset for 'rouge2' metric between both models: 6.863963387873227
+
+Paired t-test p-value for <wikihow> dataset for 'rouge2' metric between both models: 7.467694799247775e-12
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+
+Paired t-test statistic for <wikihow> dataset for 'rougeL' metric between both models: 9.738898533808019
+
+Paired t-test p-value for <wikihow> dataset for 'rougeL' metric between both models: 3.095989945569646e-22
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+
+Paired t-test statistic for <wikihow> dataset for 'bert' metric between both models: 14.463113335904048
+
+Paired t-test p-value for <wikihow> dataset for 'bert' metric between both models: 1.4311275979237104e-46
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Paired t-test statistic for <wikihow> dataset for 'qaeval_f1' metric between both models: 4.196479605334179
+
+Paired t-test p-value for <wikihow> dataset for 'qaeval_f1' metric between both models: 2.7655047198202563e-05
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+
+Paired t-test statistic for <wikihow> dataset for 'qaeval_is_answered' metric between both models: 1.0970022275832958
+
+Paired t-test p-value for <wikihow> dataset for 'qaeval_is_answered' metric between both models: 0.27268978221495305
+
+--> There is "NO statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Paired t-test statistic for <wikihow> dataset for 'deberta_f1' metric between both models: 11.977008462210039
+
+Paired t-test p-value for <wikihow> dataset for 'deberta_f1' metric between both models: 1.176391009142661e-32
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Paired t-test statistic for <wikihow> dataset for 'llama_f1' metric between both models: 10.648095749305723
+
+Paired t-test p-value for <wikihow> dataset for 'llama_f1' metric between both models: 3.174458636571926e-26
+
+--> There is "a statistically significant difference" between the metrics of models for <wikihow> dataset.
+
+--> The first model (PMI) mean is HIGHER than the second model (ROUGE) for <wikihow> dataset.
+
+
+
+Process finished with exit code 0
