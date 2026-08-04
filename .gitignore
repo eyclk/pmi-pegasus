@@ -1,4 +1,21 @@
 evaluation_and_analysis/HF_TOKEN.txt
+
+# All subfolders (and their contents) under these directories, but not the
+# placeholder .txt files that live directly inside them
+eval_generated_pred/*/
+finetune_data/*/
+finetuned_models/*/
+models/*/
+
+finetune_data/*.tar
+
+# Step 6 LLM-as-a-judge (vs. source documents) outputs: per-comparison result
+# JSONs, their aggregate .log files, the per-dataset summary logs, and the
+# .partial.jsonl resume files
+evaluation_and_analysis/*_result_files/*llm_judge_vs_source_docs__step6*
+
+__pycache__/
+
 .idea/copilot.data.migration.agent.xml
 .idea/copilot.data.migration.ask2agent.xml
 .idea/copilot.data.migration.edit.xml
