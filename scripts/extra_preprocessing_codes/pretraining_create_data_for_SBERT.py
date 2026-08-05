@@ -1,6 +1,13 @@
 import argparse
 import glob
 import os
+
+# The large model files are served through the Xet CDN ('us.aws.cdn.hf.co') by default, which is not
+# reachable from every machine while 'huggingface.co' itself is. Falling back to the ordinary CDN keeps
+# the download working there. It is set before huggingface_hub is imported, because that is when the
+# setting is read, and only if it was not set explicitly in the environment already.
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+
 import multiprocessing
 import nltk
 from datasets import load_dataset, load_from_disk
@@ -65,11 +72,29 @@ def resolve_model_path(model_name_or_path):
 
     The old 'transformers' version of this environment cannot download from the current huggingface hub,
     so the files are fetched with 'huggingface_hub' first and are then loaded from the local snapshot.
+    A path of an already downloaded model directory can be given instead, which is the way to run this
+    script on a machine without access to the hub.
     """
     if os.path.isdir(model_name_or_path):
         return model_name_or_path
 
-    return snapshot_download(model_name_or_path, allow_patterns=["*.json", "*.txt", "*.bin", "*.model"])
+    try:
+        return snapshot_download(
+            model_name_or_path,
+            allow_patterns=["*.json", "*.txt", "*.bin", "*.model"],
+            # The repositories of the all-* models also hold quantized and openvino copies of the weights,
+            # which are not used here and only slow the download down.
+            ignore_patterns=["openvino/*", "onnx/*", "*qint8*", "*quantized*"],
+        )
+    except Exception as download_error:
+        raise RuntimeError(
+            "The SBERT model '{}' could not be downloaded from the huggingface hub: {}\n\n"
+            "If this machine cannot reach the hub, download the model on a machine that can and pass the "
+            "directory it was saved in with --sbert_model, for example:\n"
+            "    huggingface-cli download {} --local-dir ./sbert_model\n"
+            "    python {} --sbert_model ./sbert_model".format(
+                model_name_or_path, download_error, model_name_or_path, os.path.basename(__file__))
+        ) from download_error
 
 
 model_path = resolve_model_path(args.sbert_model)
