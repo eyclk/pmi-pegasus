@@ -19,6 +19,7 @@ The job is resumable: every judged sample is appended to a ".partial.jsonl"
 file, so an interrupted run continues exactly where it stopped when restarted.
 """
 
+import argparse
 import json
 import os
 import random
@@ -331,6 +332,129 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
     ]
     return "\n".join(lines)
 
+def write_dataset_summary(dataset_key: str):
+    """
+    (Re)builds the per-dataset summary log from whatever comparison outputs are
+    actually on disk.
+
+    Rebuilding from disk instead of from the current run means the summary stays
+    complete when the 8 checkpoints are split across several runs or devices --
+    a run that only does 5M..8M will not drop the 1M..4M lines written earlier.
+    """
+
+    result_dir = SCRIPT_DIR / DATASETS[dataset_key]["result_folder"]
+
+    lines = [
+        f"LLM-as-a-judge ({MODEL_NAME}) versus SOURCE DOCUMENTS -- step 6",
+        f"DATASET: {dataset_key}",
+        "=" * 70,
+    ]
+
+    for checkpoint in CHECKPOINTS:
+        path = result_dir / f"{dataset_key}_{checkpoint}_llm_judge_vs_source_docs__step6.json"
+
+        if not path.exists():
+            lines.append(f"{checkpoint}: (not run yet)")
+            continue
+
+        with open(path, "r", encoding="utf-8") as f:
+            entries = json.load(f)
+
+        if not entries:
+            lines.append(f"{checkpoint}: (empty output file)")
+            continue
+
+        counts = Counter(entry["llm_judge_winner"] for entry in entries)
+        unparsed = sum(1 for entry in entries if entry.get("raw_result") == "TIE_2")
+        total = len(entries)
+
+        lines.append(
+            f"{checkpoint}: samples={total} | "
+            f"pmi={counts['pmi']} ({counts['pmi'] / total * 100:.4f}%) | "
+            f"rouge={counts['rouge']} ({counts['rouge'] / total * 100:.4f}%) | "
+            f"tie={counts['tie']} ({counts['tie'] / total * 100:.4f}%) | "
+            f"no_result_tag={unparsed} ({unparsed / total * 100:.4f}%)"
+        )
+
+    summary_path = (
+        result_dir
+        / f"{dataset_key}_ALL_checkpoints_llm_judge_vs_source_docs__step6_summary.log"
+    )
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+###############################################################################
+# COMMAND LINE SELECTION (for splitting the job across devices)
+###############################################################################
+
+def select_datasets(raw: str):
+    if raw.strip().lower() == "all":
+        return list(DATASETS)
+
+    selected = []
+    for token in raw.split(","):
+        token = token.strip().lower()
+        if not token:
+            continue
+        if token not in DATASETS:
+            raise SystemExit(
+                f"Unknown dataset '{token}'. Valid choices: {', '.join(DATASETS)}, all"
+            )
+        if token not in selected:
+            selected.append(token)
+
+    if not selected:
+        raise SystemExit("--datasets did not select anything.")
+
+    return selected
+
+
+def select_checkpoints(raw: str):
+    if raw.strip().lower() == "all":
+        return list(CHECKPOINTS)
+
+    selected = []
+    for token in raw.split(","):
+        token = token.strip().upper()
+        if not token:
+            continue
+        if not token.endswith("M"):
+            token += "M"  # allow "1,2" as well as "1M,2M"
+        if token not in CHECKPOINTS:
+            raise SystemExit(
+                f"Unknown checkpoint '{token}'. Valid choices: {', '.join(CHECKPOINTS)}, all"
+            )
+        if token not in selected:
+            selected.append(token)
+
+    if not selected:
+        raise SystemExit("--checkpoints did not select anything.")
+
+    return selected
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Step 6 -- Prometheus LLM-as-a-judge of PMI- vs ROUGE-pegasus summaries "
+            "against the original source documents. Without arguments it runs all "
+            "3 datasets x 8 checkpoints. Use the flags to split the job across "
+            "devices, e.g. --checkpoints 1M,2M,3M,4M on one machine and "
+            "--checkpoints 5M,6M,7M,8M on another."
+        )
+    )
+    parser.add_argument(
+        "--datasets",
+        default="all",
+        help=f"comma separated subset of: {', '.join(DATASETS)} (default: all)",
+    )
+    parser.add_argument(
+        "--checkpoints",
+        default="all",
+        help=f"comma separated subset of: {', '.join(CHECKPOINTS)} (default: all)",
+    )
+    return parser.parse_args()
+
 ###############################################################################
 # SINGLE COMPARISON (one dataset + one checkpoint)
 ###############################################################################
@@ -470,43 +594,30 @@ def run_single_comparison(dataset_key: str, checkpoint: str):
 
 if __name__ == "__main__":
 
+    args = parse_args()
+    selected_datasets = select_datasets(args.datasets)
+    selected_checkpoints = select_checkpoints(args.checkpoints)
+
+    print(f"Datasets   : {', '.join(selected_datasets)}")
+    print(f"Checkpoints: {', '.join(selected_checkpoints)}")
+    print(f"=> {len(selected_datasets) * len(selected_checkpoints)} comparison(s)")
+
     overall_summary = {}
 
-    for dataset_key in DATASETS:
-        dataset_summary_lines = [
-            f"LLM-as-a-judge ({MODEL_NAME}) versus SOURCE DOCUMENTS -- step 6",
-            f"DATASET: {dataset_key}",
-            "=" * 70,
-        ]
-
-        for checkpoint in CHECKPOINTS:
+    for dataset_key in selected_datasets:
+        for checkpoint in selected_checkpoints:
             print(f"\n\n{'*' * 70}")
             print(f"***  {dataset_key.upper()}  --  {checkpoint} pretraining steps")
             print(f"{'*' * 70}\n")
 
             entries = run_single_comparison(dataset_key, checkpoint)
 
-            counts = Counter(entry["llm_judge_winner"] for entry in entries)
-            unparsed = sum(1 for entry in entries if entry.get("raw_result") == "TIE_2")
-            total = len(entries)
-            overall_summary[(dataset_key, checkpoint)] = counts
-
-            dataset_summary_lines.append(
-                f"{checkpoint}: samples={total} | "
-                f"pmi={counts['pmi']} ({counts['pmi'] / total * 100:.4f}%) | "
-                f"rouge={counts['rouge']} ({counts['rouge'] / total * 100:.4f}%) | "
-                f"tie={counts['tie']} ({counts['tie'] / total * 100:.4f}%) | "
-                f"no_result_tag={unparsed} ({unparsed / total * 100:.4f}%)"
+            overall_summary[(dataset_key, checkpoint)] = Counter(
+                entry["llm_judge_winner"] for entry in entries
             )
 
             # Rewritten after every checkpoint so partial progress is visible.
-            summary_path = (
-                SCRIPT_DIR
-                / DATASETS[dataset_key]["result_folder"]
-                / f"{dataset_key}_ALL_checkpoints_llm_judge_vs_source_docs__step6_summary.log"
-            )
-            with open(summary_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(dataset_summary_lines) + "\n")
+            write_dataset_summary(dataset_key)
 
     print("\n\nOVERALL RESULTS (PMI / ROUGE / TIE)")
     print("=" * 70)

@@ -7,6 +7,12 @@ finetune_data/*/
 finetuned_models/*/
 models/*/
 
+# Every preprocessed pretraining set (PMI, ROUGE, SBERT, ... - current and future
+# ones alike), together with the arrow cache files their preprocessing writes
+PREPROCESSED_DATASETS/*/
+PREPROCESSED_DATASETS/*.arrow
+cache/
+
 finetune_data/*.tar
 
 # Step 6 LLM-as-a-judge (vs. source documents) outputs: per-comparison result
