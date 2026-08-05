@@ -27,6 +27,7 @@ from collections import Counter
 from pathlib import Path
 
 import torch
+import transformers
 from datasets import load_from_disk
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -98,6 +99,21 @@ tokenizer = None
 model = None
 
 
+def dtype_kwarg_name() -> str:
+    """
+    transformers renamed `torch_dtype` to `dtype` in 4.56 and dropped the old
+    name in v5, so the correct keyword depends on the install. Picking it at
+    runtime keeps this script working on machines with different versions.
+    """
+
+    try:
+        major, minor = (int(part) for part in transformers.__version__.split(".")[:2])
+    except ValueError:
+        return "dtype"  # dev/rc version string -> assume something recent
+
+    return "dtype" if (major, minor) >= (4, 56) else "torch_dtype"
+
+
 def load_model_if_needed():
     global tokenizer, model
 
@@ -105,10 +121,11 @@ def load_model_if_needed():
         return
 
     print("Loading Prometheus (HF) with Mistral conversation template...")
+    print(f"  -> transformers {transformers.__version__}, torch {torch.__version__}")
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
-    load_kwargs = {"dtype": DTYPE, "device_map": "auto"}
+    load_kwargs = {dtype_kwarg_name(): DTYPE, "device_map": "auto"}
     if LOAD_IN_4BIT and torch.cuda.is_available():
         load_kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
