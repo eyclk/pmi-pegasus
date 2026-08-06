@@ -14,8 +14,40 @@ Example:
 
 import argparse
 import json
+import fsspec
+import datasets.arrow_dataset
+import datasets.dataset_dict
 from datasets import load_from_disk, DatasetDict
 from tqdm import tqdm
+
+
+def apply_local_filesystem_compatibility_patch():
+    """Stop old 'datasets' versions from copying local datasets through a temporary directory.
+
+    datasets 2.0 decides whether a path is remote with 'fs.protocol != "file"', while fsspec has been
+    reporting ('file', 'local') for the local filesystem since 2023. The local disk is therefore taken for
+    a remote one, and load_from_disk and save_to_disk copy the whole dataset into a temporary directory
+    first - which for a set of this size means tens of GB into /tmp, and usually 'No space left on device'.
+    """
+    if not hasattr(datasets.arrow_dataset, "is_remote_filesystem"):
+        return  # Newer datasets versions do not have this problem.
+
+    if not datasets.arrow_dataset.is_remote_filesystem(fsspec.filesystem("file")):
+        return  # The installed combination of versions detects the local filesystem correctly.
+
+    def is_remote_filesystem(fs):
+        if fs is None:
+            return False
+
+        protocol = fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+        return protocol != "file"
+
+    datasets.arrow_dataset.is_remote_filesystem = is_remote_filesystem
+    datasets.dataset_dict.is_remote_filesystem = is_remote_filesystem
+
+
+apply_local_filesystem_compatibility_patch()
+
 
 
 CHUNK_SIZE = 10000  # Number of examples fetched from each dataset at a time.
