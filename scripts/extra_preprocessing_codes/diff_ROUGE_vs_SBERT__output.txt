@@ -1,0 +1,18 @@
+pmi-pegasus (main) python scripts/extra_preprocessing_codes/compare_principal_sent_of_two_preprocessed_sets.py  --dataset_a ./PREPROCESSED_DATASETS/COMPLETE_c4_realnewslike_processed_ROUGE  --dataset_b ./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined/   --name_a ROUGE --name_b SBERT  --save_differences_to diff_ROUGE_vs_SBERT.json
+Comparing principal sentences: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1380/1380 [01:38<00:00, 13.96it/s]
+
+Comparison of the principal sentences of 'ROUGE' and 'SBERT':
+
+ROUGE: ./PREPROCESSED_DATASETS/COMPLETE_c4_realnewslike_processed_ROUGE
+SBERT: ./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined/
+
+Total examples compared: 13799838
+
+Number of examples with the same principal sentence: 3090218 (22.39%)
+Number of examples with different principal sentences: 10709620 (77.61%)
+Number of examples with almost the same principal sentences but minor differences: 2344
+
+
+The 10709620 differing examples were saved to: diff_ROUGE_vs_SBERT.json
+
+

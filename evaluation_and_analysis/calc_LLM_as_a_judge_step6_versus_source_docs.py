@@ -63,6 +63,18 @@ SAVE_SOURCE_DOCUMENT_IN_OUTPUT = False
 # (useful for quick runs). None => judge the whole test set.
 MAX_SAMPLES_PER_COMPARISON = None
 
+# Samples per generate() call. 1 keeps the original one-at-a-time behaviour;
+# override per machine with --batch-size.
+#
+# Measured on an RTX 5080 (16 GB, 4-bit NF4, wikihow, 24 samples):
+#   bs=1  -> 4.21 s/sample      bs=8  -> 4.49 s/sample (0.94x, i.e. no gain)
+#   bs=16 -> CUDA OOM
+# Batching does not pay off here: the prompts are long, so prefill work grows
+# linearly with the batch, and a batch keeps generating until its LONGEST
+# completion is done, which wastes the slots that finished early. Batch sizes
+# above 1 also shift a few verdicts (see below), so 1 is the default.
+BATCH_SIZE = 1
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 
@@ -124,6 +136,12 @@ def load_model_if_needed():
     print(f"  -> transformers {transformers.__version__}, torch {torch.__version__}")
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    # Needed for batching: decoder-only generation requires left padding, and
+    # the Mistral tokenizer ships without a pad token.
+    tokenizer.padding_side = "left"
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
 
     load_kwargs = {dtype_kwarg_name(): DTYPE, "device_map": "auto"}
     if LOAD_IN_4BIT and torch.cuda.is_available():
@@ -193,14 +211,14 @@ def truncate_source_document(source_document: str) -> str:
     return tokenizer.decode(token_ids[:MAX_SOURCE_TOKENS], skip_special_tokens=True)
 
 
-def judge_with_prometheus(
+def build_judge_prompt(
     source_document: str,
     pmi_summary: str,
     rouge_summary: str,
     swap: bool,
-) -> (str, str, str):
+) -> str:
     """
-    Returns (decoded winner: 'pmi' / 'rouge' / 'tie', feedback, raw_result).
+    Builds the full judging prompt for one sample.
 
     `swap` decides the position of each candidate, so that positional bias is
     averaged out. It is derived deterministically by the caller, which keeps a
@@ -252,38 +270,75 @@ FEEDBACK:
 
     conv.append_message(conv.roles[0], instruction)
 
-    prompt = conv.get_prompt()
+    return conv.get_prompt()
 
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=False).to(model.device)
+
+def decode_winner(raw_result: str, swap: bool) -> str:
+    """Maps the judge's A/B/TIE verdict back onto PMI / ROUGE."""
+
+    if swap:
+        return (
+            "pmi" if raw_result == "A"
+            else "rouge" if raw_result == "B"
+            else "tie"
+        )
+
+    return (
+        "rouge" if raw_result == "A"
+        else "pmi" if raw_result == "B"
+        else "tie"
+    )
+
+
+def judge_batch_with_prometheus(batch):
+    """
+    Judges a batch of samples in one generate() call.
+
+    `batch` is a list of (source_document, pmi_summary, rouge_summary, swap)
+    tuples. Returns a list of (winner, feedback, raw_result) in the same order.
+
+    A batch size of 1 reproduces the original one-at-a-time behaviour. Larger
+    batches keep the GPU busy during decoding, which is where nearly all of the
+    time goes.
+    """
+
+    prompts = [
+        build_judge_prompt(source_document, pmi_summary, rouge_summary, swap)
+        for source_document, pmi_summary, rouge_summary, swap in batch
+    ]
+
+    # Left padding: decoder-only models must have the prompts end flush against
+    # the generated tokens, otherwise the continuations start after the padding.
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=False,
+    ).to(model.device)
 
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
             max_new_tokens=MAX_NEW_TOKENS,
-            temperature=TEMPERATURE,
             do_sample=False,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
         )
 
-    decoded_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # Decode ONLY the newly generated tokens. Decoding the whole sequence would
+    # drag the prompt (and with it the entire source document) into `feedback`,
+    # and would break [RESULT] detection, because the prompt itself contains the
+    # literal "[RESULT]" in its output-format instructions.
+    completions = tokenizer.batch_decode(
+        outputs[:, inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True,
+    )
 
-    feedback, raw_result = parse_prometheus_output(decoded_output)
+    results = []
+    for completion, (_, _, _, swap) in zip(completions, batch):
+        feedback, raw_result = parse_prometheus_output(completion)
+        results.append((decode_winner(raw_result, swap), feedback, raw_result))
 
-    # Decode winner back to PMI / ROUGE
-    if swap:
-        decoded_winner = (
-            "pmi" if raw_result == "A"
-            else "rouge" if raw_result == "B"
-            else "tie"
-        )
-    else:
-        decoded_winner = (
-            "rouge" if raw_result == "A"
-            else "pmi" if raw_result == "B"
-            else "tie"
-        )
-
-    return decoded_winner, feedback, raw_result
+    return results
 
 ###############################################################################
 # RESUME HELPERS
@@ -326,7 +381,7 @@ def rewrite_partial_file(partial_path: Path, entries):
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
+def aggregate_text(dataset_key: str, checkpoint: str, entries, batch_size: int = BATCH_SIZE) -> str:
     counts = Counter(entry["llm_judge_winner"] for entry in entries)
     total = len(entries)
 
@@ -338,7 +393,8 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
         f"DATASET   : {dataset_key}",
         f"CHECKPOINT: {checkpoint}",
         f"JUDGE     : {MODEL_NAME} (compared against the SOURCE DOCUMENTS)",
-        f"SETTINGS  : max_source_tokens={MAX_SOURCE_TOKENS}, max_new_tokens={MAX_NEW_TOKENS}, 4bit={LOAD_IN_4BIT}",
+        f"SETTINGS  : max_source_tokens={MAX_SOURCE_TOKENS}, max_new_tokens={MAX_NEW_TOKENS}, "
+        f"4bit={LOAD_IN_4BIT}, batch_size={batch_size}",
         f"SAMPLES   : {total}",
         "----------------------",
         f"PMI wins   : {counts['pmi']}  ({counts['pmi'] / total * 100:.4f}%)",
@@ -470,13 +526,30 @@ def parse_args():
         default="all",
         help=f"comma separated subset of: {', '.join(CHECKPOINTS)} (default: all)",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=BATCH_SIZE,
+        help=(
+            "samples judged per generate() call (default: 1). Measured on an "
+            "RTX 5080 this gave no speedup (bs=8 was 0.94x) and flipped 4 of 24 "
+            "verdicts versus bs=1, because padding changes the numerics. Only "
+            "raise it if you have benchmarked a gain on your own GPU, and then "
+            "keep it fixed for every comparison you intend to compare."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.batch_size < 1:
+        raise SystemExit("--batch-size must be at least 1.")
+
+    return args
 
 ###############################################################################
 # SINGLE COMPARISON (one dataset + one checkpoint)
 ###############################################################################
 
-def run_single_comparison(dataset_key: str, checkpoint: str):
+def run_single_comparison(dataset_key: str, checkpoint: str, batch_size: int = BATCH_SIZE):
     config = DATASETS[dataset_key]
 
     result_dir = SCRIPT_DIR / config["result_folder"]
@@ -551,49 +624,65 @@ def run_single_comparison(dataset_key: str, checkpoint: str):
     partial_file = open(partial_path, "a", encoding="utf-8")
     try:
         progress = tqdm(
-            range(start_index, total_samples),
             total=total_samples,
             initial=start_index,
-            desc=f"{dataset_key} {checkpoint}",
+            desc=f"{dataset_key} {checkpoint} (bs={batch_size})",
         )
 
-        for i in progress:
-            # Deterministic per-sample position swap -> a resumed run makes the
-            # exact same A/B assignment as an uninterrupted one.
-            swap = random.Random(f"{dataset_key}|{checkpoint}|{i}").random() < 0.5
-
-            winner, feedback, raw_result = judge_with_prometheus(
-                source_documents[i],
-                pmi_summaries[i],
-                rouge_summaries[i],
-                swap,
+        for batch_start in range(start_index, total_samples, batch_size):
+            batch_indices = list(
+                range(batch_start, min(batch_start + batch_size, total_samples))
             )
 
-            entry = {
-                "index": i,
-                "id": doc_ids[i],
-                "pmi_summary": pmi_summaries[i],
-                "rouge_summary": rouge_summaries[i],
-                "pmi_position": "A" if swap else "B",
-                "llm_judge_winner": winner,
-                "raw_result": raw_result,
-                "llm_judge_feedback": feedback,
-            }
-            if SAVE_SOURCE_DOCUMENT_IN_OUTPUT:
-                entry["source_document"] = source_documents[i]
+            # Deterministic per-sample position swap -> a resumed run makes the
+            # exact same A/B assignment as an uninterrupted one, and the batch
+            # size does not change which candidate sits in which position.
+            swaps = [
+                random.Random(f"{dataset_key}|{checkpoint}|{i}").random() < 0.5
+                for i in batch_indices
+            ]
 
-            entries.append(entry)
+            batch = [
+                (source_documents[i], pmi_summaries[i], rouge_summaries[i], swap)
+                for i, swap in zip(batch_indices, swaps)
+            ]
 
-            partial_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            results = judge_batch_with_prometheus(batch)
+
+            for i, swap, (winner, feedback, raw_result) in zip(
+                batch_indices, swaps, results
+            ):
+                entry = {
+                    "index": i,
+                    "id": doc_ids[i],
+                    "pmi_summary": pmi_summaries[i],
+                    "rouge_summary": rouge_summaries[i],
+                    "pmi_position": "A" if swap else "B",
+                    "llm_judge_winner": winner,
+                    "raw_result": raw_result,
+                    "llm_judge_feedback": feedback,
+                }
+                if SAVE_SOURCE_DOCUMENT_IN_OUTPUT:
+                    entry["source_document"] = source_documents[i]
+
+                entries.append(entry)
+                partial_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+            # Flushed once per batch: an interrupted run loses at most the
+            # current batch, which is then simply re-judged on resume.
             partial_file.flush()
             os.fsync(partial_file.fileno())
+
+            progress.update(len(batch_indices))
+
+        progress.close()
     finally:
         partial_file.close()
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(entries, f, indent=4, ensure_ascii=False)
 
-    aggregate = aggregate_text(dataset_key, checkpoint, entries)
+    aggregate = aggregate_text(dataset_key, checkpoint, entries, batch_size)
     with open(log_path, "w", encoding="utf-8") as f:
         f.write(aggregate + "\n")
 
@@ -617,6 +706,7 @@ if __name__ == "__main__":
 
     print(f"Datasets   : {', '.join(selected_datasets)}")
     print(f"Checkpoints: {', '.join(selected_checkpoints)}")
+    print(f"Batch size : {args.batch_size}")
     print(f"=> {len(selected_datasets) * len(selected_checkpoints)} comparison(s)")
 
     overall_summary = {}
@@ -627,7 +717,7 @@ if __name__ == "__main__":
             print(f"***  {dataset_key.upper()}  --  {checkpoint} pretraining steps")
             print(f"{'*' * 70}\n")
 
-            entries = run_single_comparison(dataset_key, checkpoint)
+            entries = run_single_comparison(dataset_key, checkpoint, args.batch_size)
 
             overall_summary[(dataset_key, checkpoint)] = Counter(
                 entry["llm_judge_winner"] for entry in entries
