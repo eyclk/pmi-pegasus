@@ -1,0 +1,95 @@
+(pmi_pegasus) ege@ege-mint:~/Desktop/Pmi_Pegasus/pmi-pegasus$ cd /home/ege/Desktop/Pmi_Pegasus/pmi-pegasus
+
+python scripts/extra_preprocessing_codes/compare_principal_sent_of_two_preprocessed_sets.py \
+    --dataset_a "/media/ege/PortableSSD/SERVER CODE BACKUP - 23.02.2026/pmi-pegasus/PREPROCESSED_DATASETS/dataset_for_PMI_pegasus_Complete" \
+    --dataset_b ./PREPROCESSED_DATASETS/c4_realnewslike_processed_EMBED_bert-base-uncased_complete_combined \
+    --name_a PMI --name_b EMBED \
+    --print_first_k_differences 10
+Comparing principal sentences: 100%|████████████████████████████| 1380/1380 [01:36<00:00, 14.23it/s]
+
+Comparison of the principal sentences of 'PMI' and 'EMBED':
+
+PMI: /media/ege/PortableSSD/SERVER CODE BACKUP - 23.02.2026/pmi-pegasus/PREPROCESSED_DATASETS/dataset_for_PMI_pegasus_Complete
+EMBED: ./PREPROCESSED_DATASETS/c4_realnewslike_processed_EMBED_bert-base-uncased_complete_combined
+
+Total examples compared: 13799838
+
+Number of examples with the same principal sentence: 3115186 (22.57%)
+Number of examples with different principal sentences: 10684652 (77.43%)
+Number of examples with almost the same principal sentences but minor differences: 1776
+
+
+
+
+----- Example 1:
+*** PMI principal sentence:
+But when wide receivers were measured Thursday, Butler gained some attention: He led all receivers in height (6-foot-5 3/8), arm length (35 1/4 inches) and wingspan (83 7/8 inches).
+
+*** EMBED principal sentence:
+And he feels well-prepared because he’s spent the past few months working out with some legendary NFL receivers in Calvin Johnson and Anquan Boldin.
+
+----- Example 2:
+*** PMI principal sentence:
+To date, 8i has raised $14.8 million in funding from investors including RRE Ventures, Founders Fund Science, Horizons Ventures, Samsung Ventures, Dolby Family Ventures, Signia Venture Partners, Bertelsmann Digital Media Investments, Sound Ventures, Inevitable Ventures, Freelands, and Advancit Capital.
+
+*** EMBED principal sentence:
+If you use the Oculus Rift or Vive headsets, you can view cool VR videos of people who look real, not computer-generated, and move around them, make eye contact, and feel “true presence,” the company said.
+
+----- Example 3:
+*** PMI principal sentence:
+It’s not yet clear whether Amazon will pay the local business license tax because that tax is levied only on certain types of business, and Amazon has not yet announced which of its business units will be based in Arlington.
+
+*** EMBED principal sentence:
+The Arlington County Board plans to vote Saturday afternoon on giving Amazon $23 million and other incentives to build a headquarters campus in Crystal City, but only after hearing scores of northern Virginia residents and advocates testify for or against the project.
+
+----- Example 4:
+*** PMI principal sentence:
+“By adding this new service line, and bringing someone with Karl’s expertise to the firm, we can service yet another important aspect of our clients’ and prospects’ businesses, ensuring their continued success,” CEO Louis Grassi said in a written statement.
+
+*** EMBED principal sentence:
+Karl Kispert, principal of cyber and information security, has more than 28 years of experience in selling, managing and delivering information risk management, internal audit, regulatory and compliance programs, and information security and technology risk management.
+
+----- Example 5:
+*** PMI principal sentence:
+The former state employee – a man in his 50s who asked to remain anonymous for his safety – said that he was “100 percent sure” that the drill on Jan. 13 was real, even though several other employees heard the word “exercise” repeated throughout the message, according to officials.
+
+*** EMBED principal sentence:
+The Hawaii man who was fired after issuing the false ballistic missile alert in mid-January told reporters Friday that he was very upset over the incident but remained adamant that it appeared, at the time, to be a real-life attack.
+
+----- Example 6:
+*** PMI principal sentence:
+The 52-year-old country star, still clad in her iconic leopard print, insists that Now is not a break up album but another coming-of-age collection of tunes bound to make listeners laugh, cry and rock out.
+
+*** EMBED principal sentence:
+The Timmins native hopped on Twitter on Wednesday to announce that her album is already platinum in Canada!
+
+----- Example 7:
+*** PMI principal sentence:
+Assembled by Palestinian artist Said Baalbaki, the exhibition presents 50 of Abbo's sketches, etchings and object, as well as texts – all taken from Baalbaki's personal collection of work from, and publications on, the elusive sculptor.
+
+*** EMBED principal sentence:
+Alongside Abbo's artworks are vintage photos of places he'd been or postcards from that time period, which Baalbaki says is to give an overall look at the life he led, in today's age of media and imagery.
+
+----- Example 8:
+*** PMI principal sentence:
+Wyatt was heading back home after visiting friends in Longmont, and was about to cross the tracks to transfer to another train, unaware that a train was approaching.
+
+*** EMBED principal sentence:
+A blind man in his 60s is searching for the young man who pulled him back from an approaching train and saved his life last Thursday, Nov. 9.
+
+----- Example 9:
+*** PMI principal sentence:
+Dr. Glashow, the co-chief of sports medicine at Mount Sinai Medical Center, tells HollywoodLife.com exclusively that not only will Kevin play basketball again, but he could be healed in time for next season!
+
+*** EMBED principal sentence:
+After Kevin’s horrific leg injury, everyone is asking: will he ever play basketball again?
+
+----- Example 10:
+*** PMI principal sentence:
+Therefore, it is only right that someone, like Casey, take up the mantle to oversee and to fight for the consumer and to ensure that all Walmart's activities look, feel, and convey the Walmart brand in the simplest, most straightforward way as possible.
+
+*** EMBED principal sentence:
+Walmart having a mission to help its customers save money and live better is one thing, but putting that promise into coherent action is another thing entirely.
+
+
+

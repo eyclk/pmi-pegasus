@@ -13,6 +13,8 @@ Number of examples with different principal sentences: 10709620 (77.61%)
 Number of examples with almost the same principal sentences but minor differences: 2344
 
 
+
+
 The 10709620 differing examples were saved to: diff_ROUGE_vs_SBERT.json
 
 
