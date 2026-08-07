@@ -73,7 +73,7 @@ MAX_SAMPLES_PER_COMPARISON = None
 # linearly with the batch, and a batch keeps generating until its LONGEST
 # completion is done, which wastes the slots that finished early. Batch sizes
 # above 1 also shift a few verdicts (see below), so 1 is the default.
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent

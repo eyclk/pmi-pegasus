@@ -1,0 +1,88 @@
+✔︎ pmi-pegasus (main) ✗ python scripts/extra_preprocessing_codes/compare_principal_sent_of_two_preprocessed_sets.py  --dataset_a ./PREPROCESSED_DATASETS/COMPLETE_c4_realnewslike_processed_PMI  --dataset_b ./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined/   --name_a PMI --name_b SBERT  --save_differences_to diff_PMI_vs_SBERT.json   --print_first_k_differences 10
+Comparing principal sentences: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1380/1380 [01:39<00:00, 13.93it/s]
+
+Comparison of the principal sentences of 'PMI' and 'SBERT':
+
+PMI: ./PREPROCESSED_DATASETS/COMPLETE_c4_realnewslike_processed_PMI
+SBERT: ./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined/
+
+Total examples compared: 13799838
+
+Number of examples with the same principal sentence: 2176061 (15.77%)
+Number of examples with different principal sentences: 11623777 (84.23%)
+Number of examples with almost the same principal sentences but minor differences: 1730
+
+
+----- Example 1:
+*** PMI principal sentence:
+But when wide receivers were measured Thursday, Butler gained some attention: He led all receivers in height (6-foot-5 3/8), arm length (35 1/4 inches) and wingspan (83 7/8 inches).
+
+*** SBERT principal sentence:
+There is clear interest in Butler, who declared for the draft after his junior season in which he had 60 receptions for 1,318 yards and nine touchdowns.
+
+----- Example 2:
+*** PMI principal sentence:
+To date, 8i has raised $14.8 million in funding from investors including RRE Ventures, Founders Fund Science, Horizons Ventures, Samsung Ventures, Dolby Family Ventures, Signia Venture Partners, Bertelsmann Digital Media Investments, Sound Ventures, Inevitable Ventures, Freelands, and Advancit Capital.
+
+*** SBERT principal sentence:
+8i’s platform will let you create, experience, and share immersive 3D video of real people — for virtual reality, augmented reality, and the web.
+
+----- Example 3:
+*** PMI principal sentence:
+It’s not yet clear whether Amazon will pay the local business license tax because that tax is levied only on certain types of business, and Amazon has not yet announced which of its business units will be based in Arlington.
+
+*** SBERT principal sentence:
+The proposed county incentives are part of an agreement in which Amazon would occupy significant office space and bring at least 25,000 high-paying jobs to Arlington in coming years.
+
+----- Example 4:
+*** PMI principal sentence:
+“By adding this new service line, and bringing someone with Karl’s expertise to the firm, we can service yet another important aspect of our clients’ and prospects’ businesses, ensuring their continued success,” CEO Louis Grassi said in a written statement.
+
+*** SBERT principal sentence:
+Karl Kispert, principal of cyber and information security, has more than 28 years of experience in selling, managing and delivering information risk management, internal audit, regulatory and compliance programs, and information security and technology risk management.
+
+----- Example 5:
+*** PMI principal sentence:
+The former state employee – a man in his 50s who asked to remain anonymous for his safety – said that he was “100 percent sure” that the drill on Jan. 13 was real, even though several other employees heard the word “exercise” repeated throughout the message, according to officials.
+
+*** SBERT principal sentence:
+The employee also reportedly had at least two previous incidents in which he mistook drills for real-world events, including for tsunami and fire warnings.
+
+----- Example 6:
+*** PMI principal sentence:
+The 52-year-old country star, still clad in her iconic leopard print, insists that Now is not a break up album but another coming-of-age collection of tunes bound to make listeners laugh, cry and rock out.
+
+*** SBERT principal sentence:
+Shania Twain expected to break the charts with new album NOW!
+
+----- Example 8:
+*** PMI principal sentence:
+Wyatt was heading back home after visiting friends in Longmont, and was about to cross the tracks to transfer to another train, unaware that a train was approaching.
+
+*** SBERT principal sentence:
+Wyatt told 9 News he will come to the station one more day to look for the man.
+
+----- Example 10:
+*** PMI principal sentence:
+Therefore, it is only right that someone, like Casey, take up the mantle to oversee and to fight for the consumer and to ensure that all Walmart's activities look, feel, and convey the Walmart brand in the simplest, most straightforward way as possible.
+
+*** SBERT principal sentence:
+Bezos saw that the opportunity in retail was to put the customer first and to think not about the product he or she buys but about the Product he or she really buys—for him, the Product (big "P) of the Amazon brand.
+
+----- Example 11:
+*** PMI principal sentence:
+On Monday night, Brophy said that police got a call from a frantic mother saying “something happened to her daughter.” In a statement released by the McCluskey family, McCluskey’s mother said that she was on the phone with her daughter that night when she suddenly heard Lauren McCluskey yell “no no no!” Afraid her daughter was in a car accident, she stayed on the line while her husband called 911.
+
+*** SBERT principal sentence:
+The suspected shooter was 37-year-old Melvin Rowland, a man McCluskey’s family said she had recently stopped dating.
+
+----- Example 12:
+*** PMI principal sentence:
+The drivers for Video4LinuxÂ 2 (V4L2) located in the media subsystem can now use the "DMA Buffer Sharing Mechanism" (dma_buf) integrated in Linux 3.3 to share buffer space with graphics cards, which makes it possible that data from video hardware will no longer need to be duplicated in the buffer in order for a graphics chip to display it.
+
+*** SBERT principal sentence:
+Version 3.8 of Linux is the first to include a simple kernel graphics driver for the graphics cores in NVIDIA's TegraÂ 2 and 3 SoCs (system on a chip) (1, 2, 3 and others).
+
+The 11623777 differing examples were saved to: diff_PMI_vs_SBERT.json
+
+
