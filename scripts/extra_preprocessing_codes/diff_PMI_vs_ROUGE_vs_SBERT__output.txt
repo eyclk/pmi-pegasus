@@ -1,0 +1,156 @@
+Command: scripts/extra_preprocessing_codes/compare_principal_sent_of_three_preprocessed_sets.py --dataset_pmi /media/ege/PortableSSD/SERVER CODE BACKUP - 23.02.2026/pmi-pegasus/PREPROCESSED_DATASETS/dataset_for_PMI_pegasus_Complete --dataset_rouge ./PREPROCESSED_DATASETS/c4_realnewslike_processed_ROUGE_complete_combined --dataset_other ./PREPROCESSED_DATASETS/c4_realnewslike_processed_EMBED_bert-base-uncased_complete_combined --name_other EMBED --print_first_k_differences 10 --log_to ./diff_PMI_vs_ROUGE_vs_SBERT__output.txt
+
+Comparison of the principal sentences of 'PMI', 'ROUGE' and 'EMBED':
+
+PMI: /media/ege/PortableSSD/SERVER CODE BACKUP - 23.02.2026/pmi-pegasus/PREPROCESSED_DATASETS/dataset_for_PMI_pegasus_Complete
+ROUGE: ./PREPROCESSED_DATASETS/c4_realnewslike_processed_ROUGE_complete_combined
+EMBED: ./PREPROCESSED_DATASETS/c4_realnewslike_processed_EMBED_bert-base-uncased_complete_combined
+
+Total examples compared: 13799838
+
+--- Agreement of all three sets ---
+
+Same principal sentence in all three sets: 2215145 (16.05%)
+Completely different principal sentence in all three sets: 3912911 (28.35%)
+
+--- Exactly two sets agree, the third one picked another sentence ---
+
+PMI = ROUGE, but EMBED differs: 4771485 (34.58%)
+PMI = EMBED, but ROUGE differs: 900041 (6.52%)
+ROUGE = EMBED, but PMI differs: 2000256 (14.49%)
+
+--- Pairwise agreement, regardless of the third set ---
+
+PMI = ROUGE: 6986630 (50.63%)
+PMI = EMBED: 3115186 (22.57%)
+ROUGE = EMBED: 4215401 (30.55%)
+
+--- Pairs that are almost the same but have minor differences ---
+
+These are counted as different sentences above.
+
+PMI and ROUGE: 2338
+PMI and EMBED: 1776
+ROUGE and EMBED: 2434
+
+Alignment check passed: every compared triple comes from the same source document.
+
+
+----- Example 0:
+
+*** PMI principal sentence:
+After the martyrdom of St. Boniface, Vergilius was made Bishop of Salzburg (766 or 767) and laboured successfully for the upbuilding of his diocese as well as for the spread of the Faith in neighbouring heathen countries, especially in Carinthia.
+
+*** ROUGE principal sentence:
+His doctrine that the earth is a sphere was derived from the teaching of ancient geographers, and his belief in the existence of the antipodes was probably influenced by the accounts which the ancient Irish voyagers gave of their journeys.
+
+*** EMBED principal sentence:
+After the martyrdom of St. Boniface, Vergilius was made Bishop of Salzburg (766 or 767) and laboured successfully for the upbuilding of his diocese as well as for the spread of the Faith in neighbouring heathen countries, especially in Carinthia.
+
+
+----- Example 1:
+
+*** PMI principal sentence:
+But when wide receivers were measured Thursday, Butler gained some attention: He led all receivers in height (6-foot-5 3/8), arm length (35 1/4 inches) and wingspan (83 7/8 inches).
+
+*** ROUGE principal sentence:
+There is clear interest in Butler, who declared for the draft after his junior season in which he had 60 receptions for 1,318 yards and nine touchdowns.
+
+*** EMBED principal sentence:
+And he feels well-prepared because he’s spent the past few months working out with some legendary NFL receivers in Calvin Johnson and Anquan Boldin.
+
+
+----- Example 2:
+
+*** PMI principal sentence:
+To date, 8i has raised $14.8 million in funding from investors including RRE Ventures, Founders Fund Science, Horizons Ventures, Samsung Ventures, Dolby Family Ventures, Signia Venture Partners, Bertelsmann Digital Media Investments, Sound Ventures, Inevitable Ventures, Freelands, and Advancit Capital.
+
+*** ROUGE principal sentence:
+If you use the Oculus Rift or Vive headsets, you can view cool VR videos of people who look real, not computer-generated, and move around them, make eye contact, and feel “true presence,” the company said.
+
+*** EMBED principal sentence:
+If you use the Oculus Rift or Vive headsets, you can view cool VR videos of people who look real, not computer-generated, and move around them, make eye contact, and feel “true presence,” the company said.
+
+
+----- Example 3:
+
+*** PMI principal sentence:
+It’s not yet clear whether Amazon will pay the local business license tax because that tax is levied only on certain types of business, and Amazon has not yet announced which of its business units will be based in Arlington.
+
+*** ROUGE principal sentence:
+The Arlington County Board plans to vote Saturday afternoon on giving Amazon $23 million and other incentives to build a headquarters campus in Crystal City, but only after hearing scores of northern Virginia residents and advocates testify for or against the project.
+
+*** EMBED principal sentence:
+The Arlington County Board plans to vote Saturday afternoon on giving Amazon $23 million and other incentives to build a headquarters campus in Crystal City, but only after hearing scores of northern Virginia residents and advocates testify for or against the project.
+
+
+----- Example 4:
+
+*** PMI principal sentence:
+“By adding this new service line, and bringing someone with Karl’s expertise to the firm, we can service yet another important aspect of our clients’ and prospects’ businesses, ensuring their continued success,” CEO Louis Grassi said in a written statement.
+
+*** ROUGE principal sentence:
+Karl Kispert, principal of cyber and information security, has more than 28 years of experience in selling, managing and delivering information risk management, internal audit, regulatory and compliance programs, and information security and technology risk management.
+
+*** EMBED principal sentence:
+Karl Kispert, principal of cyber and information security, has more than 28 years of experience in selling, managing and delivering information risk management, internal audit, regulatory and compliance programs, and information security and technology risk management.
+
+
+----- Example 5:
+
+*** PMI principal sentence:
+The former state employee – a man in his 50s who asked to remain anonymous for his safety – said that he was “100 percent sure” that the drill on Jan. 13 was real, even though several other employees heard the word “exercise” repeated throughout the message, according to officials.
+
+*** ROUGE principal sentence:
+Gen. Bruce Oliveira shared details of the state’s probe and said when the mistake was realized, the employee “froze” and “seemed confused.” Another employee had to resume his duties and send a correction message, Oliveira said.
+
+*** EMBED principal sentence:
+The Hawaii man who was fired after issuing the false ballistic missile alert in mid-January told reporters Friday that he was very upset over the incident but remained adamant that it appeared, at the time, to be a real-life attack.
+
+
+----- Example 6:
+
+*** PMI principal sentence:
+The 52-year-old country star, still clad in her iconic leopard print, insists that Now is not a break up album but another coming-of-age collection of tunes bound to make listeners laugh, cry and rock out.
+
+*** ROUGE principal sentence:
+The 52-year-old country star, still clad in her iconic leopard print, insists that Now is not a break up album but another coming-of-age collection of tunes bound to make listeners laugh, cry and rock out.
+
+*** EMBED principal sentence:
+The Timmins native hopped on Twitter on Wednesday to announce that her album is already platinum in Canada!
+
+
+----- Example 7:
+
+*** PMI principal sentence:
+Assembled by Palestinian artist Said Baalbaki, the exhibition presents 50 of Abbo's sketches, etchings and object, as well as texts – all taken from Baalbaki's personal collection of work from, and publications on, the elusive sculptor.
+
+*** ROUGE principal sentence:
+Assembled by Palestinian artist Said Baalbaki, the exhibition presents 50 of Abbo's sketches, etchings and object, as well as texts – all taken from Baalbaki's personal collection of work from, and publications on, the elusive sculptor.
+
+*** EMBED principal sentence:
+Alongside Abbo's artworks are vintage photos of places he'd been or postcards from that time period, which Baalbaki says is to give an overall look at the life he led, in today's age of media and imagery.
+
+
+----- Example 8:
+
+*** PMI principal sentence:
+Wyatt was heading back home after visiting friends in Longmont, and was about to cross the tracks to transfer to another train, unaware that a train was approaching.
+
+*** ROUGE principal sentence:
+A blind man in his 60s is searching for the young man who pulled him back from an approaching train and saved his life last Thursday, Nov. 9.
+
+*** EMBED principal sentence:
+A blind man in his 60s is searching for the young man who pulled him back from an approaching train and saved his life last Thursday, Nov. 9.
+
+
+----- Example 9:
+
+*** PMI principal sentence:
+Dr. Glashow, the co-chief of sports medicine at Mount Sinai Medical Center, tells HollywoodLife.com exclusively that not only will Kevin play basketball again, but he could be healed in time for next season!
+
+*** ROUGE principal sentence:
+Dr. Glashow, the co-chief of sports medicine at Mount Sinai Medical Center, tells HollywoodLife.com exclusively that not only will Kevin play basketball again, but he could be healed in time for next season!
+
+*** EMBED principal sentence:
+After Kevin’s horrific leg injury, everyone is asking: will he ever play basketball again?
