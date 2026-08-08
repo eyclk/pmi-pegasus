@@ -13,8 +13,8 @@ Example:
         --dataset_pmi ./PREPROCESSED_DATASETS/c4_realnewslike_processed_PMI_complete_combined \
         --dataset_rouge ./PREPROCESSED_DATASETS/c4_realnewslike_processed_ROUGE_complete_combined \
         --dataset_other ./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined \
-        --name_other SBERT
-        --log_to ./diff_PMI_vs_ROUGE_vs_SBERT__output.txt
+        --name_other SBERT \
+        --log_to ./diff_PMI_vs_ROUGE_vs_SBERT__output.txt  --print_first_k_differences 10
 """
 
 import argparse
