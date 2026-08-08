@@ -1,4 +1,4 @@
-Command: scripts/extra_preprocessing_codes/compare_principal_sent_of_three_preprocessed_sets.py --dataset_pmi /media/ege/PortableSSD/SERVER CODE BACKUP - 23.02.2026/pmi-pegasus/PREPROCESSED_DATASETS/dataset_for_PMI_pegasus_Complete --dataset_rouge ./PREPROCESSED_DATASETS/c4_realnewslike_processed_ROUGE_complete_combined --dataset_other ./PREPROCESSED_DATASETS/c4_realnewslike_processed_EMBED_bert-base-uncased_complete_combined --name_other EMBED --print_first_k_differences 10 --log_to ./diff_PMI_vs_ROUGE_vs_SBERT__output.txt
+Command: scripts/extra_preprocessing_codes/compare_principal_sent_of_three_preprocessed_sets.py --dataset_pmi /media/ege/PortableSSD/SERVER CODE BACKUP - 23.02.2026/pmi-pegasus/PREPROCESSED_DATASETS/dataset_for_PMI_pegasus_Complete --dataset_rouge ./PREPROCESSED_DATASETS/c4_realnewslike_processed_ROUGE_complete_combined --dataset_other ./PREPROCESSED_DATASETS/c4_realnewslike_processed_EMBED_bert-base-uncased_complete_combined --name_other EMBED --print_first_k_differences 10 --log_to ./diff_PMI_vs_ROUGE_vs_EMBED__output.txt
 
 Comparison of the principal sentences of 'PMI', 'ROUGE' and 'EMBED':
 
