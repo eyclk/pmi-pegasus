@@ -1,0 +1,11 @@
+DATASET   : wikihow
+CHECKPOINT: 6M
+JUDGE     : prometheus-eval/prometheus-7b-v2.0 (compared against the SOURCE DOCUMENTS)
+SETTINGS  : max_source_tokens=4000, max_new_tokens=768, 4bit=True, batch_size=4
+SAMPLES   : 5577
+----------------------
+PMI wins   : 2270  (40.7029%)
+ROUGE wins : 2465 (44.1994%)
+TIES       : 842 (15.0977%)
+----------------------
+  of which no [RESULT] tag : 10 (0.1793%)

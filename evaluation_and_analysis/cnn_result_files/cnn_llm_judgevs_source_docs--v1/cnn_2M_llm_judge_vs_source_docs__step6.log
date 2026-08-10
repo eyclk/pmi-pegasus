@@ -1,0 +1,11 @@
+DATASET   : cnn
+CHECKPOINT: 2M
+JUDGE     : prometheus-eval/prometheus-7b-v2.0 (compared against the SOURCE DOCUMENTS)
+SETTINGS  : max_source_tokens=4000, max_new_tokens=768, 4bit=True
+SAMPLES   : 11490
+----------------------
+PMI wins   : 5643  (49.1123%)
+ROUGE wins : 5154 (44.8564%)
+TIES       : 693 (6.0313%)
+----------------------
+  of which no [RESULT] tag : 0 (0.0000%)
