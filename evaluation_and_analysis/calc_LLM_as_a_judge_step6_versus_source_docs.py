@@ -10,7 +10,9 @@ The judging prompt asks about faithfulness ONLY -- coverage, conciseness and
 coherence are deliberately left out, so that the verdict is not diluted by
 general summary quality. The prompt differs per dataset: cnn and xsum (news)
 are judged on faithfulness alone, while wikihow (procedural how-to texts) gets
-an extra criterion for step order and prerequisite structure.
+two extra criteria -- one for the specifics a step cannot be executed without
+(quantities, durations, temperatures, tool names, settings), and one for step
+order and prerequisite structure.
 
 It automatically runs all 8 (checkpoints: 1M .. 8M) x 3 (datasets: cnn, xsum,
 wikihow) = 24 PMI-vs-ROUGE comparisons, reading the candidate summaries
@@ -230,6 +232,9 @@ def truncate_source_document(source_document: str) -> str:
 # weighing four criteria at once gives no interpretable signal about which one
 # actually decided the comparison. They are simply left unmentioned rather than
 # explicitly ruled out, so that the prompt never puts them in the judge's head.
+# The one omission the wikihow prompt does look at is not coverage in that sense:
+# it asks whether the steps a summary DOES mention keep the values they cannot be
+# executed without, and is explicitly scoped to those steps only.
 #
 # The criteria are kept short on purpose: the judges are small models, and long
 # enumerations of edge cases cost more attention than the detail is worth.
@@ -254,8 +259,10 @@ PROMPT_STYLES = {
             "contradicts the Source Document."
         ),
     },
-    # wikihow -- procedural how-to texts, so the order and the prerequisite
-    # structure of the steps carry meaning that a news summary does not have.
+    # wikihow -- procedural how-to texts, so the exact values of a step and the
+    # order and prerequisite structure of the steps carry meaning that a news
+    # summary does not have: a dropped temperature or a swapped step makes the
+    # procedure unusable even when nothing in the summary is actually false.
     "procedural": {
         "system_message": (
             "You are a fair and precise evaluation assistant. "
@@ -271,11 +278,17 @@ PROMPT_STYLES = {
             "Document. Count as unfaithful anything the summary invents, and anything that\n"
             "contradicts the Source Document.\n"
             "\n"
-            "2. **Procedural Order:** Do the steps appear in the same order as in the Source\n"
+            "2. **Critical Specifics:** For every step the summary does mention, does it keep the\n"
+            "details that step cannot be carried out without: quantities, durations, temperatures,\n"
+            "sizes, settings, and the specific tool, material or ingredient names? Dropping one such\n"
+            "detail, or replacing it with a vague phrase (\"bake it\" instead of \"bake at 180 C for 20\n"
+            "minutes\"), is a serious flaw, because the reader can no longer perform the step.\n"
+            "\n"
+            "3. **Procedural Order:** Do the steps appear in the same order as in the Source\n"
             "Document, and does every step still come after whatever it depends on?\n"
             "\n"
-            "Weigh criterion 1 first. Use criterion 2 to decide when both summaries are comparably\n"
-            "faithful."
+            "Weigh criterion 1 first, then criterion 2, then criterion 3. Judge criterion 2 only on\n"
+            "the steps a summary actually mentions."
         ),
     },
 }
