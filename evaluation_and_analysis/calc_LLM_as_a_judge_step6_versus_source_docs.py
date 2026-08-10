@@ -28,17 +28,30 @@ file, so an interrupted run continues exactly where it stopped when restarted.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import random
 from collections import Counter
 from pathlib import Path
 
+# cuBLAS chooses its reduction strategy through a workspace heuristic, which can
+# differ between runs and change the low bits of every matmul. Pinning the
+# workspace is only honoured when it is set BEFORE torch initialises CUDA, hence
+# before the import below. enforce_determinism() holds the rest of the settings.
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
 import torch
 import transformers
 from datasets import load_from_disk
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from torch.nn.attention import SDPBackend, sdpa_kernel
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+    GenerationConfig,
+)
 from fastchat.conversation import get_conv_template
 
 ###############################################################################
@@ -50,7 +63,24 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
 
 MAX_NEW_TOKENS = 768
-TEMPERATURE = 0.01  # deterministic judging
+
+# Decoding is greedy (do_sample=False), so there is no temperature to lower: the
+# verdict is an argmax over the logits, not a sample from them. What does move a
+# verdict between runs is floating point -- on a near-tied token a difference in
+# the last bits picks the other token, and greedy decoding then carries that
+# divergence through the rest of the feedback. enforce_determinism() removes the
+# sources of that jitter which are under this script's control; the batch size
+# is the one that is not (see BATCH_SIZE).
+
+# Which kernel torch.scaled_dot_product_attention runs. Left unpinned, it is
+# picked per call by a heuristic that reads the shapes and the hardware, so the
+# same sample can be computed by two different kernels -- and two kernels do not
+# agree on the last bits. EFFICIENT_ATTENTION rather than FLASH_ATTENTION
+# because the prompts are left-padded: flash takes no arbitrary attention mask
+# and would be rejected, and pinning to a rejected backend raises instead of
+# falling back. MATH is not an option either -- it builds the same seq x seq
+# matrix that made eager OOM.
+ATTENTION_BACKEND = SDPBackend.EFFICIENT_ATTENTION
 
 # The bf16 weights alone are ~14.5 GB, which does not leave room for the KV
 # cache on a 16 GB card (device_map="auto" would silently offload layers to the
@@ -71,16 +101,19 @@ SAVE_SOURCE_DOCUMENT_IN_OUTPUT = False
 # (useful for quick runs). None => judge the whole test set.
 MAX_SAMPLES_PER_COMPARISON = None
 
-# Samples per generate() call. 1 keeps the original one-at-a-time behaviour;
-# override per machine with --batch-size.
+# Samples per generate() call; override per machine with --batch-size.
 #
-# Measured on an RTX 5080 (16 GB, 4-bit NF4, wikihow, 24 samples):
-#   bs=1  -> 4.21 s/sample      bs=8  -> 4.49 s/sample (0.94x, i.e. no gain)
-#   bs=16 -> CUDA OOM
-# Batching does not pay off here: the prompts are long, so prefill work grows
-# linearly with the batch, and a batch keeps generating until its LONGEST
-# completion is done, which wastes the slots that finished early. Batch sizes
-# above 1 also shift a few verdicts (see below), so 1 is the default.
+# This is a numerical setting as much as a throughput one. With a batch larger
+# than 1 a sample is padded up to the longest prompt it shares a batch with, so
+# the matmul shapes -- and with them the low bits of its logits -- depend on its
+# neighbours. Determinism therefore holds AT A FIXED BATCH SIZE: keep it
+# constant across every comparison you intend to put side by side, and rerun a
+# comparison rather than continuing it at a different size.
+#
+# Resuming re-cuts the batches on a grid starting at 0 (see
+# run_single_comparison), so an interrupted run groups its samples exactly like
+# an uninterrupted one. Every judged sample records the batch size it was
+# produced with, which makes an accidentally mixed comparison visible.
 BATCH_SIZE = 2
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -124,6 +157,88 @@ DATASETS = {
 
 tokenizer = None
 model = None
+generation_config = None
+
+
+def enforce_determinism():
+    """
+    Removes the run-to-run floating point jitter that this script can control.
+
+    Greedy decoding makes every verdict an argmax, so a difference in the last
+    bits of a logit is enough to flip a near-tied token and, through the rest of
+    the greedy chain, the whole verdict. The settings below pin the parts of the
+    numerics that would otherwise be chosen by a heuristic at runtime.
+
+    What this does NOT make identical: a different GPU architecture, a different
+    torch / transformers / bitsandbytes build, or a different batch size. 4-bit
+    NF4 leaves little numerical headroom, so those do shift a few verdicts.
+    environment_fingerprint() is written into every log to make such a change
+    visible instead of silent.
+    """
+
+    # bitsandbytes has no deterministic implementation registered for some of
+    # its kernels, so a hard failure would make the script unusable in 4-bit;
+    # warn_only keeps the deterministic paths that do exist.
+    torch.use_deterministic_algorithms(True, warn_only=True)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False  # else the algorithm depends on timings
+
+    # TF32 and reduced-precision reductions are themselves reproducible, but
+    # they throw away mantissa bits and so produce far more near-ties for the
+    # argmax to flip on.
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = False
+
+    # Nothing in the judging path samples, but a seed costs nothing and covers
+    # any library that reaches for the global RNG during loading.
+    random.seed(0)
+    torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(0)
+
+
+def attention_backend_context():
+    """
+    Restricts scaled_dot_product_attention to ATTENTION_BACKEND.
+
+    Only on CUDA: the fused backends are CUDA kernels, so pinning one on a CPU
+    run leaves the dispatcher with nothing viable and raises. A CPU run has only
+    the math kernel anyway, which makes the choice deterministic by itself.
+    """
+
+    if not torch.cuda.is_available():
+        return contextlib.nullcontext()
+
+    return sdpa_kernel(ATTENTION_BACKEND)
+
+
+def environment_fingerprint() -> str:
+    """
+    The versions and the device the numerics depend on, recorded in every log so
+    that a shift in the verdicts can be traced to an environment change rather
+    than mistaken for a difference between the checkpoints.
+    """
+
+    try:
+        import bitsandbytes
+
+        bnb_version = bitsandbytes.__version__
+    except Exception:
+        bnb_version = "n/a"
+
+    if torch.cuda.is_available():
+        device_name = torch.cuda.get_device_name(0)
+        attention = ATTENTION_BACKEND.name.lower()
+    else:
+        device_name = "cpu"
+        attention = "math (cpu)"
+
+    return (
+        f"torch={torch.__version__}, transformers={transformers.__version__}, "
+        f"bitsandbytes={bnb_version}, device={device_name}, attn={attention}"
+    )
 
 
 def dtype_kwarg_name() -> str:
@@ -142,13 +257,15 @@ def dtype_kwarg_name() -> str:
 
 
 def load_model_if_needed():
-    global tokenizer, model
+    global tokenizer, model, generation_config
 
     if model is not None:
         return
 
     print("Loading Prometheus (HF) with Mistral conversation template...")
-    print(f"  -> transformers {transformers.__version__}, torch {torch.__version__}")
+    print(f"  -> {environment_fingerprint()}")
+
+    enforce_determinism()
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
@@ -158,7 +275,23 @@ def load_model_if_needed():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    load_kwargs = {dtype_kwarg_name(): DTYPE, "device_map": "auto"}
+    # device_map="auto" places the layers by looking at the FREE memory of the
+    # moment, so a run with something else on the GPU can silently offload a
+    # layer to the CPU and compute it in another precision. Pinning everything
+    # to the first visible device keeps the placement identical between runs
+    # (and still honours CUDA_VISIBLE_DEVICES).
+    device_map = {"": 0} if torch.cuda.is_available() else {"": "cpu"}
+
+    # Pinned so the attention path is not whatever the install happens to
+    # prefer. It must be sdpa, not eager: eager materialises the full
+    # batch x heads x seq x seq score matrix, which at a 4000-token source
+    # document and batch 2 is ~2.4 GB per layer in bf16 and OOMs a 16 GB card.
+    # sdpa never builds that matrix; ATTENTION_BACKEND pins the kernel it uses.
+    load_kwargs = {
+        dtype_kwarg_name(): DTYPE,
+        "device_map": device_map,
+        "attn_implementation": "sdpa",
+    }
     if LOAD_IN_4BIT and torch.cuda.is_available():
         load_kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -170,6 +303,21 @@ def load_model_if_needed():
 
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, **load_kwargs)
     model.eval()
+
+    # Built explicitly rather than left to the checkpoint's
+    # generation_config.json, which ships sampling defaults (temperature, top_p,
+    # top_k) that would otherwise apply the moment do_sample were ever true.
+    # Greedy + a single beam is the entire decoding policy of this script.
+    generation_config = GenerationConfig(
+        do_sample=False,
+        num_beams=1,
+        temperature=None,
+        top_p=None,
+        top_k=None,
+        max_new_tokens=MAX_NEW_TOKENS,
+        pad_token_id=tokenizer.pad_token_id,
+        eos_token_id=tokenizer.eos_token_id,
+    )
 
     print("Model loaded successfully.\n")
 
@@ -273,10 +421,7 @@ PROMPT_STYLES = {
         "criteria_word": "criteria",
         "criteria_header": "EVALUATION CRITERIA (these are the ONLY things you judge):",
         "criteria_block": (
-            "1. **Faithfulness:** Is every statement in the summary supported by the Source Document?\n"
-            "Actions, materials, tools, quantities and warnings must all be traceable to the Source\n"
-            "Document. Count as unfaithful anything the summary invents, and anything that\n"
-            "contradicts the Source Document.\n"
+            "1. **Faithfulness:** Is every statement in the summary supported by the Source Document, without hallucinated or contradicting information?\n"
             "\n"
             "2. **Critical Specifics:** For every step the summary does mention, does it keep the\n"
             "details that step cannot be carried out without: quantities, durations, temperatures,\n"
@@ -286,12 +431,15 @@ PROMPT_STYLES = {
             "\n"
             "3. **Procedural Order:** Do the steps appear in the same order as in the Source\n"
             "Document, and does every step still come after whatever it depends on?\n"
-            "\n"
-            "Weigh criterion 1 first, then criterion 2, then criterion 3. Judge criterion 2 only on\n"
-            "the steps a summary actually mentions."
         ),
     },
 }
+
+"""
+"\n"
+            "Weigh criterion 1 first, then criterion 2, then criterion 3. Judge criterion 2 only on\n"
+            "the steps a summary actually mentions."
+"""
 
 
 def build_judge_prompt(
@@ -332,7 +480,7 @@ TASK DESCRIPTION:
 2. Decide which Candidate Summary is better according to the evaluation {style["criteria_word"]} below, and nothing else.
 3. Compare both summaries statement by statement against the Source Document, and base your decision on the violations of the {style["criteria_word"]} that you can actually point to in the text.
 4. Write a brief feedback that assess the two candidate summaries strictly based on the given evaluation {style["criteria_word"]}, not evaluating in general.
-5. If both summaries violate the evaluation {style["criteria_word"]} to the same degree, or if neither violates them at all, answer "TIE".
+5. Prefer a decision over a "TIE": if one summary is even slightly better on the evaluation {style["criteria_word"]} - fewer violations, or a violation that is less damaging to the reader - choose that summary. Answer "TIE" only as a last resort, when you cannot point to any difference at all between the two summaries with respect to the {style["criteria_word"]}.
 6. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
 7. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
 8. Please do not generate any other opening, closing, and explanations.
@@ -401,13 +549,10 @@ def judge_batch_with_prometheus(batch, dataset_key: str):
         truncation=False,
     ).to(model.device)
 
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=MAX_NEW_TOKENS,
-            do_sample=False,
-            pad_token_id=tokenizer.pad_token_id,
-        )
+    # sdpa_kernel restricts the dispatcher to the one backend for the whole
+    # generation, prefill and decoding alike (see ATTENTION_BACKEND).
+    with torch.no_grad(), attention_backend_context():
+        outputs = model.generate(**inputs, generation_config=generation_config)
 
     # Decode ONLY the newly generated tokens. Decoding the whole sequence would
     # drag the prompt (and with it the entire source document) into `feedback`,
@@ -474,13 +619,22 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries, batch_size: int =
     # a high rate here means MAX_NEW_TOKENS is cutting the judge off.
     unparsed = sum(1 for entry in entries if entry.get("raw_result") == "TIE_2")
 
+    # Reported from the entries themselves: a comparison that was resumed at a
+    # different batch size shows both sizes here (see BATCH_SIZE).
+    used_sizes = sorted(
+        {entry.get("batch_size", batch_size) for entry in entries},
+        key=lambda size: (size is None, size),
+    )
+
     lines = [
         f"DATASET   : {dataset_key}",
         f"CHECKPOINT: {checkpoint}",
         f"JUDGE     : {MODEL_NAME} (compared against the SOURCE DOCUMENTS)",
         f"PROMPT    : {DATASETS[dataset_key]['prompt_style']}",
         f"SETTINGS  : max_source_tokens={MAX_SOURCE_TOKENS}, max_new_tokens={MAX_NEW_TOKENS}, "
-        f"4bit={LOAD_IN_4BIT}, batch_size={batch_size}",
+        f"4bit={LOAD_IN_4BIT}, greedy=True, "
+        f"batch_size={','.join(str(size) for size in used_sizes)}",
+        f"ENV       : {environment_fingerprint()}",
         f"SAMPLES   : {total}",
         "----------------------",
         f"PMI wins   : {counts['pmi']}  ({counts['pmi'] / total * 100:.4f}%)",
@@ -507,6 +661,10 @@ def write_dataset_summary(dataset_key: str):
         f"LLM-as-a-judge ({MODEL_NAME}) versus SOURCE DOCUMENTS -- step 6",
         f"DATASET: {dataset_key}",
         f"PROMPT : {DATASETS[dataset_key]['prompt_style']}",
+        # The summary is rebuilt from the JSON outputs, which carry no
+        # environment of their own, so this is the machine doing the rebuild.
+        # The env each checkpoint was actually judged on is in its own .log.
+        f"ENV    : {environment_fingerprint()} (rebuild host)",
         "=" * 70,
     ]
 
@@ -618,11 +776,11 @@ def parse_args():
         type=int,
         default=BATCH_SIZE,
         help=(
-            "samples judged per generate() call (default: 1). Measured on an "
-            "RTX 5080 this gave no speedup (bs=8 was 0.94x) and flipped 4 of 24 "
-            "verdicts versus bs=1, because padding changes the numerics. Only "
-            "raise it if you have benchmarked a gain on your own GPU, and then "
-            "keep it fixed for every comparison you intend to compare."
+            f"samples judged per generate() call (default: {BATCH_SIZE}). "
+            "Padding makes this part of the numerics, so verdicts are only "
+            "reproducible at a fixed batch size: keep it constant across every "
+            "comparison you intend to put side by side, and rerun rather than "
+            "resume a comparison if you change it."
         ),
     )
     args = parser.parse_args()
@@ -698,6 +856,27 @@ def run_single_comparison(dataset_key: str, checkpoint: str, batch_size: int = B
     # ---- resume from the partial file --------------------------------------
     entries = read_partial_results(partial_path)
     entries = entries[:total_samples]
+
+    # Batches are always cut on a grid starting at 0, so a resumed run pads its
+    # samples exactly like an uninterrupted one (see BATCH_SIZE). A partial file
+    # that stops off-grid -- because the previous run used a different batch
+    # size -- is rolled back to the last boundary, and those few samples are
+    # judged again under the current size.
+    if len(entries) < total_samples and len(entries) % batch_size:
+        aligned = len(entries) - (len(entries) % batch_size)
+        print(f"[ALIGN] {dataset_key} {checkpoint}: dropping "
+              f"{len(entries) - aligned} judged sample(s) so the batches "
+              f"restart on a multiple of {batch_size}")
+        entries = entries[:aligned]
+
+    foreign_sizes = {entry.get("batch_size") for entry in entries} - {batch_size, None}
+    if foreign_sizes:
+        print(f"[WARN] {dataset_key} {checkpoint}: this comparison already "
+              f"contains samples judged at batch size(s) "
+              f"{sorted(foreign_sizes)}, now continuing at {batch_size}. The "
+              f"two halves are not numerically comparable -- delete "
+              f"{partial_path.name} to re-judge the comparison in one go.")
+
     rewrite_partial_file(partial_path, entries)
 
     start_index = len(entries)
@@ -748,6 +927,9 @@ def run_single_comparison(dataset_key: str, checkpoint: str, batch_size: int = B
                     "llm_judge_winner": winner,
                     "raw_result": raw_result,
                     "llm_judge_feedback": feedback,
+                    # Padding makes the batch size part of the numerics, so it
+                    # is recorded per sample rather than per run.
+                    "batch_size": batch_size,
                 }
                 if SAVE_SOURCE_DOCUMENT_IN_OUTPUT:
                     entry["source_document"] = source_documents[i]
