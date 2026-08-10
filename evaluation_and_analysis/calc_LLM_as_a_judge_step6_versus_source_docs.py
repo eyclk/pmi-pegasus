@@ -435,12 +435,6 @@ PROMPT_STYLES = {
     },
 }
 
-"""
-"\n"
-            "Weigh criterion 1 first, then criterion 2, then criterion 3. Judge criterion 2 only on\n"
-            "the steps a summary actually mentions."
-"""
-
 
 def build_judge_prompt(
     source_document: str,
