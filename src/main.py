@@ -18,6 +18,26 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 
+# transformers==4.17 follows Hub redirects manually and assumes an absolute
+# Location header. The Hub now returns relative ones ("/api/resolve-cache/..."),
+# which makes requests raise MissingSchema. Rewrite them back to absolute URLs.
+try:
+    from transformers import file_utils as _hf_file_utils
+
+    _hf_http_get = _hf_file_utils.http_get
+
+    def _http_get_absolute(url, *args, **kwargs):
+        if isinstance(url, str) and url.startswith("/"):
+            endpoint = getattr(
+                _hf_file_utils, "HUGGINGFACE_CO_RESOLVE_ENDPOINT", "https://huggingface.co"
+            )
+            url = endpoint.rstrip("/") + url
+        return _hf_http_get(url, *args, **kwargs)
+
+    _hf_file_utils.http_get = _http_get_absolute
+except (ImportError, AttributeError):
+    pass
+
 from data import Data
 from trainer import MyTrainer
 from entity_pertubation import EntityPertubation

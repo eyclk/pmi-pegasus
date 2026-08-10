@@ -6,6 +6,12 @@ summaries provided by the datasets), this script judges the candidates against
 the source texts/documents themselves, which is a better proxy for
 faithfulness.
 
+The judging prompt asks about faithfulness ONLY -- coverage, conciseness and
+coherence are deliberately left out, so that the verdict is not diluted by
+general summary quality. The prompt differs per dataset: cnn and xsum (news)
+are judged on faithfulness alone, while wikihow (procedural how-to texts) gets
+an extra criterion for step order and prerequisite structure.
+
 It automatically runs all 8 (checkpoints: 1M .. 8M) x 3 (datasets: cnn, xsum,
 wikihow) = 24 PMI-vs-ROUGE comparisons, reading the candidate summaries
 directly from the "eval_generated_pred/eval_results_*" folders.
@@ -85,21 +91,28 @@ GENERATED_PRED_DIR = REPO_ROOT / "eval_generated_pred"
 CHECKPOINTS = [f"{i}M" for i in range(1, 9)]
 
 # dataset key -> where its source documents / candidate summaries / outputs live
+#
+# "prompt_style" selects the judging prompt (see build_judge_prompt): cnn and
+# xsum are news articles and are judged on faithfulness alone, while wikihow is
+# procedural and additionally gets a step-order / dependency criterion.
 DATASETS = {
     "cnn": {
         "finetune_data_folder": "cnn_dailymail_comb",   # holds the source docs
         "eval_folder_suffix": "cnn_comb",               # eval_results_*_ft_<suffix>
         "result_folder": "cnn_result_files",            # where outputs are saved
+        "prompt_style": "news",
     },
     "xsum": {
         "finetune_data_folder": "xsum_comb",
         "eval_folder_suffix": "xsum_comb",
         "result_folder": "xsum_result_files",
+        "prompt_style": "news",
     },
     "wikihow": {
         "finetune_data_folder": "wikihow_comb",
         "eval_folder_suffix": "wikihow_comb",
         "result_folder": "wikihow_result_files",
+        "prompt_style": "procedural",
     },
 }
 
@@ -211,11 +224,69 @@ def truncate_source_document(source_document: str) -> str:
     return tokenizer.decode(token_ids[:MAX_SOURCE_TOKENS], skip_special_tokens=True)
 
 
+# The judging prompt is faithfulness-only: coverage, conciseness and coherence
+# were dropped because they pull the verdict towards general summary quality,
+# which the other metrics of this project already measure, and because a judge
+# weighing four criteria at once gives no interpretable signal about which one
+# actually decided the comparison. They are simply left unmentioned rather than
+# explicitly ruled out, so that the prompt never puts them in the judge's head.
+#
+# The criteria are kept short on purpose: the judges are small models, and long
+# enumerations of edge cases cost more attention than the detail is worth.
+#
+# Per prompt style: the system message, the criteria block, and the sentence
+# naming the criteria in the task description.
+PROMPT_STYLES = {
+    # cnn / xsum -- news articles, single criterion.
+    "news": {
+        "system_message": (
+            "You are a fair and precise evaluation assistant. "
+            "You judge how faithful two candidate summaries are to the news article they "
+            "were written from. "
+            "Follow the evaluation criterion carefully and be impartial."
+        ),
+        "criteria_word": "criterion",
+        "criteria_header": "EVALUATION CRITERION (this is the ONLY thing you judge):",
+        "criteria_block": (
+            "**Faithfulness:** Is every statement in the summary supported by the Source Document?\n"
+            "Names, numbers, dates, places, quotes and outcomes must all be traceable to the Source\n"
+            "Document. Count as unfaithful anything the summary invents, and anything that\n"
+            "contradicts the Source Document."
+        ),
+    },
+    # wikihow -- procedural how-to texts, so the order and the prerequisite
+    # structure of the steps carry meaning that a news summary does not have.
+    "procedural": {
+        "system_message": (
+            "You are a fair and precise evaluation assistant. "
+            "You judge how faithful two candidate summaries are to the how-to article they "
+            "were written from, including whether they get the procedure right. "
+            "Follow the evaluation criteria carefully and be impartial."
+        ),
+        "criteria_word": "criteria",
+        "criteria_header": "EVALUATION CRITERIA (these are the ONLY things you judge):",
+        "criteria_block": (
+            "1. **Faithfulness:** Is every statement in the summary supported by the Source Document?\n"
+            "Actions, materials, tools, quantities and warnings must all be traceable to the Source\n"
+            "Document. Count as unfaithful anything the summary invents, and anything that\n"
+            "contradicts the Source Document.\n"
+            "\n"
+            "2. **Procedural Order:** Do the steps appear in the same order as in the Source\n"
+            "Document, and does every step still come after whatever it depends on?\n"
+            "\n"
+            "Weigh criterion 1 first. Use criterion 2 to decide when both summaries are comparably\n"
+            "faithful."
+        ),
+    },
+}
+
+
 def build_judge_prompt(
     source_document: str,
     pmi_summary: str,
     rouge_summary: str,
     swap: bool,
+    dataset_key: str,
 ) -> str:
     """
     Builds the full judging prompt for one sample.
@@ -223,6 +294,9 @@ def build_judge_prompt(
     `swap` decides the position of each candidate, so that positional bias is
     averaged out. It is derived deterministically by the caller, which keeps a
     resumed run identical to an uninterrupted one.
+
+    `dataset_key` selects the prompt style (see PROMPT_STYLES): news datasets
+    are judged on faithfulness alone, wikihow also on procedural order.
     """
 
     if swap:
@@ -234,27 +308,24 @@ def build_judge_prompt(
 
     source_document = truncate_source_document(source_document)
 
+    style = PROMPT_STYLES[DATASETS[dataset_key]["prompt_style"]]
+
     conv = get_conv_template("mistral")
-    conv.set_system_message(
-        "You are a fair and precise evaluation assistant. "
-        "You compare two candidate summaries against the source document they were written from. "
-        "Follow the evaluation criteria carefully and be impartial."
-    )
+    conv.set_system_message(style["system_message"])
 
     instruction = f"""
 TASK DESCRIPTION:
 1. You are given a Source Document and two Candidate Summaries (A and B) of that document.
-2. Your task is to evaluate the quality of the two Candidate Summaries based on the Source Document using the specified Evaluation Criteria.
-3. Write a brief feedback that assess the quality of the two candidate summaries strictly based on the given evaluation criteria, not evaluating in general.
-4. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
-5. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
-6. Please do not generate any other opening, closing, and explanations.
+2. Decide which Candidate Summary is better according to the evaluation {style["criteria_word"]} below, and nothing else.
+3. Compare both summaries statement by statement against the Source Document, and base your decision on the violations of the {style["criteria_word"]} that you can actually point to in the text.
+4. Write a brief feedback that assess the two candidate summaries strictly based on the given evaluation {style["criteria_word"]}, not evaluating in general.
+5. If both summaries violate the evaluation {style["criteria_word"]} to the same degree, or if neither violates them at all, answer "TIE".
+6. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
+7. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
+8. Please do not generate any other opening, closing, and explanations.
 
-EVALUATION CRITERIA:
-1. **Faithfulness:** Is every statement in the summary supported by the Source Document, without hallucinated or contradicting information?
-2. **Coverage:** How well does the summary capture the essential points of the Source Document?
-3. **Conciseness:** Is the summary brief without sacrificing key details of the Source Document?
-4. **Coherence:** Is the summary easy to read and logically organized?
+{style["criteria_header"]}
+{style["criteria_block"]}
 
 SOURCE DOCUMENT:
 {source_document}
@@ -290,12 +361,13 @@ def decode_winner(raw_result: str, swap: bool) -> str:
     )
 
 
-def judge_batch_with_prometheus(batch):
+def judge_batch_with_prometheus(batch, dataset_key: str):
     """
     Judges a batch of samples in one generate() call.
 
     `batch` is a list of (source_document, pmi_summary, rouge_summary, swap)
     tuples. Returns a list of (winner, feedback, raw_result) in the same order.
+    `dataset_key` picks the judging prompt, so a batch must not mix datasets.
 
     A batch size of 1 reproduces the original one-at-a-time behaviour. Larger
     batches keep the GPU busy during decoding, which is where nearly all of the
@@ -303,7 +375,7 @@ def judge_batch_with_prometheus(batch):
     """
 
     prompts = [
-        build_judge_prompt(source_document, pmi_summary, rouge_summary, swap)
+        build_judge_prompt(source_document, pmi_summary, rouge_summary, swap, dataset_key)
         for source_document, pmi_summary, rouge_summary, swap in batch
     ]
 
@@ -393,6 +465,7 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries, batch_size: int =
         f"DATASET   : {dataset_key}",
         f"CHECKPOINT: {checkpoint}",
         f"JUDGE     : {MODEL_NAME} (compared against the SOURCE DOCUMENTS)",
+        f"PROMPT    : {DATASETS[dataset_key]['prompt_style']}",
         f"SETTINGS  : max_source_tokens={MAX_SOURCE_TOKENS}, max_new_tokens={MAX_NEW_TOKENS}, "
         f"4bit={LOAD_IN_4BIT}, batch_size={batch_size}",
         f"SAMPLES   : {total}",
@@ -420,6 +493,7 @@ def write_dataset_summary(dataset_key: str):
     lines = [
         f"LLM-as-a-judge ({MODEL_NAME}) versus SOURCE DOCUMENTS -- step 6",
         f"DATASET: {dataset_key}",
+        f"PROMPT : {DATASETS[dataset_key]['prompt_style']}",
         "=" * 70,
     ]
 
@@ -647,7 +721,7 @@ def run_single_comparison(dataset_key: str, checkpoint: str, batch_size: int = B
                 for i, swap in zip(batch_indices, swaps)
             ]
 
-            results = judge_batch_with_prometheus(batch)
+            results = judge_batch_with_prometheus(batch, dataset_key)
 
             for i, swap, (winner, feedback, raw_result) in zip(
                 batch_indices, swaps, results

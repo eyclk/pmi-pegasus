@@ -44,6 +44,11 @@ def parse_prometheus_output(decoded_output: str):
     Splits output into:
       - feedback (before [RESULT])
       - raw_result (A / B / TIE)
+
+    "TIE_2" means the model never emitted a [RESULT] tag -- usually because the
+    generation hit MAX_NEW_TOKENS before finishing. Those samples are counted as
+    ties, so the rate is reported separately in the logs to make it obvious if
+    MAX_NEW_TOKENS is set too low.
     """
 
     ###  print(f"\n~~~~~~~~~~~~~ Raw model output: {decoded_output}\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
@@ -79,9 +84,9 @@ def judge_with_prometheus(
     pmi_summary: str,
     rouge_summary: str,
     sample_idx: int,
-) -> (str, str):
+) -> (str, str, str):
     """
-    Returns decoded winner: 'pmi', 'rouge', or 'tie'
+    Returns (decoded winner: 'pmi' / 'rouge' / 'tie', feedback, raw A/B/TIE result)
     """
 
     # Random swap to test positional impartiality
@@ -98,23 +103,28 @@ def judge_with_prometheus(
     conv.set_system_message(
         "You are a fair and precise evaluation assistant. "
         "You compare two candidate summaries against a reference summary. "
+        "The source document is NOT available to you, so the Reference Summary is the only "
+        "ground truth you may judge against. "
         "Follow the evaluation criteria carefully and be impartial."
     )
 
     instruction = f"""
 TASK DESCRIPTION:
-1. You are given a Reference Summary and two Candidate Summaries (A and B).
+1. You are given a Reference Summary and two Candidate Summaries (A and B) of the same (unseen) source document.
 2. Your task is to evaluate the quality of the two Candidate Summaries based on the Reference Summary using the specified Evaluation Criteria.
-3. Write a brief feedback that assess the quality of the two candidate summaries strictly based on the given evaluation criteria, not evaluating in general.
-4. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
-5. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
-6. Please do not generate any other opening, closing, and explanations.
+3. The source document is not shown to you. Treat the Reference Summary as the only ground truth, and do not speculate about content that might exist in the source document.
+4. Write a brief feedback that assess the quality of the two candidate summaries strictly based on the given evaluation criteria, not evaluating in general.
+5. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
+6. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
+7. Please do not generate any other opening, closing, and explanations.
 
 EVALUATION CRITERIA:
-1. **Faithfulness:** Does the summary avoid adding information not present in the Source?
-2. **Coverage:** How well does the summary capture the essential points mentioned in the Reference?
-3. **Conciseness:** Is the summary brief without sacrificing key details?
+1. **Consistency with the Reference:** Does the summary avoid stating anything that contradicts the Reference Summary (wrong entities, numbers, dates, relations, or negated claims)?
+2. **Coverage:** How well does the summary capture the essential points mentioned in the Reference Summary?
+3. **Conciseness:** Is the summary brief without sacrificing key details of the Reference Summary?
 4. **Coherence:** Is the summary easy to read and logically organized?
+
+Note: extra details that are absent from the Reference Summary are not automatically errors, because the source document may contain them. Penalize such details only when they contradict the Reference Summary or clearly dilute its essential points.
 
 REFERENCE SUMMARY:
 {reference_summary}
@@ -145,7 +155,14 @@ FEEDBACK:
             pad_token_id=tokenizer.eos_token_id,
         )
 
-    decoded_output = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # Decode ONLY the newly generated tokens. Decoding the whole sequence would
+    # drag the prompt into `feedback`, and would break [RESULT] detection,
+    # because the prompt itself contains the literal "[RESULT]" in its
+    # output-format instructions.
+    decoded_output = tokenizer.decode(
+        outputs[0, inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True,
+    )
 
     feedback, raw_result = parse_prometheus_output(decoded_output)
 
@@ -184,7 +201,7 @@ FEEDBACK:
 
     print("=" * 80 + "\n")"""
 
-    return decoded_winner, feedback
+    return decoded_winner, feedback, raw_result
 
 ###############################################################################
 # MAIN EVALUATION LOOP
@@ -212,9 +229,10 @@ def run_llm_judge_evaluation(
 
     winners = []
     feedbacks = []
+    raw_results = []
 
     for i in tqdm(range(len(reference_summaries))):
-        winner, feedback = judge_with_prometheus(
+        winner, feedback, raw_result = judge_with_prometheus(
             reference_summaries[i],
             pmi_summaries[i],
             rouge_summaries[i],
@@ -222,6 +240,7 @@ def run_llm_judge_evaluation(
         )
         winners.append(winner)
         feedbacks.append(feedback)
+        raw_results.append(raw_result)
 
     with open(combined_input_path, "r", encoding="utf-8") as f:
         combined_results = json.load(f)
@@ -242,6 +261,7 @@ def run_llm_judge_evaluation(
                 "rouge_summary": rouge_summaries[i],
                 "llm_judge_winner": winners[i],
                 "llm_judge_feedback": feedbacks[i],
+                "raw_result": raw_results[i],
             }
             feedback_entries.append(feedback_entry)
         with open(feedback_output_path, "w", encoding="utf-8") as f:
@@ -249,11 +269,17 @@ def run_llm_judge_evaluation(
 
     counts = Counter(winners)
 
+    # Generations that never produced a [RESULT] tag. They fall into "tie", so
+    # a high rate here means MAX_NEW_TOKENS is cutting the judge off.
+    unparsed = raw_results.count("TIE_2")
+
     print("\nFINAL AGGREGATE RESULTS")
     print("----------------------")
     print(f"PMI wins   : {counts['pmi']}  ({counts['pmi'] / len(winners) * 100:.4f}%)")
     print(f"ROUGE wins : {counts['rouge']} ({counts['rouge'] / len(winners) * 100:.4f}%)")
     print(f"TIES       : {counts['tie']} ({counts['tie'] / len(winners) * 100:.4f}%)")
+    print("----------------------")
+    print(f"  of which no [RESULT] tag : {unparsed} ({unparsed / len(winners) * 100:.4f}%)")
     print("----------------------\n")
 
 
