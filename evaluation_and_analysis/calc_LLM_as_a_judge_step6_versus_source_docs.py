@@ -508,7 +508,7 @@ TASK DESCRIPTION:
 2. Decide which Candidate Summary is better according to the evaluation {style["criteria_word"]} below, and nothing else.
 3. Compare both summaries statement by statement against the Source Document, and base your decision on the violations of the {style["criteria_word"]} that you can actually point to in the text.
 4. Write a brief feedback that assess the two candidate summaries strictly based on the given evaluation {style["criteria_word"]}, not evaluating in general.
-5. Prefer a decision over a "TIE": if one summary is even slightly better on the evaluation {style["criteria_word"]} - fewer violations, or a violation that is less damaging to the reader - choose that summary. Answer "TIE" only as a last resort, when you cannot point to any difference at all between the two summaries with respect to the {style["criteria_word"]}.
+5. Prefer a decision over a "TIE": If one summary is even slightly better on the evaluation {style["criteria_word"]}, choose that summary. Answer "TIE" only as a last resort, when you cannot point to any difference at all between the two summaries with respect to the {style["criteria_word"]}.
 6. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
 7. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
 8. Please do not generate any other opening, closing, and explanations.
