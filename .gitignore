@@ -20,6 +20,12 @@ finetune_data/*.tar
 # .partial.jsonl resume files
 evaluation_and_analysis/*_result_files/*llm_judge_vs_source_docs__step6*
 
+# Per-comparison result JSONs inside the versioned step 6 judge-vs-source-docs
+# folders (the .log files there stay tracked)
+evaluation_and_analysis/wikihow_result_files/wikihow_llm_judge_vs_source_docs--v1/**/*.json
+evaluation_and_analysis/xsum_result_files/xsum_llm_judge_vs_source_docs--v1/**/*.json
+evaluation_and_analysis/cnn_result_files/cnn_llm_judge_vs_source_docs--v1/**/*.json
+
 __pycache__/
 
 .idea/copilot.data.migration.agent.xml
