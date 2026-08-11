@@ -191,12 +191,46 @@ def enforce_determinism():
     torch.backends.cudnn.allow_tf32 = False
     torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = False
 
+    force_repeat_kv_instead_of_gqa_in_sdpa()
+
     # Nothing in the judging path samples, but a seed costs nothing and covers
     # any library that reaches for the global RNG during loading.
     random.seed(0)
     torch.manual_seed(0)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(0)
+
+
+def force_repeat_kv_instead_of_gqa_in_sdpa():
+    """
+    Stops transformers from handing grouped-query attention to sdpa directly.
+
+    Prometheus is a Mistral: 32 query heads against 8 key/value heads. There are
+    two ways to feed that to scaled_dot_product_attention, and transformers
+    picks between them per call, in sdpa_attention_forward:
+
+      * expand the key/value heads to 32 with repeat_kv, or
+      * pass the tensors as they are with enable_gqa=True.
+
+    It takes the second whenever the attention mask is None, which happens for
+    any batch that needed no padding -- with a batch size of 2 that is the odd
+    trailing batch of one sample, and any batch whose prompts tokenise to the
+    same length. But enable_gqa is only implemented by the flash backend, so on
+    those batches EFFICIENT_ATTENTION is rejected and the pinned dispatcher has
+    nothing left, which raises "No available kernel".
+
+    Pinning this to repeat_kv fixes that, and is what the determinism this
+    script is after wants anyway: without it, a padded and an unpadded batch
+    compute the same sample through two different kernels.
+    """
+
+    # Not every transformers version has the shortcut (it is unreachable before
+    # torch 2.5), and it is reached through the module rather than through the
+    # transformers namespace, which exposes no such attribute.
+    from transformers.integrations import sdpa_attention
+
+    if hasattr(sdpa_attention, "use_gqa_in_sdpa"):
+        sdpa_attention.use_gqa_in_sdpa = lambda *_args, **_kwargs: False
 
 
 def attention_backend_context():
