@@ -1,0 +1,11 @@
+DATASET   : xsum
+CHECKPOINT: 6M
+JUDGE     : prometheus-eval/prometheus-7b-v2.0 (compared against the SOURCE DOCUMENTS)
+SETTINGS  : max_source_tokens=4000, max_new_tokens=768, 4bit=True, batch_size=4
+SAMPLES   : 11334
+----------------------
+PMI wins   : 4716  (41.6093%)
+ROUGE wins : 4938 (43.5680%)
+TIES       : 1680 (14.8227%)
+----------------------
+  of which no [RESULT] tag : 19 (0.1676%)
