@@ -448,15 +448,23 @@ PROMPT_STYLES = {
     "procedural": {
         "system_message": (
             "You are a fair and precise evaluation assistant. "
-            "You compare two candidate summaries against the source document they were written from."
+            "You judge how faithful two candidate summaries are to the how-to article they "
+            "were written from, including whether they get the procedure right. "
             "Follow the evaluation criteria carefully and be impartial."
         ),
         "criteria_word": "criteria",
-        "criteria_header": "EVALUATION CRITERIA:",
+        "criteria_header": "EVALUATION CRITERIA (these are the ONLY things you judge):",
         "criteria_block": (
-            "1. **Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
-            "2. **Procedural coherence (step ordering):** Are actions presented in a logically sensible order, and are dependencies between steps preserved?\n"
-            "3. **Completeness (informativeness):** Does the summary preserve the important actions or steps needed to accomplish the task, without omitting critical information?\n"
+            "1. **Faithfulness:** Is every statement in the summary supported by the Source Document, without hallucinated or contradicting information?\n"
+            "\n"
+            "2. **Critical Specifics:** For every step the summary does mention, does it keep the\n"
+            "details that step cannot be carried out without: quantities, durations, temperatures,\n"
+            "sizes, settings, and the specific tool, material or ingredient names? Dropping one such\n"
+            "detail, or replacing it with a vague phrase (\"bake it\" instead of \"bake at 180 C for 20\n"
+            "minutes\"), is a serious flaw, because the reader can no longer perform the step.\n"
+            "\n"
+            "3. **Procedural Order:** Do the steps appear in the same order as in the Source\n"
+            "Document, and does every step still come after whatever it depends on?\n"
         ),
     },
 }
@@ -497,12 +505,12 @@ def build_judge_prompt(
     instruction = f"""
 TASK DESCRIPTION:
 1. You are given a Source Document and two Candidate Summaries (A and B) of that document.
-2. Your task is to evaluate the quality of the two Candidate Summaries based on the Source Document using the specified Evaluation {style["criteria_word"]}.
+2. Decide which Candidate Summary is better according to the evaluation {style["criteria_word"]} below, and nothing else.
 3. Compare both summaries statement by statement against the Source Document, and base your decision on the violations of the {style["criteria_word"]} that you can actually point to in the text.
-4. Write a brief feedback that assess the quality of the two candidate summaries strictly based on the given evaluation {style["criteria_word"]}, not evaluating in general.
+4. Write a brief feedback that assess the two candidate summaries strictly based on the given evaluation {style["criteria_word"]}, not evaluating in general.
 5. Prefer a decision over a "TIE": If one summary is even slightly better on the evaluation {style["criteria_word"]}, choose that summary. Answer "TIE" only as a last resort, when you cannot point to any difference at all between the two summaries with respect to the {style["criteria_word"]}.
 6. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
-7. The output format should look as follows: "Feedback: (write a feedback for {style['criteria_word']}) [RESULT] (Either "A" or "B" or "TIE")"
+7. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
 8. Please do not generate any other opening, closing, and explanations.
 
 {style["criteria_header"]}
