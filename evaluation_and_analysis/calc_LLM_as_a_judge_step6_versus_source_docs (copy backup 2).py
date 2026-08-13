@@ -428,13 +428,17 @@ PROMPT_STYLES = {
     "news": {
         "system_message": (
             "You are a fair and precise evaluation assistant. "
-            "You compare two candidate summaries against the source document they were written from."
+            "You judge how faithful two candidate summaries are to the news article they "
+            "were written from. "
             "Follow the evaluation criterion carefully and be impartial."
         ),
         "criteria_word": "criterion",
-        "criteria_header": "EVALUATION CRITERION:",
+        "criteria_header": "EVALUATION CRITERION (this is the ONLY thing you judge):",
         "criteria_block": (
-            "**Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
+            "**Faithfulness:** Is every statement in the summary supported by the Source Document?\n"
+            "Names, numbers, dates, places, quotes and outcomes must all be traceable to the Source\n"
+            "Document. Count as unfaithful anything the summary invents, and anything that\n"
+            "contradicts the Source Document."
         ),
     },
     # wikihow -- procedural how-to texts, so the exact values of a step and the
