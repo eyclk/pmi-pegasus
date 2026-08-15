@@ -1,0 +1,13 @@
+LLM-as-a-judge (prometheus-eval/prometheus-7b-v2.0) versus SOURCE DOCUMENTS -- step 6
+DATASET: wikihow
+PROMPT : procedural
+ENV    : torch=2.13.0+cu132, transformers=5.14.1, bitsandbytes=0.50.0, device=NVIDIA GeForce RTX 5080, attn=efficient_attention (rebuild host)
+======================================================================
+1M: samples=5577 | pmi=2257 (40.4698%) | rouge=2131 (38.2105%) | tie=1189 (21.3197%) | no_result_tag=104 (1.8648%)
+2M: samples=5577 | pmi=1906 (34.1761%) | rouge=2460 (44.1097%) | tie=1211 (21.7142%) | no_result_tag=98 (1.7572%)
+3M: samples=5577 | pmi=2036 (36.5071%) | rouge=2336 (41.8863%) | tie=1205 (21.6066%) | no_result_tag=88 (1.5779%)
+4M: samples=5577 | pmi=2192 (39.3043%) | rouge=2171 (38.9277%) | tie=1214 (21.7680%) | no_result_tag=105 (1.8827%)
+5M: samples=5577 | pmi=2012 (36.0767%) | rouge=2406 (43.1415%) | tie=1159 (20.7818%) | no_result_tag=97 (1.7393%)
+6M: samples=5577 | pmi=2071 (37.1347%) | rouge=2268 (40.6670%) | tie=1238 (22.1983%) | no_result_tag=82 (1.4703%)
+7M: samples=5577 | pmi=2111 (37.8519%) | rouge=2218 (39.7705%) | tie=1248 (22.3776%) | no_result_tag=100 (1.7931%)
+8M: samples=5577 | pmi=2157 (38.6767%) | rouge=2165 (38.8202%) | tie=1255 (22.5031%) | no_result_tag=66 (1.1834%)
