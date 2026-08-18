@@ -15,10 +15,21 @@ cache/
 
 finetune_data/*.tar
 
-# Step 6 LLM-as-a-judge (vs. source documents) outputs: per-comparison result
-# JSONs, their aggregate .log files, the per-dataset summary logs, and the
-# .partial.jsonl resume files
-evaluation_and_analysis/*_result_files/*llm_judge_vs_source_docs__step6*
+# Everything the LLM-as-a-judge scripts write into the result folders: the
+# per-comparison result JSONs, their aggregate .log files, the per-dataset
+# summary logs, and the .partial.jsonl resume files. Covers step 5 (vs. the
+# reference summaries), step 6 (Prometheus vs. the source documents), step 7
+# (paid API vs. the source documents) and any later step that keeps the same
+# "<dataset>_<checkpoint>_llm_judge_..._stepN.<ext>" naming.
+#
+# Anchored on "__step<digit>" rather than just "llm_judge" on purpose: the
+# versioned folders (wikihow_llm_judge_vs_source_docs--v1/ and friends) also
+# carry "llm_judge" in their names, and the .log files inside them are meant to
+# stay tracked -- see the rules below.
+evaluation_and_analysis/*_result_files/*llm_judge*__step[0-9]*
+
+# Belt and braces: resume files are pure scratch wherever they land.
+*.partial.jsonl
 
 # Per-comparison result JSONs inside the versioned step 6 judge-vs-source-docs
 # folders (the .log files there stay tracked)
