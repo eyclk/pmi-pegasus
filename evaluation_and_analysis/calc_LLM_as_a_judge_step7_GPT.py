@@ -330,33 +330,40 @@ def parse_prometheus_output(decoded_output: str):
 # JUDGE PROMPT (versus the SOURCE DOCUMENT)
 ###############################################################################
 
-# The judging prompt is faithfulness-only: coverage, conciseness and coherence
-# were dropped because they pull the verdict towards general summary quality,
-# which the other metrics of this project already measure, and because a judge
-# weighing four criteria at once gives no interpretable signal about which one
-# actually decided the comparison. They are simply left unmentioned rather than
-# explicitly ruled out, so that the prompt never puts them in the judge's head.
-# The one omission the wikihow prompt does look at is not coverage in that sense:
-# it asks whether the steps a summary DOES mention keep the values they cannot be
-# executed without, and is explicitly scoped to those steps only.
+# The judging prompt scores several criteria, following step 5 rather than the
+# faithfulness-only prompt step 6 settled on. The reason is that a
+# faithfulness-only criterion structurally rewards copying: text lifted verbatim
+# from the source cannot contradict it, so the more extractive summary wins
+# almost by construction. Measured on wikihow/1M, the more extractive summary
+# won 58% of decided pairs, which makes the metric a poor test of any claim
+# about abstractive quality.
+#
+# Consequences worth knowing:
+#   * results are NOT comparable with the faithfulness-only runs, nor with
+#     step 6; a comparison judged under this prompt has to be re-run;
+#   * Coverage rewards saying more, so it may trade the extractiveness bias for
+#     a length bias (the longer summary already won 55% of decided pairs).
+#     Whether that is an improvement is an empirical question -- measure the
+#     extractiveness and length win-rates again after changing the criteria.
 #
 # The criteria are kept short on purpose: the judges are small models, and long
 # enumerations of edge cases cost more attention than the detail is worth.
 #
-# Per prompt style: the system message, the criteria block, and the sentence
-# naming the criteria in the task description.
 PROMPT_STYLES = {
-    # cnn / xsum -- news articles, single criterion.
+    # cnn / xsum -- news articles, multiple criteria.
     "news": {
         "system_message": (
             "You are a fair and precise evaluation assistant. "
-            "You compare two candidate summaries against the source document they were written from."
-            "Follow the evaluation criterion carefully and be impartial."
+            "You compare two candidate summaries against the source document they were written from. "
+            "Follow the evaluation criteria carefully and be impartial."
         ),
-        "criteria_word": "criterion",
-        "criteria_header": "EVALUATION CRITERION:",
+        "criteria_word": "criteria",
+        "criteria_header": "EVALUATION CRITERIA:",
         "criteria_block": (
-            "**Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
+            "1. **Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
+            "2. **Coverage:** How well does the summary capture the essential points mentioned in the Source Document?\n"
+            "3. **Conciseness:** Is the summary brief without sacrificing key details of the Source Document?\n"
+            "4. **Coherence:** Is the summary easy to read and logically organized?"
         ),
     },
     # wikihow -- procedural how-to texts, so the exact values of a step and the
@@ -366,15 +373,17 @@ PROMPT_STYLES = {
     "procedural": {
         "system_message": (
             "You are a fair and precise evaluation assistant. "
-            "You compare two candidate summaries against the source document they were written from."
+            "You compare two candidate summaries against the source document they were written from. "
             "Follow the evaluation criteria carefully and be impartial."
         ),
         "criteria_word": "criteria",
         "criteria_header": "EVALUATION CRITERIA:",
         "criteria_block": (
             "1. **Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
-            "2. **Procedural coherence (step ordering):** Are actions presented in a logically sensible order, and are dependencies between steps preserved?\n"
-            "3. **Completeness (informativeness):** Does the summary preserve the important actions or steps needed to accomplish the task, without omitting critical information?\n"
+            "2. **Step ordering:** Are actions presented in a logically sensible order, and are dependencies between steps preserved?\n"
+            "3. **Coverage:** How well does the summary capture the essential points mentioned in the Source Document?\n"
+            "4. **Conciseness:** Is the summary brief without sacrificing key details of the Source Document?\n"
+            "5. **Coherence:** Is the summary easy to read and logically organized?\n"
         ),
     },
 }
