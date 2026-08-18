@@ -103,10 +103,10 @@ def judge_with_prometheus(
     conv.set_system_message(
         "You are a fair and precise evaluation assistant. "
         "You compare two candidate summaries against a reference summary. "
-        "The source document is NOT available to you, so the Reference Summary is the only "
-        "ground truth you may judge against. "
         "Follow the evaluation criteria carefully and be impartial."
     )
+
+#         "The source document is NOT available to you, so the Reference Summary is the only ground truth you may judge against. "
 
     instruction = f"""
 TASK DESCRIPTION:
@@ -119,12 +119,12 @@ TASK DESCRIPTION:
 7. Please do not generate any other opening, closing, and explanations.
 
 EVALUATION CRITERIA:
-1. **Consistency with the Reference:** Does the summary avoid stating anything that contradicts the Reference Summary (wrong entities, numbers, dates, relations, or negated claims)?
+1. **Consistency with the Reference:** Does the summary avoid stating anything that contradicts the Reference Summary?
 2. **Coverage:** How well does the summary capture the essential points mentioned in the Reference Summary?
 3. **Conciseness:** Is the summary brief without sacrificing key details of the Reference Summary?
 4. **Coherence:** Is the summary easy to read and logically organized?
 
-Note: extra details that are absent from the Reference Summary are not automatically errors, because the source document may contain them. Penalize such details only when they contradict the Reference Summary or clearly dilute its essential points.
+Note: Extra details that are absent from the Reference Summary are not automatically errors, because the source document may contain them. Penalize such details only when they contradict the Reference Summary or clearly dilute its essential points.
 
 REFERENCE SUMMARY:
 {reference_summary}
