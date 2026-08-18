@@ -72,6 +72,7 @@ SETUP
 
 import argparse
 import json
+import math
 import os
 import random
 import time
@@ -150,7 +151,7 @@ SEED = 0
 # there is little for a reasoning pass to add -- and reasoning tokens are billed
 # at the OUTPUT rate, which is 6x the input rate. Raise it to "low"/"medium" if
 # a spot-check shows the verdicts improving enough to justify the cost.
-REASONING_EFFORT = "none"
+REASONING_EFFORT = "low"
 
 # Feedback plus the [RESULT] tag. Step 6 used 768 for Prometheus and saw a
 # ~1.1-1.4% rate of generations that never emitted the tag; the same budget is
@@ -193,8 +194,16 @@ MAX_SAMPLES_PER_COMPARISON = None
 # 768 cap is a ceiling the judge never approaches, not a target.
 #
 # Re-measure if the model, the reasoning effort or the prompt changes -- any
-# completed comparison reports its real usage in the .log.
-EXPECTED_OUTPUT_TOKENS = 130
+# completed comparison reports its real usage in the .log. Reasoning tokens are
+# billed at the OUTPUT rate, so raising the effort above "none" can multiply
+# this number several times over; --estimate warns when the two disagree.
+# Measured on 20-sample wikihow/1M runs:
+#   effort="none" -> 126 output tokens (0 reasoning)
+#   effort="low"  -> 225 output tokens (114 of them reasoning, billed at the
+#                    output rate) -- 1.8x, i.e. the visible feedback got a
+#                    little SHORTER while the model spent the budget thinking.
+EXPECTED_OUTPUT_TOKENS = 225
+EXPECTED_OUTPUT_TOKENS_MEASURED_AT_EFFORT = "low"
 
 # Retry policy for 429s and transient 5xx. Sleeps 2, 4, 8, 16, 32 seconds.
 MAX_RETRIES = 5
@@ -678,6 +687,55 @@ def read_candidate_summaries(dataset_key: str, checkpoint: str):
     return summaries["PMI"], summaries["ROUGE"]
 
 
+def position_stratified_stats(entries):
+    """
+    PMI's win-rate with the two candidate slots weighted equally, instead of
+    pooled.
+
+    The A/B swap is an independent coin flip per sample, so the slots never come
+    out exactly even, and this judge has a large positional preference (~25
+    points on wikihow/1M). Pooling therefore over-weights whichever slot happened
+    to get more draws: on wikihow/1M a 1.8% slot imbalance moved the pooled
+    figure by 0.24 points, against a measured effect of only ~1.6 points.
+
+    Averaging the two slot rates removes that, and -- more importantly across a
+    24-comparison grid -- keeps the numbers comparable when the coin flip lands
+    differently from one comparison to the next.
+
+    Returns None when either slot has no decided pair (very small runs).
+    """
+
+    decided = [e for e in entries if e.get("llm_judge_winner") in ("pmi", "rouge")]
+
+    slots = {}
+    for slot in ("A", "B"):
+        rows = [e for e in decided if e.get("pmi_position") == slot]
+        if not rows:
+            return None
+        wins = sum(1 for e in rows if e["llm_judge_winner"] == "pmi")
+        slots[slot] = (wins / len(rows), len(rows))
+
+    (rate_a, n_a), (rate_b, n_b) = slots["A"], slots["B"]
+    rate = (rate_a + rate_b) / 2
+    se = math.sqrt((rate_a * (1 - rate_a) / n_a + rate_b * (1 - rate_b) / n_b) / 4)
+
+    # ROUGE is reported alongside PMI for readability, but note it carries no
+    # independent information: ties are excluded from `decided`, so on every
+    # pair exactly one of the two systems wins and ROUGE's rate is 1 - PMI's.
+    # Its slot-A advantage is identical to PMI's for the same reason -- when PMI
+    # sits in A, ROUGE sits in B. Read the two rows as one measurement shown
+    # from both sides, not as two agreeing measurements.
+    return {
+        "rate": rate, "half_ci": 1.96 * se,
+        "rate_a": rate_a, "rate_b": rate_b, "n_a": n_a, "n_b": n_b,
+        # ROUGE shown as A == the pairs where PMI sat in B, and vice versa.
+        "rouge_rate": 1 - rate,
+        "rouge_rate_a": 1 - rate_b, "rouge_rate_b": 1 - rate_a,
+        "rouge_n_a": n_b, "rouge_n_b": n_a,
+        "advantage": rate_a - rate_b, "decided": len(decided),
+    }
+
+
 def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
     counts = Counter(entry["llm_judge_winner"] for entry in entries)
     total = len(entries)
@@ -712,6 +770,28 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
         "----------------------",
         f"  of which no [RESULT] tag : {unparsed} ({unparsed / total * 100:.4f}%)",
     ]
+
+    stats = position_stratified_stats(entries)
+    if stats is not None:
+        lines += [
+            "----------------------",
+            f"POSITION-STRATIFIED (slots weighted equally; {stats['decided']} decided pairs, ties excluded)",
+            f"{'':13s}{'win% shown as A':>22s}{'win% shown as B':>22s}{'stratified win%':>22s}",
+            f"  {'PMI':11s}"
+            f"{stats['rate_a'] * 100:>14.4f} (n={stats['n_a']:d})"
+            f"{stats['rate_b'] * 100:>14.4f} (n={stats['n_b']:d})"
+            f"{stats['rate'] * 100:>15.4f} +/-{stats['half_ci'] * 100:.4f}",
+            f"  {'ROUGE':11s}"
+            f"{stats['rouge_rate_a'] * 100:>14.4f} (n={stats['rouge_n_a']:d})"
+            f"{stats['rouge_rate_b'] * 100:>14.4f} (n={stats['rouge_n_b']:d})"
+            f"{stats['rouge_rate'] * 100:>15.4f} +/-{stats['half_ci'] * 100:.4f}",
+            f"  slot-A advantage : {stats['advantage'] * 100:+.4f} points for whichever system sits in A",
+            f"    (large values mean position, not content, drove the individual verdicts)",
+            f"  NOTE: ties are excluded here, so ROUGE is exactly 100 - PMI -- the same",
+            f"        measurement shown from both sides, not independent confirmation.",
+            f"  -> prefer these over the pooled figures above when comparing checkpoints",
+        ]
+
     return "\n".join(lines)
 
 
@@ -760,6 +840,15 @@ def write_dataset_summary(dataset_key: str):
             f"no_result_tag={unparsed} ({unparsed / total * 100:.4f}%) | "
             f"${cost:.2f}"
         )
+
+        stats = position_stratified_stats(entries)
+        if stats is not None:
+            lines.append(
+                f"    position-stratified: pmi={stats['rate'] * 100:.4f}% "
+                f"+/-{stats['half_ci'] * 100:.4f} | "
+                f"rouge={stats['rouge_rate'] * 100:.4f}% | "
+                f"slot-A advantage={stats['advantage'] * 100:+.2f} pts"
+            )
 
     lines.append("=" * 70)
     lines.append(f"TOTAL SPENT ON THIS DATASET: ${grand_total_cost:.2f}")
@@ -1039,6 +1128,12 @@ if __name__ == "__main__":
         print(f"TOTAL: {grand['samples']} calls, "
               f"{grand['input_tokens'] / 1e6:.1f}M input + {grand['output_tokens'] / 1e6:.1f}M output "
               f"tokens, ${grand['cost_usd']:.2f}")
+        if REASONING_EFFORT != EXPECTED_OUTPUT_TOKENS_MEASURED_AT_EFFORT:
+            print(f"\n[WARN] this estimate ASSUMES {EXPECTED_OUTPUT_TOKENS} output tokens/verdict, "
+                  f"measured at effort='{EXPECTED_OUTPUT_TOKENS_MEASURED_AT_EFFORT}',")
+            print(f"       but you are running effort='{REASONING_EFFORT}'. Reasoning tokens bill at the")
+            print(f"       OUTPUT rate, so the real cost may be SEVERAL TIMES this figure.")
+            print(f"       Measure it first:  --datasets wikihow --checkpoints 1M --max-samples 20")
         print(f"\nOutput assumed at {EXPECTED_OUTPUT_TOKENS} tokens/verdict (measured on a real run);")
         print("input is estimated ~10% high. Real usage is reported per comparison.")
         print("The Batch API halves both rates if a ~24h turnaround is acceptable.")
