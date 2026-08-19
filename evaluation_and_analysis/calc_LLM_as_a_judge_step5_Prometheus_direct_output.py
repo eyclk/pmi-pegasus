@@ -69,15 +69,37 @@ MAX_NEW_TOKENS = 512
 # sources of that jitter which are under this script's control; the batch size
 # is the one that is not (see BATCH_SIZE).
 
-# Which kernel torch.scaled_dot_product_attention runs. Left unpinned, it is
-# picked per call by a heuristic that reads the shapes and the hardware, so the
-# same sample can be computed by two different kernels -- and two kernels do not
-# agree on the last bits. EFFICIENT_ATTENTION rather than FLASH_ATTENTION
-# because the prompts are left-padded: flash takes no arbitrary attention mask
-# and would be rejected, and pinning to a rejected backend raises instead of
-# falling back. MATH is not an option either -- it materialises the full
-# seq x seq score matrix and blows up the VRAM.
-ATTENTION_BACKEND = SDPBackend.EFFICIENT_ATTENTION
+# Which kernels torch.scaled_dot_product_attention may run. Left unrestricted,
+# the choice is made per call by a heuristic that reads the shapes and the
+# hardware, so the same sample can be computed by two different kernels -- and
+# two kernels do not agree on the last bits.
+#
+# Two backends are permitted rather than one, because Mistral uses grouped-query
+# attention (32 query heads, 8 key/value heads) and transformers handles that in
+# two different ways depending on the batch:
+#
+#   * when the two prompts in a batch have DIFFERENT lengths, the batch is
+#     padded, an attention_mask exists, and transformers calls repeat_kv() so
+#     the head counts match -- EFFICIENT_ATTENTION handles this;
+#   * when they happen to tokenize to exactly the SAME length there is no
+#     padding, so attention_mask is None, and transformers instead passes
+#     enable_gqa=True without repeating the heads (see use_gqa_in_sdpa() in
+#     transformers/integrations/sdpa_attention.py). The memory-efficient kernel
+#     does not support enable_gqa, so restricting to it alone raises
+#     "No available kernel" the first time two prompts collide in length.
+#
+# MATH covers that second case. It is only reached on those unpadded batches, so
+# in practice nearly every batch still runs on EFFICIENT_ATTENTION. The choice
+# between the two is a pure function of the batch shapes, so a rerun makes the
+# same choice for the same sample and the results stay reproducible.
+#
+# FLASH_ATTENTION stays out: it takes no arbitrary attention mask and would be
+# rejected on every padded batch. MATH is affordable here only because step 5
+# prompts are short (a reference summary and two candidate summaries, no source
+# document) -- it materialises the full seq x seq score matrix, which at these
+# lengths is tens of MB per layer. Do not copy this setting into step 6, whose
+# 4000-token prompts would make that matrix ~2.4 GB per layer.
+ATTENTION_BACKEND = [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH]
 
 # The bf16 weights alone are ~14.5 GB, which does not leave room for the KV
 # cache on a 16 GB card (device_map="auto" would silently offload layers to the
@@ -212,7 +234,7 @@ def environment_fingerprint() -> str:
 
     if torch.cuda.is_available():
         device_name = torch.cuda.get_device_name(0)
-        attention = ATTENTION_BACKEND.name.lower()
+        attention = "+".join(b.name.lower() for b in ATTENTION_BACKEND)
     else:
         device_name = "cpu"
         attention = "math (cpu)"
