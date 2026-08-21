@@ -1,0 +1,124 @@
+================================================================================
+ANSWER KEY  --  DO NOT SHOW TO THE ANNOTATORS
+================================================================================
+
+generated 2026-08-20 14:06   |   checkpoint 8M   |   seed 20260818
+
+ROW is the zero-based index of the example in that dataset's test set,
+so every item can be traced back to the source data.
+
+ ITEM  GROUP  DATASET      ROW  CANDIDATE A   CANDIDATE B 
+--------------------------------------------------------------------------------
+    1      1  cnn         7162  ROUGE         PMI         
+    2      1  cnn         3875  PMI           ROUGE       
+    3      1  cnn         6741  ROUGE         PMI         
+    4      1  cnn         8834  PMI           ROUGE       
+    5      1  cnn         6514  PMI           ROUGE       
+    6      1  cnn         3644  ROUGE         PMI         
+    7      1  cnn        10880  ROUGE         PMI         
+    8      1  cnn         6857  PMI           ROUGE       
+    9      1  cnn        11278  ROUGE         PMI         
+   10      1  cnn         8000  ROUGE         PMI         
+   11      1  cnn         1388  ROUGE         PMI         
+   12      1  cnn         9176  PMI           ROUGE       
+   13      1  cnn         3754  PMI           ROUGE       
+   14      1  cnn         7032  ROUGE         PMI         
+   15      1  cnn         8585  ROUGE         PMI         
+   16      1  cnn         2914  ROUGE         PMI         
+   17      1  cnn        11359  PMI           ROUGE       
+   18      1  cnn         6894  PMI           ROUGE       
+   19      1  cnn         5894  ROUGE         PMI         
+   20      1  cnn         8716  PMI           ROUGE       
+   21      1  cnn         1563  ROUGE         PMI         
+   22      1  cnn         8698  ROUGE         PMI         
+   23      1  cnn         4650  PMI           ROUGE       
+   24      1  cnn         1112  ROUGE         PMI         
+   25      1  cnn         9576  ROUGE         PMI         
+   26      1  cnn         8269  PMI           ROUGE       
+   27      1  cnn        11084  ROUGE         PMI         
+   28      1  cnn         4165  PMI           ROUGE       
+   29      1  cnn         4827  PMI           ROUGE       
+   30      1  cnn         5723  ROUGE         PMI         
+   31      1  cnn         4781  ROUGE         PMI         
+   32      1  cnn         3263  ROUGE         PMI         
+   33      1  cnn         7651  ROUGE         PMI         
+   34      1  cnn         3844  PMI           ROUGE       
+   35      1  cnn         7850  ROUGE         PMI         
+   36      2  wikihow     2464  PMI           ROUGE       
+   37      2  wikihow     2891  ROUGE         PMI         
+   38      2  wikihow       90  ROUGE         PMI         
+   39      2  wikihow     4751  PMI           ROUGE       
+   40      2  wikihow     2421  PMI           ROUGE       
+   41      2  wikihow     3227  PMI           ROUGE       
+   42      2  wikihow     3673  ROUGE         PMI         
+   43      2  wikihow     2252  PMI           ROUGE       
+   44      2  wikihow     5190  ROUGE         PMI         
+   45      2  wikihow     3777  PMI           ROUGE       
+   46      2  wikihow     5475  ROUGE         PMI         
+   47      2  wikihow     3782  ROUGE         PMI         
+   48      2  wikihow     4228  PMI           ROUGE       
+   49      2  wikihow     4196  PMI           ROUGE       
+   50      2  wikihow     1469  ROUGE         PMI         
+   51      2  wikihow     4106  ROUGE         PMI         
+   52      2  wikihow     5101  PMI           ROUGE       
+   53      2  wikihow     3537  PMI           ROUGE       
+   54      2  wikihow     5522  ROUGE         PMI         
+   55      2  wikihow     3317  PMI           ROUGE       
+   56      2  wikihow     3928  ROUGE         PMI         
+   57      2  wikihow      241  PMI           ROUGE       
+   58      2  wikihow      328  ROUGE         PMI         
+   59      2  wikihow     2145  PMI           ROUGE       
+   60      2  wikihow     2303  PMI           ROUGE       
+   61      2  wikihow     3267  PMI           ROUGE       
+   62      2  wikihow     1311  ROUGE         PMI         
+   63      2  wikihow      729  ROUGE         PMI         
+   64      2  wikihow     4447  ROUGE         PMI         
+   65      2  wikihow     2126  ROUGE         PMI         
+   66      2  wikihow      690  PMI           ROUGE       
+   67      2  wikihow     5569  PMI           ROUGE       
+   68      2  wikihow     3600  ROUGE         PMI         
+   69      2  wikihow     2852  PMI           ROUGE       
+   70      2  wikihow     4969  PMI           ROUGE       
+   71      3  xsum        5669  PMI           ROUGE       
+   72      3  xsum        9542  ROUGE         PMI         
+   73      3  xsum        5649  PMI           ROUGE       
+   74      3  xsum       10136  PMI           ROUGE       
+   75      3  xsum        2162  ROUGE         PMI         
+   76      3  xsum        8594  ROUGE         PMI         
+   77      3  xsum        1898  PMI           ROUGE       
+   78      3  xsum       10315  PMI           ROUGE       
+   79      3  xsum        4210  ROUGE         PMI         
+   80      3  xsum        9778  PMI           ROUGE       
+   81      3  xsum        1014  PMI           ROUGE       
+   82      3  xsum       10605  ROUGE         PMI         
+   83      3  xsum        8411  PMI           ROUGE       
+   84      3  xsum        3121  PMI           ROUGE       
+   85      3  xsum        8527  PMI           ROUGE       
+   86      3  xsum        5832  PMI           ROUGE       
+   87      3  xsum        8993  ROUGE         PMI         
+   88      3  xsum        6984  PMI           ROUGE       
+   89      3  xsum        3591  PMI           ROUGE       
+   90      3  xsum        5813  ROUGE         PMI         
+   91      3  xsum         890  PMI           ROUGE       
+   92      3  xsum         877  ROUGE         PMI         
+   93      3  xsum        2171  PMI           ROUGE       
+   94      3  xsum       10080  ROUGE         PMI         
+   95      3  xsum        6033  PMI           ROUGE       
+   96      3  xsum        7999  ROUGE         PMI         
+   97      3  xsum        7045  ROUGE         PMI         
+   98      3  xsum        4615  PMI           ROUGE       
+   99      3  xsum         855  ROUGE         PMI         
+  100      3  xsum        8585  ROUGE         PMI         
+  101      3  xsum       10192  ROUGE         PMI         
+  102      3  xsum        6050  ROUGE         PMI         
+  103      3  xsum        4504  PMI           ROUGE       
+  104      3  xsum        6289  PMI           ROUGE       
+  105      3  xsum        7507  ROUGE         PMI         
+
+--------------------------------------------------------------------------------
+BALANCE CHECK  (how often each system sat in slot A)
+--------------------------------------------------------------------------------
+  cnn       PMI in slot A:  14 / 35
+  wikihow   PMI in slot A:  19 / 35
+  xsum      PMI in slot A:  19 / 35
+  overall   PMI in slot A:  52 / 105
