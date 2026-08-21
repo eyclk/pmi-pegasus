@@ -1,0 +1,31 @@
+LLM-as-a-judge (OpenAI API) versus REFERENCE SUMMARIES -- step 7
+DATASET: wikihow
+PROMPT : step 5 reference-summary prompt (same for every dataset)
+METHOD : every pair judged in BOTH orders; disagreements recorded as ties
+======================================================================
+1M: pairs=5577 (11154 calls) | pmi=1739 (31.1816%) | rouge=2046 (36.6864%) | tie=1792 (32.1320%) | $3.84
+    consensus: pmi=45.9445% +/-1.5877 | rouge=54.0555% (over 3785 pairs both orders agreed on)
+    orders disagreed on 31.4685% of pairs | slot-A advantage=+28.65 pts (diagnostic)
+2M: pairs=5577 (11154 calls) | pmi=1765 (31.6478%) | rouge=2068 (37.0809%) | tie=1744 (31.2713%) | $3.82
+    consensus: pmi=46.0475% +/-1.5780 | rouge=53.9525% (over 3833 pairs both orders agreed on)
+    orders disagreed on 30.8410% of pairs | slot-A advantage=+28.39 pts (diagnostic)
+3M: pairs=5577 (11154 calls) | pmi=1914 (34.3195%) | rouge=1877 (33.6561%) | tie=1786 (32.0244%) | $3.88
+    consensus: pmi=50.4880% +/-1.5916 | rouge=49.5120% (over 3791 pairs both orders agreed on)
+    orders disagreed on 31.7375% of pairs | slot-A advantage=+29.02 pts (diagnostic)
+4M: pairs=5577 (11154 calls) | pmi=2070 (37.1167%) | rouge=1792 (32.1320%) | tie=1715 (30.7513%) | $3.88
+    consensus: pmi=53.5992% +/-1.5729 | rouge=46.4008% (over 3862 pairs both orders agreed on)
+    orders disagreed on 30.4285% of pairs | slot-A advantage=+27.17 pts (diagnostic)
+5M: pairs=5577 (11154 calls) | pmi=1711 (30.6796%) | rouge=2054 (36.8298%) | tie=1812 (32.4906%) | $3.90
+    consensus: pmi=45.4449% +/-1.5905 | rouge=54.5551% (over 3765 pairs both orders agreed on)
+    orders disagreed on 32.3113% of pairs | slot-A advantage=+29.98 pts (diagnostic)
+6M: pairs=5577 (11154 calls) | pmi=1935 (34.6961%) | rouge=1808 (32.4189%) | tie=1834 (32.8851%) | $3.94
+    consensus: pmi=51.6965% +/-1.6009 | rouge=48.3035% (over 3743 pairs both orders agreed on)
+    orders disagreed on 32.6340% of pairs | slot-A advantage=+30.10 pts (diagnostic)
+7M: pairs=5577 (11154 calls) | pmi=1847 (33.1182%) | rouge=1727 (30.9665%) | tie=2003 (35.9154%) | $3.99
+    consensus: pmi=51.6788% +/-1.6383 | rouge=48.3212% (over 3574 pairs both orders agreed on)
+    orders disagreed on 35.7719% of pairs | slot-A advantage=+33.43 pts (diagnostic)
+8M: pairs=5577 (11154 calls) | pmi=1945 (34.8754%) | rouge=1785 (32.0065%) | tie=1847 (33.1182%) | $3.96
+    consensus: pmi=52.1448% +/-1.6031 | rouge=47.8552% (over 3730 pairs both orders agreed on)
+    orders disagreed on 32.9747% of pairs | slot-A advantage=+30.24 pts (diagnostic)
+======================================================================
+TOTAL SPENT ON THIS DATASET: $31.22
