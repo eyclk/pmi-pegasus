@@ -7,7 +7,9 @@ locally, it asks an OpenAI model over the API. Everything that defines the
 comparison is carried over from calc_LLM_as_a_judge_step5_Prometheus.py
 unchanged -- the prompt (verbatim, including the "the source document is not
 shown to you" instruction and the note on extra details), the [RESULT] parsing
-and the A/B swap.
+and the A/B swap. That is deliberate and worth preserving: it makes step 7 vs
+step 5 a JUDGE-ONLY difference, the cleanest claim available about that
+comparison. See the JUDGE PROMPT section before editing any of it.
 
 There is deliberately NO per-dataset prompt here. Steps 6/7 needed one because
 they judged against the source document, where a how-to text and a news article
@@ -15,9 +17,10 @@ call for different criteria; the reference summary is short, self-contained
 ground truth, so all three datasets get the single step 5 prompt and the three
 numbers stay directly comparable with each other.
 
-One difference from step 5 survives: the swap is seeded per sample
-(swap_for_sample) rather than drawn from the global RNG, so a resumed run is
-identical to an uninterrupted one.
+One difference from step 5: there is no random A/B swap at all. Every pair is
+judged TWICE, once with each candidate first, and a pair the two orders
+disagree about is recorded as a TIE -- see judge_pair_both_orders. That costs
+two calls per sample and buys per-verdict results that position cannot explain.
 
 Input/output handling: candidates are read from the
 "eval_generated_pred/eval_results_*" folders, results are written as one JSON
@@ -49,6 +52,9 @@ Two levers:
 
   * --estimate prints the projected token count and cost for the selected
     comparisons and exits WITHOUT calling the API. Always run it first.
+  * every sample costs TWO calls, not one (both orders) -- so the grid is
+    454416 calls, roughly $162 rather than $81. Re-run --estimate; it already
+    accounts for this.
   * --max-samples N judges a deterministic random subset instead of the whole
     test set. The subset is seeded per DATASET (not per checkpoint), so all 8
     checkpoints of a dataset are judged on exactly the same documents. NOTE
@@ -180,9 +186,13 @@ REASONING_EFFORT = "low"
 # out of room. Note this caps reasoning tokens too when the effort is raised.
 MAX_OUTPUT_TOKENS = 768
 
-# Parallel in-flight requests. Unlike step 5's batch size this is purely a
-# throughput knob: each request is judged independently by the API, so
-# concurrency cannot change a verdict. Lower it if you hit rate limits.
+# Parallel in-flight PAIRS. Purely a throughput knob: each request is judged
+# independently by the API, so concurrency cannot change a verdict. Lower it if
+# you hit rate limits.
+#
+# NOTE the unit changed with dual-order judging: one unit of concurrency is now
+# one pair, judged as two SEQUENTIAL calls, so a run takes about twice the wall
+# time it used to at the same setting. Double this to keep the old pace.
 CONCURRENCY = 8
 
 # ---------------------------------------------------------------------------
@@ -371,9 +381,47 @@ def parse_prometheus_output(decoded_output: str):
 # JUDGE PROMPT (versus the REFERENCE SUMMARY)
 ###############################################################################
 
-# Carried over verbatim from calc_LLM_as_a_judge_step5_Prometheus.py -- system
+# Carried over VERBATIM from calc_LLM_as_a_judge_step5_Prometheus.py -- system
 # message, task description, criteria and the closing note -- so that step 5 and
-# step 7 answer exactly the same question and only the judge differs.
+# step 7 answer exactly the same question and only the judge differs. Keep it
+# that way unless there is a measured reason not to; see below.
+#
+# ---------------------------------------------------------------------------
+# POSITIONAL BIAS -- what has been measured, wikihow/1M, full 5577 samples
+# ---------------------------------------------------------------------------
+# This judge has a large slot-A preference under the reference-summary prompt,
+# and no knob has been found that removes it. Measured slot-A advantage
+# (+/-2.6 on every row), with the PMI position-stratified win rate alongside:
+#
+#   source-document prompt, effort=low   +10.9    49.00%   (initial_success)
+#   step 5 prompt verbatim, effort=low   +27.2    48.26%   (attempt3)
+#   step 5 prompt verbatim, effort=med   +26.7    47.57%   (attempt4)
+#   item-3 grounding restored, low       +26.8    47.17%   (attempt5, REVERTED)
+#
+# Two things were tried and did NOT work:
+#   * raising the reasoning effort. none->low was worth ~14 points under the
+#     source-document prompt; low->medium is worth nothing here, and medium
+#     also raised the rate of generations with no [RESULT] tag from 0.2% to
+#     1.8% (they are NOT truncated -- the feedback is complete, the model just
+#     omits the tag -- so raising MAX_OUTPUT_TOKENS will not fix it);
+#   * restoring the source-document prompt's "compare statement by statement
+#     ... violations you can actually point to" instruction into item 3. It
+#     flipped 11.9% of verdicts but moved the bias 0.4 points, and slightly
+#     REDUCED agreement with step 5, so it was reverted.
+#
+# Untested candidates, in rough order of plausibility: the ground truth itself
+# (a ~76-token reference vs a ~730-token document -- by far the largest change,
+# and the one no prompt edit can undo), the criterion 1 rewording
+# ("faithfulness: every statement supported" -> "consistency: avoid
+# contradicting", which a short reference makes nearly always true), and the
+# "Note:" paragraph on extra details.
+#
+# WHAT THIS DOES AND DOES NOT THREATEN: the position-stratified win rate is
+# stable at 47-49% across all four configurations above, with overlapping CIs,
+# i.e. stratification absorbs the bias as designed. Report the stratified
+# figures, never the pooled ones. Per-sample analyses (extractiveness, length)
+# are a different matter -- at +27 most individual verdicts are position-driven,
+# so those need each pair judged in BOTH orders, not just stratification.
 #
 # ONE prompt for all three datasets, on purpose. The per-dataset split (news vs
 # procedural) existed only because the source document was the ground truth
@@ -468,17 +516,10 @@ FEEDBACK:
     return SYSTEM_MESSAGE, instruction
 
 
-def swap_for_sample(dataset_key: str, checkpoint: str, sample_idx: int) -> bool:
-    """
-    Deterministic per-sample position swap.
-
-    Step 5 drew the swap from the global RNG, so its positions cannot be
-    reproduced here; seeding per sample instead makes a resumed run identical to
-    an uninterrupted one, which is what matters when every call is paid for.
-    Positional bias is averaged out either way.
-    """
-
-    return random.Random(f"{dataset_key}|{checkpoint}|{sample_idx}").random() < 0.5
+# NOTE: there is no longer a per-sample position swap. Every pair is judged in
+# BOTH orders (see judge_pair_both_orders), so the coin flip that used to pick
+# one order has nothing left to decide, and the two slots are balanced by
+# construction rather than in expectation.
 
 
 def decode_winner(raw_result: str, swap: bool) -> str:
@@ -577,6 +618,68 @@ def judge_one_with_retry(reference_summary, pmi_summary, rouge_summary, swap):
 
     return decode_winner(raw_result, swap), feedback, raw_result, meta
 
+def judge_pair_both_orders(reference_summary, pmi_summary, rouge_summary):
+    """
+    Judges one pair TWICE -- once with PMI shown as candidate A, once with PMI
+    shown as candidate B -- and returns the consensus.
+
+    WHY: this judge has a ~27-point slot-A preference on wikihow under the
+    reference-summary prompt (see the JUDGE PROMPT section). Position
+    stratification removes that from the AGGREGATE, but every individual
+    verdict is still mostly a coin flip weighted by position, which makes
+    per-sample analyses (extractiveness, length, agreement with another judge)
+    unusable. Asking both ways and keeping only what survives the swap fixes the
+    verdicts themselves.
+
+    A pair the two orders disagree about is recorded as a TIE. That is the
+    conservative reading -- the judge has no position-independent opinion about
+    it -- and it is deliberately NOT the same thing as the judge saying "TIE":
+    `orders_agree` distinguishes them, and the aggregate reports both.
+
+    Expect a lot of ties. Two independent draws at a 60.5%/33.8% slot split
+    agree only ~47% of the time, so on wikihow/1M roughly half of all pairs land
+    in the disagreement bucket. That is the measurement working, not failing:
+    it is telling you the judge has a stable preference on only half the pairs.
+
+    Costs exactly two calls per sample.
+    """
+
+    # True -> PMI in slot A. Sequential rather than parallel inside the pair:
+    # the pool already runs `concurrency` pairs at once, and keeping the two
+    # calls together makes a partial write atomic per sample.
+    winner_a, fb_a, raw_a, meta_a = judge_one_with_retry(
+        reference_summary, pmi_summary, rouge_summary, True)
+    winner_b, fb_b, raw_b, meta_b = judge_one_with_retry(
+        reference_summary, pmi_summary, rouge_summary, False)
+
+    agree = winner_a == winner_b
+    consensus = winner_a if agree else "tie"
+
+    merged_meta = {
+        "model": meta_a["model"],
+        "reasoning_effort": meta_a["reasoning_effort"],
+        "temperature": meta_a["temperature"],
+        "seed": meta_a["seed"],
+        "response_ids": [meta_a["response_id"], meta_b["response_id"]],
+        "input_tokens": meta_a["input_tokens"] + meta_b["input_tokens"],
+        "output_tokens": meta_a["output_tokens"] + meta_b["output_tokens"],
+        "reasoning_tokens": meta_a["reasoning_tokens"] + meta_b["reasoning_tokens"],
+        "cost_usd": meta_a["cost_usd"] + meta_b["cost_usd"],
+    }
+
+    result = {
+        "llm_judge_winner": consensus,
+        "orders_agree": agree,
+        "winner_pmi_as_A": winner_a,
+        "winner_pmi_as_B": winner_b,
+        "raw_result_pmi_as_A": raw_a,
+        "raw_result_pmi_as_B": raw_b,
+        "feedback_pmi_as_A": fb_a,
+        "feedback_pmi_as_B": fb_b,
+    }
+    result.update(merged_meta)
+    return result
+
 ###############################################################################
 # SAMPLE SELECTION + COST ESTIMATE
 ###############################################################################
@@ -624,17 +727,21 @@ def estimate_comparison(dataset_key: str, checkpoint: str, max_samples):
     pmi_summaries, rouge_summaries = read_candidate_summaries(dataset_key, checkpoint)
     indices = select_sample_indices(dataset_key, len(reference_summaries), max_samples)
 
+    # x2 throughout: every pair is judged in both orders. The two prompts differ
+    # only in which candidate is printed first, so one measurement doubled is
+    # exact rather than an approximation.
     input_tokens = 0
     for i in indices:
         system_message, user_message = build_judge_prompt(
             reference_summaries[i], pmi_summaries[i], rouge_summaries[i], True
         )
-        input_tokens += estimate_tokens(system_message) + estimate_tokens(user_message)
+        input_tokens += 2 * (estimate_tokens(system_message) + estimate_tokens(user_message))
 
-    output_tokens = len(indices) * EXPECTED_OUTPUT_TOKENS
+    output_tokens = len(indices) * EXPECTED_OUTPUT_TOKENS * 2
 
     return {
         "samples": len(indices),
+        "calls": len(indices) * 2,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "cost_usd": price_of(MODEL, input_tokens, output_tokens),
@@ -702,52 +809,61 @@ def read_candidate_summaries(dataset_key: str, checkpoint: str):
     return summaries["PMI"], summaries["ROUGE"]
 
 
-def position_stratified_stats(entries):
+def dual_order_stats(entries):
     """
-    PMI's win-rate with the two candidate slots weighted equally, instead of
-    pooled.
+    PMI's win-rate over the pairs both orders agreed on, plus the positional
+    diagnostic the dual-order design makes exact.
 
-    The A/B swap is an independent coin flip per sample, so the slots never come
-    out exactly even, and this judge has a large positional preference (~25
-    points on wikihow/1M). Pooling therefore over-weights whichever slot happened
-    to get more draws: on wikihow/1M a 1.8% slot imbalance moved the pooled
-    figure by 0.24 points, against a measured effect of only ~1.6 points.
+    `rate` is the headline: among pairs where swapping the candidates did NOT
+    change the verdict, how often did PMI win. Position cannot contribute to it
+    by construction, so a plain binomial CI is the right one -- no stratification
+    needed, and none of the slot-imbalance caveats that applied before.
 
-    Averaging the two slot rates removes that, and -- more importantly across a
-    24-comparison grid -- keeps the numbers comparable when the coin flip lands
-    differently from one comparison to the next.
+    `advantage` is retained as a DIAGNOSTIC, not a correction: PMI's win rate
+    when shown as A minus its rate when shown as B, each computed over all N
+    pairs rather than a random half, so the two slots are exactly balanced and
+    the estimate is as precise as N allows. Compare it with the archived
+    single-order numbers (+10.9 source-doc, +27.2 reference prompt) to see how
+    much position was driving verdicts before this ran.
 
-    Returns None when either slot has no decided pair (very small runs).
+    Returns None when no pair was decided.
     """
 
     decided = [e for e in entries if e.get("llm_judge_winner") in ("pmi", "rouge")]
+    if not decided:
+        return None
 
+    total = len(entries)
+    agreed = sum(1 for e in entries if e.get("orders_agree"))
+
+    wins = sum(1 for e in decided if e["llm_judge_winner"] == "pmi")
+    rate = wins / len(decided)
+    half_ci = 1.96 * math.sqrt(rate * (1 - rate) / len(decided))
+
+    # Positional diagnostic, per order, over every pair that order decided.
     slots = {}
-    for slot in ("A", "B"):
-        rows = [e for e in decided if e.get("pmi_position") == slot]
+    for key in ("winner_pmi_as_A", "winner_pmi_as_B"):
+        rows = [e for e in entries if e.get(key) in ("pmi", "rouge")]
         if not rows:
             return None
-        wins = sum(1 for e in rows if e["llm_judge_winner"] == "pmi")
-        slots[slot] = (wins / len(rows), len(rows))
+        slots[key] = (sum(1 for e in rows if e[key] == "pmi") / len(rows), len(rows))
+    (rate_a, n_a), (rate_b, n_b) = slots["winner_pmi_as_A"], slots["winner_pmi_as_B"]
 
-    (rate_a, n_a), (rate_b, n_b) = slots["A"], slots["B"]
-    rate = (rate_a + rate_b) / 2
-    se = math.sqrt((rate_a * (1 - rate_a) / n_a + rate_b * (1 - rate_b) / n_b) / 4)
+    # Ties agreed on by both orders -- the judge genuinely called them equal,
+    # as opposed to the disagreement ties, which are our own bookkeeping.
+    both_tie = sum(1 for e in entries
+                   if e.get("orders_agree") and e.get("llm_judge_winner") == "tie")
 
-    # ROUGE is reported alongside PMI for readability, but note it carries no
-    # independent information: ties are excluded from `decided`, so on every
-    # pair exactly one of the two systems wins and ROUGE's rate is 1 - PMI's.
-    # Its slot-A advantage is identical to PMI's for the same reason -- when PMI
-    # sits in A, ROUGE sits in B. Read the two rows as one measurement shown
-    # from both sides, not as two agreeing measurements.
     return {
-        "rate": rate, "half_ci": 1.96 * se,
-        "rate_a": rate_a, "rate_b": rate_b, "n_a": n_a, "n_b": n_b,
-        # ROUGE shown as A == the pairs where PMI sat in B, and vice versa.
+        "rate": rate, "half_ci": half_ci, "decided": len(decided),
         "rouge_rate": 1 - rate,
-        "rouge_rate_a": 1 - rate_b, "rouge_rate_b": 1 - rate_a,
-        "rouge_n_a": n_b, "rouge_n_b": n_a,
-        "advantage": rate_a - rate_b, "decided": len(decided),
+        "agreed": agreed, "agree_pct": agreed / total,
+        "disagreed": total - agreed, "disagree_pct": (total - agreed) / total,
+        "both_tie": both_tie,
+        "rate_a": rate_a, "rate_b": rate_b, "n_a": n_a, "n_b": n_b,
+        "advantage": rate_a - rate_b,
+        "advantage_half_ci": 1.96 * math.sqrt(
+            rate_a * (1 - rate_a) / n_a + rate_b * (1 - rate_b) / n_b),
     }
 
 
@@ -755,9 +871,14 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
     counts = Counter(entry["llm_judge_winner"] for entry in entries)
     total = len(entries)
 
-    # Generations that never produced a [RESULT] tag. They fall into "tie", so
-    # a high rate here means MAX_OUTPUT_TOKENS is cutting the judge off.
-    unparsed = sum(1 for entry in entries if entry.get("raw_result") == "TIE_2")
+    # Generations that never produced a [RESULT] tag, counted over BOTH calls.
+    # Note these are not necessarily truncations: at effort="medium" the model
+    # was measured writing complete feedback and simply omitting the tag.
+    unparsed = sum(
+        sum(1 for k in ("raw_result_pmi_as_A", "raw_result_pmi_as_B")
+            if entry.get(k) == "TIE_2")
+        for entry in entries
+    )
 
     cost = sum(entry.get("cost_usd", 0.0) for entry in entries)
     input_tokens = sum(entry.get("input_tokens", 0) for entry in entries)
@@ -774,8 +895,9 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
         f"max_output_tokens={MAX_OUTPUT_TOKENS}, "
         f"temperature={sorted({str(e.get('temperature')) for e in entries})[0]} "
         f"(reasoning models pin it at 1 and reject the parameter)",
-        f"SAMPLES   : {total} (subsets are a deterministic random sample, "
-        f"seeded per dataset so every checkpoint sees the same documents)",
+        f"SAMPLES   : {total} pairs = {total * 2} calls (each pair judged in BOTH "
+        f"orders; subsets are a deterministic random sample, seeded per dataset "
+        f"so every checkpoint sees the same documents)",
         f"TOKENS    : input={input_tokens}, output={output_tokens}",
         f"COST      : ${cost:.2f}",
         "----------------------",
@@ -783,28 +905,36 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
         f"ROUGE wins : {counts['rouge']} ({counts['rouge'] / total * 100:.4f}%)",
         f"TIES       : {counts['tie']} ({counts['tie'] / total * 100:.4f}%)",
         "----------------------",
-        f"  of which no [RESULT] tag : {unparsed} ({unparsed / total * 100:.4f}%)",
+        f"  of which no [RESULT] tag : {unparsed} / {total * 2} calls "
+        f"({unparsed / (total * 2) * 100:.4f}%)",
     ]
 
-    stats = position_stratified_stats(entries)
+    stats = dual_order_stats(entries)
     if stats is not None:
         lines += [
             "----------------------",
-            f"POSITION-STRATIFIED (slots weighted equally; {stats['decided']} decided pairs, ties excluded)",
-            f"{'':13s}{'win% shown as A':>22s}{'win% shown as B':>22s}{'stratified win%':>22s}",
-            f"  {'PMI':11s}"
-            f"{stats['rate_a'] * 100:>14.4f} (n={stats['n_a']:d})"
-            f"{stats['rate_b'] * 100:>14.4f} (n={stats['n_b']:d})"
-            f"{stats['rate'] * 100:>15.4f} +/-{stats['half_ci'] * 100:.4f}",
-            f"  {'ROUGE':11s}"
-            f"{stats['rouge_rate_a'] * 100:>14.4f} (n={stats['rouge_n_a']:d})"
-            f"{stats['rouge_rate_b'] * 100:>14.4f} (n={stats['rouge_n_b']:d})"
-            f"{stats['rouge_rate'] * 100:>15.4f} +/-{stats['half_ci'] * 100:.4f}",
-            f"  slot-A advantage : {stats['advantage'] * 100:+.4f} points for whichever system sits in A",
-            f"    (large values mean position, not content, drove the individual verdicts)",
-            f"  NOTE: ties are excluded here, so ROUGE is exactly 100 - PMI -- the same",
-            f"        measurement shown from both sides, not independent confirmation.",
-            f"  -> prefer these over the pooled figures above when comparing checkpoints",
+            f"ORDER AGREEMENT (each pair judged with PMI as A and again as B)",
+            f"  both orders agreed : {stats['agreed']} ({stats['agree_pct'] * 100:.4f}%)",
+            f"    of which the judge itself said TIE : {stats['both_tie']}",
+            f"  orders DISAGREED   : {stats['disagreed']} ({stats['disagree_pct'] * 100:.4f}%)"
+            f"  -> recorded as ties",
+            f"    (this is the share of pairs on which the judge has no",
+            f"     position-independent opinion; it is a property of the judge,",
+            f"     not an error. Compare it with the slot-A advantage below.)",
+            "----------------------",
+            f"CONSENSUS RESULT ({stats['decided']} pairs decided the same way in both orders)",
+            f"  PMI   : {stats['rate'] * 100:.4f}% +/-{stats['half_ci'] * 100:.4f}",
+            f"  ROUGE : {stats['rouge_rate'] * 100:.4f}%",
+            f"  -> position cannot contribute to these, so report THEM.",
+            "----------------------",
+            f"POSITIONAL DIAGNOSTIC (not a correction -- just how biased the judge was)",
+            f"  PMI win% when shown as A : {stats['rate_a'] * 100:7.4f}  (n={stats['n_a']:d})",
+            f"  PMI win% when shown as B : {stats['rate_b'] * 100:7.4f}  (n={stats['n_b']:d})",
+            f"  slot-A advantage         : {stats['advantage'] * 100:+.4f} "
+            f"+/-{stats['advantage_half_ci'] * 100:.4f} points",
+            f"    (both slots now cover ALL pairs, so this is the most precise",
+            f"     estimate of the bias available. Archived single-order values:",
+            f"     +10.9 source-doc prompt, +27.2 reference prompt, wikihow/1M.)",
         ]
 
     return "\n".join(lines)
@@ -822,13 +952,14 @@ def write_dataset_summary(dataset_key: str):
         f"LLM-as-a-judge (OpenAI API) versus REFERENCE SUMMARIES -- step 7",
         f"DATASET: {dataset_key}",
         f"PROMPT : step 5 reference-summary prompt (same for every dataset)",
+        f"METHOD : every pair judged in BOTH orders; disagreements recorded as ties",
         "=" * 70,
     ]
 
     grand_total_cost = 0.0
 
     for checkpoint in CHECKPOINTS:
-        path = result_dir / f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7.json"
+        path = result_dir / f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7_bothorders.json"
 
         if not path.exists():
             lines.append(f"{checkpoint}: (not run yet)")
@@ -842,27 +973,29 @@ def write_dataset_summary(dataset_key: str):
             continue
 
         counts = Counter(entry["llm_judge_winner"] for entry in entries)
-        unparsed = sum(1 for entry in entries if entry.get("raw_result") == "TIE_2")
         cost = sum(entry.get("cost_usd", 0.0) for entry in entries)
         grand_total_cost += cost
         total = len(entries)
 
         lines.append(
-            f"{checkpoint}: samples={total} | "
+            f"{checkpoint}: pairs={total} ({total * 2} calls) | "
             f"pmi={counts['pmi']} ({counts['pmi'] / total * 100:.4f}%) | "
             f"rouge={counts['rouge']} ({counts['rouge'] / total * 100:.4f}%) | "
             f"tie={counts['tie']} ({counts['tie'] / total * 100:.4f}%) | "
-            f"no_result_tag={unparsed} ({unparsed / total * 100:.4f}%) | "
             f"${cost:.2f}"
         )
 
-        stats = position_stratified_stats(entries)
+        stats = dual_order_stats(entries)
         if stats is not None:
             lines.append(
-                f"    position-stratified: pmi={stats['rate'] * 100:.4f}% "
+                f"    consensus: pmi={stats['rate'] * 100:.4f}% "
                 f"+/-{stats['half_ci'] * 100:.4f} | "
-                f"rouge={stats['rouge_rate'] * 100:.4f}% | "
-                f"slot-A advantage={stats['advantage'] * 100:+.2f} pts"
+                f"rouge={stats['rouge_rate'] * 100:.4f}% "
+                f"(over {stats['decided']} pairs both orders agreed on)"
+            )
+            lines.append(
+                f"    orders disagreed on {stats['disagree_pct'] * 100:.4f}% of pairs "
+                f"| slot-A advantage={stats['advantage'] * 100:+.2f} pts (diagnostic)"
             )
 
     lines.append("=" * 70)
@@ -870,7 +1003,7 @@ def write_dataset_summary(dataset_key: str):
 
     summary_path = (
         result_dir
-        / f"{dataset_key}_ALL_checkpoints_llm_judge_gpt_vs_reference_summaries__step7_summary.log"
+        / f"{dataset_key}_ALL_checkpoints_llm_judge_gpt_vs_reference_summaries__step7_bothorders_summary.log"
     )
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
@@ -975,7 +1108,7 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
     result_dir = SCRIPT_DIR / config["result_folder"]
     result_dir.mkdir(parents=True, exist_ok=True)
 
-    base_name = f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7"
+    base_name = f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7_bothorders"
     output_path = result_dir / f"{base_name}.json"
     partial_path = result_dir / f"{base_name}.partial.jsonl"
     log_path = result_dir / f"{base_name}.log"
@@ -1046,19 +1179,16 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
                 futures = {}
                 for position in positions:
                     i = indices[position]
-                    swap = swap_for_sample(dataset_key, checkpoint, i)
                     futures[position] = pool.submit(
-                        judge_one_with_retry,
+                        judge_pair_both_orders,
                         reference_summaries[i], pmi_summaries[i], rouge_summaries[i],
-                        swap,
                     )
 
                 # Collected in submission order, not completion order, so the
                 # partial file stays contiguous and a resume is unambiguous.
                 for position in positions:
                     i = indices[position]
-                    swap = swap_for_sample(dataset_key, checkpoint, i)
-                    winner, feedback, raw_result, meta = futures[position].result()
+                    verdict = futures[position].result()
 
                     entry = {
                         "position": position,      # index within the judged subset
@@ -1067,12 +1197,8 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
                         "reference_summary": reference_summaries[i],
                         "pmi_summary": pmi_summaries[i],
                         "rouge_summary": rouge_summaries[i],
-                        "pmi_position": "A" if swap else "B",
-                        "llm_judge_winner": winner,
-                        "raw_result": raw_result,
-                        "llm_judge_feedback": feedback,
                     }
-                    entry.update(meta)
+                    entry.update(verdict)
 
                     entries.append(entry)
                     partial_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -1124,24 +1250,25 @@ if __name__ == "__main__":
     print(f"Datasets   : {', '.join(selected_datasets)}")
     print(f"Checkpoints: {', '.join(selected_checkpoints)}")
     print(f"Model      : {MODEL} (effort={REASONING_EFFORT})")
-    print(f"Samples    : {'whole test set' if max_samples is None else max_samples} per comparison")
+    print(f"Samples    : {'whole test set' if max_samples is None else max_samples} per comparison"
+          f" (x2 calls each -- both orders)")
     print(f"=> {len(selected_datasets) * len(selected_checkpoints)} comparison(s)")
 
     # ---- pre-flight cost estimate -----------------------------------------
     if args.estimate:
         print("\nESTIMATE ONLY -- no API calls will be made")
         print("=" * 70)
-        grand = {"samples": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+        grand = {"samples": 0, "calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
         for dataset_key in selected_datasets:
             for checkpoint in selected_checkpoints:
                 est = estimate_comparison(dataset_key, checkpoint, max_samples)
                 for key in grand:
                     grand[key] += est[key]
-                print(f"{dataset_key:8s} {checkpoint:3s} | samples={est['samples']:6d} | "
+                print(f"{dataset_key:8s} {checkpoint:3s} | pairs={est['samples']:6d} | "
                       f"in={est['input_tokens'] / 1e6:7.2f}M | "
                       f"out={est['output_tokens'] / 1e6:6.2f}M | ${est['cost_usd']:8.2f}")
         print("=" * 70)
-        print(f"TOTAL: {grand['samples']} calls, "
+        print(f"TOTAL: {grand['samples']} pairs = {grand['calls']} calls, "
               f"{grand['input_tokens'] / 1e6:.1f}M input + {grand['output_tokens'] / 1e6:.1f}M output "
               f"tokens, ${grand['cost_usd']:.2f}")
         if REASONING_EFFORT != EXPECTED_OUTPUT_TOKENS_MEASURED_AT_EFFORT:
