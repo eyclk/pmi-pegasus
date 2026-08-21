@@ -1,19 +1,25 @@
 """
-STEP 7 -- LLM-as-a-judge with a PAID API MODEL, against the ORIGINAL SOURCE
-DOCUMENTS.
+STEP 7 -- LLM-as-a-judge with a PAID API MODEL, against the REFERENCE
+SUMMARIES.
 
-This is step 6 with the judge swapped out: instead of running Prometheus 7B
+This is step 5 with the judge swapped out: instead of running Prometheus 7B
 locally, it asks an OpenAI model over the API. Everything that defines the
-comparison is carried over from calc_LLM_as_a_judge_step6_versus_source_docs.py
-unchanged -- the per-dataset criteria (news vs procedural), the [RESULT]
-parsing and the deterministic A/B swap.
+comparison is carried over from calc_LLM_as_a_judge_step5_Prometheus.py
+unchanged -- the prompt (verbatim, including the "the source document is not
+shown to you" instruction and the note on extra details), the [RESULT] parsing
+and the A/B swap.
 
-The task-description wording has since been edited here and no longer matches
-step 6 verbatim (step 6 keeps the "prefer a decision over a TIE" instruction,
-this one does not). Keep that in mind when reading a step 7 tie rate against a
-step 6 tie rate: the judge AND the instruction differ.
+There is deliberately NO per-dataset prompt here. Steps 6/7 needed one because
+they judged against the source document, where a how-to text and a news article
+call for different criteria; the reference summary is short, self-contained
+ground truth, so all three datasets get the single step 5 prompt and the three
+numbers stay directly comparable with each other.
 
-Input/output handling mirrors step 6 as well: candidates are read from the
+One difference from step 5 survives: the swap is seeded per sample
+(swap_for_sample) rather than drawn from the global RNG, so a resumed run is
+identical to an uninterrupted one.
+
+Input/output handling: candidates are read from the
 "eval_generated_pred/eval_results_*" folders, results are written as one JSON
 plus one ".log" per comparison, a per-dataset summary log is rebuilt from disk,
 and a ".partial.jsonl" makes the job resumable.
@@ -22,8 +28,22 @@ and a ".partial.jsonl" makes the job resumable.
 COST -- READ THIS BEFORE THE FIRST RUN
 ----------------------------------------------------------------------------
 The full grid is 3 datasets x 8 checkpoints = 24 comparisons over 28401 test
-documents each time, i.e. 227208 paid API calls with roughly 174M tokens of
-source document alone. That is a real bill, not a rounding error.
+documents each time, i.e. 227208 paid API calls. On gpt-5.6-luna at effort=low
+that is ~139M input + ~51M output tokens, about $89 (--estimate, 2026-08-21).
+
+Judging against the reference summary rather than the source document shrinks
+the ground-truth text 13x -- 174M tokens of document across the grid against
+13M tokens of reference -- but the bill only drops by about a quarter, from
+~$121 to ~$89. Two reasons, both worth knowing before trying to optimise
+further:
+
+  * the fixed prompt boilerplate is ~450 tokens and is paid 227208 times, i.e.
+    ~102M tokens, which is now nearly three quarters of the input side. It sits
+    below OpenAI's ~1024-token prefix-caching threshold, so the "cached_input"
+    rate in PRICING does not apply to it;
+  * output dominates the cost regardless: ~51M tokens at 6x the input rate is
+    ~$61 of the ~$89. EXPECTED_OUTPUT_TOKENS, not the prompt length, is the
+    number to re-measure when anything changes.
 
 Two levers:
 
@@ -32,7 +52,7 @@ Two levers:
   * --max-samples N judges a deterministic random subset instead of the whole
     test set. The subset is seeded per DATASET (not per checkpoint), so all 8
     checkpoints of a dataset are judged on exactly the same documents. NOTE
-    that a subset run is NOT directly comparable with the step 6 numbers, which
+    that a subset run is NOT directly comparable with the step 5 numbers, which
     were computed over the full test set -- the default here is the full set for
     that reason.
 
@@ -48,7 +68,7 @@ What is pinned instead:
   * the exact model id, never the floating alias -- `gpt-5.6` routes to Sol,
     which is 25x the price of Luna and can be repointed by OpenAI at any time;
   * the reasoning effort, which changes both the verdicts and the bill;
-  * the prompt and the per-sample A/B swap, both seeded exactly as in step 6;
+  * the prompt (step 5's, verbatim) and the per-sample A/B swap;
   * the results themselves: a sample that has been judged once is never asked
     again, because the ".partial.jsonl" is the cache. Re-running a finished
     comparison costs nothing and returns the identical file.
@@ -103,7 +123,7 @@ except ImportError:
 # verdicts halfway through a grid.
 #
 # Luna is the cost-efficient choice for this job by a wide margin. Judging one
-# summary pair against a source document is a bounded comparison task, not a
+# summary pair against a reference summary is a bounded comparison task, not a
 # frontier-reasoning problem, and the whole grid on Sol would cost roughly 25x
 # what it costs on Luna. Override with --model if you want to spot-check a
 # subset against a stronger judge.
@@ -153,13 +173,14 @@ SEED = 0
 # a spot-check shows the verdicts improving enough to justify the cost.
 REASONING_EFFORT = "low"
 
-# Feedback plus the [RESULT] tag. Step 6 used 768 for Prometheus and saw a
-# ~1.1-1.4% rate of generations that never emitted the tag; the same budget is
-# kept here so a missing tag means the same thing in both scripts. Note this
-# caps reasoning tokens too when the effort is raised.
+# Feedback plus the [RESULT] tag. Step 5 used 512 for Prometheus and saw a
+# ~0.2% (cnn) to ~1.0-1.4% (wikihow) rate of generations that never emitted the
+# tag; 768 is kept here, unchanged from the source-document version of this
+# script, so a missing tag means the judge chose not to emit one rather than ran
+# out of room. Note this caps reasoning tokens too when the effort is raised.
 MAX_OUTPUT_TOKENS = 768
 
-# Parallel in-flight requests. Unlike step 6's batch size this is purely a
+# Parallel in-flight requests. Unlike step 5's batch size this is purely a
 # throughput knob: each request is judged independently by the API, so
 # concurrency cannot change a verdict. Lower it if you hit rate limits.
 CONCURRENCY = 8
@@ -169,7 +190,7 @@ CONCURRENCY = 8
 # ---------------------------------------------------------------------------
 # None judges the whole test set, which is what steps 4/5/6 do. Keeping that as
 # the default is deliberate: a step 7 number is only directly comparable with
-# the step 6 number for the same comparison if both saw the same documents, and
+# the step 5 number for the same comparison if both saw the same documents, and
 # a default that had to be overridden every time would eventually be forgotten,
 # producing a subset run that looks complete in the output files.
 #
@@ -177,12 +198,15 @@ CONCURRENCY = 8
 # paid calls -- so --estimate exists to price a run before it happens, and
 # --max-samples N buys a cheaper, still-usable answer when a full run is not
 # worth it. The uncertainty on the PMI-minus-ROUGE gap is roughly
-# sqrt((p_pmi + p_rouge) / N), so with the ~43%/40% split step 6 reports:
+# sqrt((p_pmi + p_rouge) / N), so with the ~41%/37% split step 5 reports on
+# wikihow:
 #
-#     N=  500 per comparison  ->  +/- 4.1 points   (too coarse: the gap is 1-4)
-#     N= 2000 per comparison  ->  +/- 2.0 points   (resolves it, ~1/5 the cost)
-#     N= 5000 per comparison  ->  +/- 1.3 points
-#     N=full (28401)          ->  +/- 0.6 points   <- the default
+#     N=  500 per comparison  ->  +/- 3.9 points   (too coarse: the gap is 1-4)
+#     N= 2000 per comparison  ->  +/- 2.0 points   (resolves it, ~1/3 the cost
+#                                                   on wikihow, ~1/6 on cnn)
+#     N= 5000 per comparison  ->  +/- 1.2 points
+#     N=full  (5577 wikihow)  ->  +/- 1.2 points   <- the default
+#     N=full (11490 cnn)      ->  +/- 0.8 points
 MAX_SAMPLES_PER_COMPARISON = None
 
 # Output tokens per verdict, for the --estimate projection only.
@@ -197,12 +221,22 @@ MAX_SAMPLES_PER_COMPARISON = None
 # completed comparison reports its real usage in the .log. Reasoning tokens are
 # billed at the OUTPUT rate, so raising the effort above "none" can multiply
 # this number several times over; --estimate warns when the two disagree.
-# Measured on 20-sample wikihow/1M runs:
+# Measured on 20-sample wikihow/1M runs.
+#
+# Under the OLD source-document prompt:
 #   effort="none" -> 126 output tokens (0 reasoning)
 #   effort="low"  -> 225 output tokens (114 of them reasoning, billed at the
 #                    output rate) -- 1.8x, i.e. the visible feedback got a
 #                    little SHORTER while the model spent the budget thinking.
-EXPECTED_OUTPUT_TOKENS = 225
+#
+# Under the CURRENT step 5 reference-summary prompt, effort="low" (2026-08-21):
+#   output    = 209 tokens (mean; median 201, range 103-378)
+#   reasoning = 117 of those, leaving ~92 tokens of visible feedback
+#   input     = 536 tokens (mean; the char/4 estimator says ~611, i.e. ~14% high)
+#
+# Nothing came within range of the 768 cap (max 378) and all 20 emitted a
+# [RESULT] tag, so MAX_OUTPUT_TOKENS is not binding at this effort.
+EXPECTED_OUTPUT_TOKENS = 209
 EXPECTED_OUTPUT_TOKENS_MEASURED_AT_EFFORT = "low"
 
 # Retry policy for 429s and transient 5xx. Sleeps 2, 4, 8, 16, 32 seconds.
@@ -217,26 +251,24 @@ GENERATED_PRED_DIR = REPO_ROOT / "eval_generated_pred"
 # Checkpoints (pretraining steps) to compare.
 CHECKPOINTS = [f"{i}M" for i in range(1, 9)]
 
-# dataset key -> where its source documents / candidate summaries / outputs live
-# (identical to step 6, including which prompt style each dataset gets).
+# dataset key -> where its reference summaries / candidate summaries / outputs
+# live. No "prompt_style" any more: every dataset is judged with the single
+# step 5 prompt (see JUDGE PROMPT below).
 DATASETS = {
     "cnn": {
         "finetune_data_folder": "cnn_dailymail_comb",
         "eval_folder_suffix": "cnn_comb",
         "result_folder": "cnn_result_files",
-        "prompt_style": "news",
     },
     "xsum": {
         "finetune_data_folder": "xsum_comb",
         "eval_folder_suffix": "xsum_comb",
         "result_folder": "xsum_result_files",
-        "prompt_style": "news",
     },
     "wikihow": {
         "finetune_data_folder": "wikihow_comb",
         "eval_folder_suffix": "wikihow_comb",
         "result_folder": "wikihow_result_files",
-        "prompt_style": "procedural",
     },
 }
 
@@ -336,88 +368,64 @@ def parse_prometheus_output(decoded_output: str):
     return feedback.strip(), result
 
 ###############################################################################
-# JUDGE PROMPT (versus the SOURCE DOCUMENT)
+# JUDGE PROMPT (versus the REFERENCE SUMMARY)
 ###############################################################################
 
-# The judging prompt scores several criteria, following step 5 rather than the
-# faithfulness-only prompt step 6 settled on. The reason is that a
-# faithfulness-only criterion structurally rewards copying: text lifted verbatim
-# from the source cannot contradict it, so the more extractive summary wins
-# almost by construction. Measured on wikihow/1M, the more extractive summary
-# won 58% of decided pairs, which makes the metric a poor test of any claim
-# about abstractive quality.
+# Carried over verbatim from calc_LLM_as_a_judge_step5_Prometheus.py -- system
+# message, task description, criteria and the closing note -- so that step 5 and
+# step 7 answer exactly the same question and only the judge differs.
 #
-# Consequences worth knowing:
-#   * results are NOT comparable with the faithfulness-only runs, nor with
-#     step 6; a comparison judged under this prompt has to be re-run;
-#   * Coverage rewards saying more, so it may trade the extractiveness bias for
-#     a length bias (the longer summary already won 55% of decided pairs).
-#     Whether that is an improvement is an empirical question -- measure the
-#     extractiveness and length win-rates again after changing the criteria.
+# ONE prompt for all three datasets, on purpose. The per-dataset split (news vs
+# procedural) existed only because the source document was the ground truth
+# there: a how-to text makes step order and exact quantities load-bearing in a
+# way a news article does not. A reference summary carries none of that
+# structure -- it is a couple of sentences of ground truth -- so the same four
+# criteria apply to cnn, xsum and wikihow alike, and the three datasets stay
+# directly comparable with one another.
 #
-# The criteria are kept short on purpose: the judges are small models, and long
-# enumerations of edge cases cost more attention than the detail is worth.
+# The other reason to prefer this prompt: judging faithfulness against the full
+# document structurally rewards copying, because text lifted verbatim from the
+# source cannot contradict it. Measured on wikihow/1M under the source-document
+# prompt, the more extractive summary won 58% of decided pairs -- a poor test of
+# a claim about abstractive quality. Consistency against a short reference does
+# not have that failure mode.
 #
-PROMPT_STYLES = {
-    # cnn / xsum -- news articles, multiple criteria.
-    "news": {
-        "system_message": (
-            "You are a fair and precise evaluation assistant. "
-            "You compare two candidate summaries against the source document they were written from. "
-            "Follow the evaluation criteria carefully and be impartial."
-        ),
-        "criteria_word": "criteria",
-        "criteria_header": "EVALUATION CRITERIA:",
-        "criteria_block": (
-            "1. **Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
-            "2. **Coverage:** How well does the summary capture the essential points mentioned in the Source Document?\n"
-            "3. **Conciseness:** Is the summary brief without sacrificing key details of the Source Document?\n"
-            "4. **Coherence:** Is the summary easy to read and logically organized?"
-        ),
-    },
-    # wikihow -- procedural how-to texts, so the exact values of a step and the
-    # order and prerequisite structure of the steps carry meaning that a news
-    # summary does not have: a dropped temperature or a swapped step makes the
-    # procedure unusable even when nothing in the summary is actually false.
-    "procedural": {
-        "system_message": (
-            "You are a fair and precise evaluation assistant. "
-            "You compare two candidate summaries against the source document they were written from. "
-            "Follow the evaluation criteria carefully and be impartial."
-        ),
-        "criteria_word": "criteria",
-        "criteria_header": "EVALUATION CRITERIA:",
-        "criteria_block": (
-            "1. **Faithfulness (factual consistency):** Is every statement in the summary supported by the Source Document, without hallucinated or contradictory information?\n"
-            "2. **Step ordering:** Are actions presented in a logically sensible order, and are dependencies between steps preserved?\n"
-            "3. **Coverage:** How well does the summary capture the essential points mentioned in the Source Document?\n"
-            "4. **Conciseness:** Is the summary brief without sacrificing key details of the Source Document?\n"
-            "5. **Coherence:** Is the summary easy to read and logically organized?\n"
-        ),
-    },
-}
+# Consequence worth knowing: results under this prompt are NOT comparable with
+# the earlier source-document step 7 runs, nor with step 6. They ARE the
+# paid-judge counterpart of step 5.
+#
+# Those earlier runs are archived OUTSIDE this repo, in
+#   /home/ege/Desktop/Pmi_Pegasus/llm judge GPT initial results/
+# and are the reference point for positional bias on wikihow/1M, full 5577:
+#   effort="none", source-doc prompt -> slot-A advantage +25.1 +/-2.6
+#   effort="low",  source-doc prompt -> slot-A advantage +10.9 +/-2.6
+# i.e. raising the effort bought a ~14-point reduction. Compare any new
+# reference-summary number against +10.9, and only at full sample size -- see
+# MAX_SAMPLES_PER_COMPARISON, a 20-sample run resolves this to about +/-44.
+
+SYSTEM_MESSAGE = (
+    "You are a fair and precise evaluation assistant. "
+    "You compare two candidate summaries against a reference summary. "
+    "Follow the evaluation criteria carefully and be impartial."
+)
 
 
 def build_judge_prompt(
-    source_document: str,
+    reference_summary: str,
     pmi_summary: str,
     rouge_summary: str,
     swap: bool,
-    dataset_key: str,
 ):
     """
     Builds (system_message, user_message) for one sample.
 
-    The instruction body below is carried over from step 6 verbatim, so the two
-    judges are answering exactly the same question. Step 6 truncated the source
-    document to 4000 tokens to fit Prometheus's context; that is not needed here
-    (the context window is over 1M tokens) and it affected only 24 of the 28401
-    test documents, so it is left out rather than reimplemented with a different
-    tokenizer.
-
     `swap` decides the position of each candidate, so that positional bias is
     averaged out. It is derived deterministically by the caller, which keeps a
     resumed run identical to an uninterrupted one.
+
+    No truncation: reference summaries are a few hundred characters, so nothing
+    here comes close to the context window (step 6 needed a 4000-token cut only
+    because it fed whole documents to Prometheus).
     """
 
     if swap:
@@ -427,23 +435,26 @@ def build_judge_prompt(
         response_A = rouge_summary
         response_B = pmi_summary
 
-    style = PROMPT_STYLES[DATASETS[dataset_key]["prompt_style"]]
-
     instruction = f"""
 TASK DESCRIPTION:
-1. You are given a Source Document and two Candidate Summaries (A and B) of that document.
-2. Your task is to evaluate the quality of the two Candidate Summaries based on the Source Document using the specified Evaluation {style["criteria_word"]}.
-3. Compare both summaries statement by statement against the Source Document, and base your decision on the violations of the {style["criteria_word"]} that you can actually point to in the text.
-4. Write a brief feedback that assess the quality of the two candidate summaries strictly based on the given evaluation {style["criteria_word"]}, not evaluating in general.
+1. You are given a Reference Summary and two Candidate Summaries (A and B) of the same (unseen) source document.
+2. Your task is to evaluate the quality of the two Candidate Summaries based on the Reference Summary using the specified Evaluation Criteria.
+3. The source document is not shown to you. Treat the Reference Summary as the only ground truth, and do not speculate about content that might exist in the source document.
+4. Write a brief feedback that assess the quality of the two candidate summaries strictly based on the given evaluation criteria, not evaluating in general.
 5. After writing the feedback, indicate the better candidate summary, either "A" or "B" or "TIE".
-6. The output format should look as follows: "Feedback: (write a feedback for {style['criteria_word']}) [RESULT] (Either "A" or "B" or "TIE")"
+6. The output format should look as follows: "Feedback: (write a feedback for criteria) [RESULT] (Either "A" or "B" or "TIE")"
 7. Please do not generate any other opening, closing, and explanations.
 
-{style["criteria_header"]}
-{style["criteria_block"]}
+EVALUATION CRITERIA:
+1. **Consistency with the Reference:** Does the summary avoid stating anything that contradicts the Reference Summary?
+2. **Coverage:** How well does the summary capture the essential points mentioned in the Reference Summary?
+3. **Conciseness:** Is the summary brief without sacrificing key details of the Reference Summary?
+4. **Coherence:** Is the summary easy to read and logically organized?
 
-SOURCE DOCUMENT:
-{source_document}
+Note: Extra details that are absent from the Reference Summary are not automatically errors, because the source document may contain them. Penalize such details only when they contradict the Reference Summary or clearly dilute its essential points.
+
+REFERENCE SUMMARY:
+{reference_summary}
 
 CANDIDATE A:
 {response_A}
@@ -454,13 +465,17 @@ CANDIDATE B:
 FEEDBACK:
 """.strip()
 
-    return style["system_message"], instruction
+    return SYSTEM_MESSAGE, instruction
 
 
 def swap_for_sample(dataset_key: str, checkpoint: str, sample_idx: int) -> bool:
     """
-    Deterministic per-sample position swap -- seeded exactly as in step 6, so a
-    given sample sits in the same A/B position under both judges.
+    Deterministic per-sample position swap.
+
+    Step 5 drew the swap from the global RNG, so its positions cannot be
+    reproduced here; seeding per sample instead makes a resumed run identical to
+    an uninterrupted one, which is what matters when every call is paid for.
+    Positional bias is averaged out either way.
     """
 
     return random.Random(f"{dataset_key}|{checkpoint}|{sample_idx}").random() < 0.5
@@ -486,7 +501,7 @@ def decode_winner(raw_result: str, swap: bool) -> str:
 # ONE API CALL
 ###############################################################################
 
-def judge_one_with_retry(source_document, pmi_summary, rouge_summary, swap, dataset_key):
+def judge_one_with_retry(reference_summary, pmi_summary, rouge_summary, swap):
     """
     Judges a single sample, retrying on rate limits and transient errors.
 
@@ -497,7 +512,7 @@ def judge_one_with_retry(source_document, pmi_summary, rouge_summary, swap, data
     """
 
     system_message, user_message = build_judge_prompt(
-        source_document, pmi_summary, rouge_summary, swap, dataset_key
+        reference_summary, pmi_summary, rouge_summary, swap
     )
 
     request = {
@@ -604,15 +619,15 @@ def estimate_comparison(dataset_key: str, checkpoint: str, max_samples):
 
     config = DATASETS[dataset_key]
     ds = load_from_disk(str(FINETUNE_DATA_DIR / config["finetune_data_folder"] / "test"))
-    source_documents = ds["document"]
+    reference_summaries = ds["summary"]
 
     pmi_summaries, rouge_summaries = read_candidate_summaries(dataset_key, checkpoint)
-    indices = select_sample_indices(dataset_key, len(source_documents), max_samples)
+    indices = select_sample_indices(dataset_key, len(reference_summaries), max_samples)
 
     input_tokens = 0
     for i in indices:
         system_message, user_message = build_judge_prompt(
-            source_documents[i], pmi_summaries[i], rouge_summaries[i], True, dataset_key
+            reference_summaries[i], pmi_summaries[i], rouge_summaries[i], True
         )
         input_tokens += estimate_tokens(system_message) + estimate_tokens(user_message)
 
@@ -753,8 +768,8 @@ def aggregate_text(dataset_key: str, checkpoint: str, entries) -> str:
     lines = [
         f"DATASET   : {dataset_key}",
         f"CHECKPOINT: {checkpoint}",
-        f"JUDGE     : {','.join(models)} via OpenAI API (compared against the SOURCE DOCUMENTS)",
-        f"PROMPT    : {DATASETS[dataset_key]['prompt_style']}",
+        f"JUDGE     : {','.join(models)} via OpenAI API (compared against the REFERENCE SUMMARIES)",
+        f"PROMPT    : step 5 reference-summary prompt (same for every dataset)",
         f"SETTINGS  : reasoning_effort={','.join(str(e) for e in efforts)}, "
         f"max_output_tokens={MAX_OUTPUT_TOKENS}, "
         f"temperature={sorted({str(e.get('temperature')) for e in entries})[0]} "
@@ -804,16 +819,16 @@ def write_dataset_summary(dataset_key: str):
     result_dir = SCRIPT_DIR / DATASETS[dataset_key]["result_folder"]
 
     lines = [
-        f"LLM-as-a-judge (OpenAI API) versus SOURCE DOCUMENTS -- step 7",
+        f"LLM-as-a-judge (OpenAI API) versus REFERENCE SUMMARIES -- step 7",
         f"DATASET: {dataset_key}",
-        f"PROMPT : {DATASETS[dataset_key]['prompt_style']}",
+        f"PROMPT : step 5 reference-summary prompt (same for every dataset)",
         "=" * 70,
     ]
 
     grand_total_cost = 0.0
 
     for checkpoint in CHECKPOINTS:
-        path = result_dir / f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_source_docs__step7.json"
+        path = result_dir / f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7.json"
 
         if not path.exists():
             lines.append(f"{checkpoint}: (not run yet)")
@@ -855,7 +870,7 @@ def write_dataset_summary(dataset_key: str):
 
     summary_path = (
         result_dir
-        / f"{dataset_key}_ALL_checkpoints_llm_judge_gpt_vs_source_docs__step7_summary.log"
+        / f"{dataset_key}_ALL_checkpoints_llm_judge_gpt_vs_reference_summaries__step7_summary.log"
     )
     with open(summary_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
@@ -914,8 +929,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Step 7 -- paid-API LLM-as-a-judge of PMI- vs ROUGE-pegasus summaries "
-            "against the original source documents. Same prompt and same outputs "
-            "as step 6, different judge. RUN --estimate FIRST: the full grid is "
+            "against the reference summaries. Same prompt and same outputs as "
+            "step 5, different judge. RUN --estimate FIRST: the full grid is "
             "227208 paid calls."
         )
     )
@@ -960,7 +975,7 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
     result_dir = SCRIPT_DIR / config["result_folder"]
     result_dir.mkdir(parents=True, exist_ok=True)
 
-    base_name = f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_source_docs__step7"
+    base_name = f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7"
     output_path = result_dir / f"{base_name}.json"
     partial_path = result_dir / f"{base_name}.partial.jsonl"
     log_path = result_dir / f"{base_name}.log"
@@ -970,19 +985,19 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
         raise FileNotFoundError(f"Missing required input: {test_set_path}")
 
     ds = load_from_disk(str(test_set_path))
-    source_documents = ds["document"]
+    reference_summaries = ds["summary"]
     doc_ids = ds["id"] if "id" in ds.column_names else list(range(len(ds)))
 
     pmi_summaries, rouge_summaries = read_candidate_summaries(dataset_key, checkpoint)
 
-    if not (len(source_documents) == len(pmi_summaries) == len(rouge_summaries)):
+    if not (len(reference_summaries) == len(pmi_summaries) == len(rouge_summaries)):
         raise ValueError(
             f"Size mismatch for {dataset_key} {checkpoint}: "
-            f"source docs={len(source_documents)}, pmi={len(pmi_summaries)}, "
+            f"references={len(reference_summaries)}, pmi={len(pmi_summaries)}, "
             f"rouge={len(rouge_summaries)}"
         )
 
-    indices = select_sample_indices(dataset_key, len(source_documents), max_samples)
+    indices = select_sample_indices(dataset_key, len(reference_summaries), max_samples)
     total_samples = len(indices)
 
     # ---- already finished? -------------------------------------------------
@@ -1034,8 +1049,8 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
                     swap = swap_for_sample(dataset_key, checkpoint, i)
                     futures[position] = pool.submit(
                         judge_one_with_retry,
-                        source_documents[i], pmi_summaries[i], rouge_summaries[i],
-                        swap, dataset_key,
+                        reference_summaries[i], pmi_summaries[i], rouge_summaries[i],
+                        swap,
                     )
 
                 # Collected in submission order, not completion order, so the
@@ -1049,6 +1064,7 @@ def run_single_comparison(dataset_key: str, checkpoint: str, max_samples, concur
                         "position": position,      # index within the judged subset
                         "index": i,                # row in the test set
                         "id": doc_ids[i],
+                        "reference_summary": reference_summaries[i],
                         "pmi_summary": pmi_summaries[i],
                         "rouge_summary": rouge_summaries[i],
                         "pmi_position": "A" if swap else "B",

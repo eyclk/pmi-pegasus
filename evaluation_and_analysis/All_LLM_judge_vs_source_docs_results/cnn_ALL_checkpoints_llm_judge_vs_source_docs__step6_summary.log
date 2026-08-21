@@ -1,0 +1,13 @@
+LLM-as-a-judge (prometheus-eval/prometheus-7b-v2.0) versus SOURCE DOCUMENTS -- step 6
+DATASET: cnn
+PROMPT : news
+ENV    : torch=2.13.0+cu132, transformers=5.14.1, bitsandbytes=0.50.0, device=NVIDIA GeForce RTX 5080, attn=efficient_attention (rebuild host)
+======================================================================
+1M: samples=11490 | pmi=4668 (40.6266%) | rouge=5845 (50.8703%) | tie=977 (8.5030%) | no_result_tag=287 (2.4978%)
+2M: samples=11490 | pmi=5576 (48.5292%) | rouge=5058 (44.0209%) | tie=856 (7.4500%) | no_result_tag=225 (1.9582%)
+3M: samples=11490 | pmi=5074 (44.1601%) | rouge=5455 (47.4761%) | tie=961 (8.3638%) | no_result_tag=265 (2.3064%)
+4M: samples=11490 | pmi=5609 (48.8164%) | rouge=4953 (43.1070%) | tie=928 (8.0766%) | no_result_tag=272 (2.3673%)
+5M: samples=11490 | pmi=4978 (43.3246%) | rouge=5582 (48.5814%) | tie=930 (8.0940%) | no_result_tag=291 (2.5326%)
+6M: samples=11490 | pmi=5680 (49.4343%) | rouge=4865 (42.3412%) | tie=945 (8.2245%) | no_result_tag=303 (2.6371%)
+7M: samples=11490 | pmi=5658 (49.2428%) | rouge=4963 (43.1941%) | tie=869 (7.5631%) | no_result_tag=277 (2.4108%)
+8M: samples=11490 | pmi=4701 (40.9138%) | rouge=5858 (50.9835%) | tie=931 (8.1027%) | no_result_tag=324 (2.8198%)

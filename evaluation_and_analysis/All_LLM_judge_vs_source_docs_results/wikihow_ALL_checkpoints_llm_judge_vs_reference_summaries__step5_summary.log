@@ -1,0 +1,12 @@
+LLM-as-a-judge (prometheus-eval/prometheus-7b-v2.0) versus REFERENCE SUMMARIES -- step 5
+DATASET: wikihow
+ENV    : torch=2.13.0+cu132, transformers=5.14.1, bitsandbytes=0.50.0, device=NVIDIA GeForce RTX 5080, attn=efficient_attention+math (rebuild host)
+======================================================================
+1M: samples=5577 | pmi=2264 (40.5953%) | rouge=2040 (36.5788%) | tie=1273 (22.8259%) | no_result_tag=57 (1.0221%)
+2M: samples=5577 | pmi=2442 (43.7870%) | rouge=1946 (34.8933%) | tie=1189 (21.3197%) | no_result_tag=51 (0.9145%)
+3M: samples=5577 | pmi=2207 (39.5732%) | rouge=2141 (38.3898%) | tie=1229 (22.0369%) | no_result_tag=58 (1.0400%)
+4M: samples=5577 | pmi=2211 (39.6450%) | rouge=2127 (38.1388%) | tie=1239 (22.2162%) | no_result_tag=80 (1.4345%)
+5M: samples=5577 | pmi=2345 (42.0477%) | rouge=2076 (37.2243%) | tie=1156 (20.7280%) | no_result_tag=57 (1.0221%)
+6M: samples=5577 | pmi=2430 (43.5718%) | rouge=2012 (36.0767%) | tie=1135 (20.3514%) | no_result_tag=56 (1.0041%)
+7M: samples=5577 | pmi=2395 (42.9442%) | rouge=2035 (36.4892%) | tie=1147 (20.5666%) | no_result_tag=71 (1.2731%)
+8M: samples=5577 | pmi=2489 (44.6297%) | rouge=1919 (34.4092%) | tie=1169 (20.9611%) | no_result_tag=71 (1.2731%)
