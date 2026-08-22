@@ -29,3 +29,32 @@ METHOD : every pair judged in BOTH orders; disagreements recorded as ties
     orders disagreed on 28.3924% of pairs | slot-A advantage=+23.35 pts (diagnostic)
 ======================================================================
 TOTAL SPENT ON THIS DATASET: $57.52
+
+======================================================================
+RAW ORDER 1 -- PMI shown as candidate A, ROUGE as candidate B
+(diagnostic only -- one order in isolation is NOT a fair comparison;
+ the consensus figures above are the result. Kept because the trend
+ is visible in each order separately, which the consensus hides.)
+======================================================================
+ckpt           PMI wins       ROUGE wins            ties   PMI of decided
+1M         6312 (55.69%)     4476 (39.49%)     546 ( 4.82%)         58.51%
+2M         6017 (53.09%)     4813 (42.47%)     504 ( 4.45%)         55.56%
+3M         6041 (53.30%)     4781 (42.18%)     512 ( 4.52%)         55.82%
+4M         6147 (54.24%)     4716 (41.61%)     471 ( 4.16%)         56.59%
+5M         6412 (56.57%)     4520 (39.88%)     402 ( 3.55%)         58.65%
+6M         6001 (52.95%)     4943 (43.61%)     390 ( 3.44%)         54.83%
+7M         6346 (55.99%)     4566 (40.29%)     422 ( 3.72%)         58.16%
+8M         6546 (57.76%)     4442 (39.19%)     346 ( 3.05%)         59.57%
+
+======================================================================
+RAW ORDER 2 -- PMI shown as candidate B, ROUGE as candidate A
+======================================================================
+ckpt           PMI wins       ROUGE wins            ties   PMI of decided
+1M         3855 (34.01%)     6969 (61.49%)     510 ( 4.50%)         35.62%
+2M         3638 (32.10%)     7284 (64.27%)     412 ( 3.64%)         33.31%
+3M         3641 (32.12%)     7317 (64.56%)     376 ( 3.32%)         33.23%
+4M         3793 (33.47%)     7188 (63.42%)     353 ( 3.11%)         34.54%
+5M         3803 (33.55%)     7229 (63.78%)     302 ( 2.66%)         34.47%
+6M         3527 (31.12%)     7491 (66.09%)     316 ( 2.79%)         32.01%
+7M         3927 (34.65%)     7086 (62.52%)     321 ( 2.83%)         35.66%
+8M         3996 (35.26%)     7036 (62.08%)     302 ( 2.66%)         36.22%

@@ -957,6 +957,7 @@ def write_dataset_summary(dataset_key: str):
     ]
 
     grand_total_cost = 0.0
+    by_checkpoint = {}
 
     for checkpoint in CHECKPOINTS:
         path = result_dir / f"{dataset_key}_{checkpoint}_llm_judge_gpt_vs_reference_summaries__step7_bothorders.json"
@@ -972,6 +973,7 @@ def write_dataset_summary(dataset_key: str):
             lines.append(f"{checkpoint}: (empty output file)")
             continue
 
+        by_checkpoint[checkpoint] = entries
         counts = Counter(entry["llm_judge_winner"] for entry in entries)
         cost = sum(entry.get("cost_usd", 0.0) for entry in entries)
         grand_total_cost += cost
@@ -1000,6 +1002,49 @@ def write_dataset_summary(dataset_key: str):
 
     lines.append("=" * 70)
     lines.append(f"TOTAL SPENT ON THIS DATASET: ${grand_total_cost:.2f}")
+
+    # ---- raw single-order halves, appended for readability ------------------
+    # Everything above is the consensus result. This section opens it up: the
+    # two calls behind every pair, reported separately. It is deliberately last,
+    # because on its own each half is NOT a fair comparison -- position alone
+    # moves PMI by 20-30 points -- but the two halves are easy to read and they
+    # show two things the consensus figures hide:
+    #   * the trend across checkpoints appears in BOTH orders, so it is not an
+    #     artifact of how the two are combined;
+    #   * the judge's OWN tie rate is ~1% in either order, so essentially all
+    #     the ties above come from the orders disagreeing, not from the judge
+    #     declining to pick.
+    if by_checkpoint:
+        for slot, key, other in (("A", "winner_pmi_as_A", "B"),
+                                 ("B", "winner_pmi_as_B", "A")):
+            lines.append("")
+            lines.append("=" * 70)
+            lines.append(
+                f"RAW ORDER {'1' if slot == 'A' else '2'} -- PMI shown as candidate {slot}, "
+                f"ROUGE as candidate {other}")
+            if slot == "A":
+                lines.append("(diagnostic only -- one order in isolation is NOT a fair comparison;")
+                lines.append(" the consensus figures above are the result. Kept because the trend")
+                lines.append(" is visible in each order separately, which the consensus hides.)")
+            lines.append("=" * 70)
+            lines.append(f"{'ckpt':6s}{'PMI wins':>17s}{'ROUGE wins':>17s}"
+                         f"{'ties':>16s}{'PMI of decided':>17s}")
+            for checkpoint in CHECKPOINTS:
+                entries = by_checkpoint.get(checkpoint)
+                if not entries:
+                    continue
+                counts = Counter(e.get(key) for e in entries)
+                total = len(entries)
+                decided = counts["pmi"] + counts["rouge"]
+                if not decided:
+                    continue
+                lines.append(
+                    f"{checkpoint:6s}"
+                    f"{counts['pmi']:9d} ({counts['pmi'] / total * 100:5.2f}%)"
+                    f"{counts['rouge']:9d} ({counts['rouge'] / total * 100:5.2f}%)"
+                    f"{counts['tie']:8d} ({counts['tie'] / total * 100:5.2f}%)"
+                    f"{counts['pmi'] / decided * 100:14.2f}%"
+                )
 
     summary_path = (
         result_dir

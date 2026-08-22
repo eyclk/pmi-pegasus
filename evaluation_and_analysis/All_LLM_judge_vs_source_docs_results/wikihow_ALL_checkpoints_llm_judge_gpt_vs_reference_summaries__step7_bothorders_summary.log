@@ -29,3 +29,32 @@ METHOD : every pair judged in BOTH orders; disagreements recorded as ties
     orders disagreed on 32.9747% of pairs | slot-A advantage=+30.24 pts (diagnostic)
 ======================================================================
 TOTAL SPENT ON THIS DATASET: $31.22
+
+======================================================================
+RAW ORDER 1 -- PMI shown as candidate A, ROUGE as candidate B
+(diagnostic only -- one order in isolation is NOT a fair comparison;
+ the consensus figures above are the result. Kept because the trend
+ is visible in each order separately, which the consensus hides.)
+======================================================================
+ckpt           PMI wins       ROUGE wins            ties   PMI of decided
+1M         3363 (60.30%)     2107 (37.78%)     107 ( 1.92%)         61.48%
+2M         3392 (60.82%)     2126 (38.12%)      59 ( 1.06%)         61.47%
+3M         3567 (63.96%)     1934 (34.68%)      76 ( 1.36%)         64.84%
+4M         3643 (65.32%)     1862 (33.39%)      72 ( 1.29%)         66.18%
+5M         3418 (61.29%)     2103 (37.71%)      56 ( 1.00%)         61.91%
+6M         3658 (65.59%)     1865 (33.44%)      54 ( 0.97%)         66.23%
+7M         3752 (67.28%)     1781 (31.93%)      44 ( 0.79%)         67.81%
+8M         3682 (66.02%)     1850 (33.17%)      45 ( 0.81%)         66.56%
+
+======================================================================
+RAW ORDER 2 -- PMI shown as candidate B, ROUGE as candidate A
+======================================================================
+ckpt           PMI wins       ROUGE wins            ties   PMI of decided
+1M         1801 (32.29%)     3685 (66.07%)      91 ( 1.63%)         32.83%
+2M         1815 (32.54%)     3672 (65.84%)      90 ( 1.61%)         33.08%
+3M         1976 (35.43%)     3540 (63.47%)      61 ( 1.09%)         35.82%
+4M         2147 (38.50%)     3357 (60.19%)      73 ( 1.31%)         39.01%
+5M         1765 (31.65%)     3763 (67.47%)      49 ( 0.88%)         31.93%
+6M         1994 (35.75%)     3525 (63.21%)      58 ( 1.04%)         36.13%
+7M         1905 (34.16%)     3635 (65.18%)      37 ( 0.66%)         34.39%
+8M         2009 (36.02%)     3522 (63.15%)      46 ( 0.82%)         36.32%
