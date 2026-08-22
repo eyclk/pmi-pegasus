@@ -1,0 +1,123 @@
+LENGTH-STANDARDIZED PMI WIN RATES -- cnn
+==============================================================================
+
+STANDARDIZED PMI vs ROUGE PER CHECKPOINT
+----------------------------------------------------------------------------------------
+  Every checkpoint scored against one common mix of PMI-minus-ROUGE
+  summary lengths, so length drift between checkpoints cannot move these.
+
+  PMI and ROUGE are shares of the DECIDED pairs; the tie% column is the
+  share of ALL pairs and sits outside that split. Ties are kept out of the
+  win rate on purpose -- it answers 'when the judge has a preference, how
+  often is it for PMI', which is comparable between judges even though
+  their tie rates are not. A 3-way split would penalise whichever judge
+  simply ties more, and these two differ by ~10 points.
+
+  The two judges' ties are also not the same kind of thing:
+    Prometheus  -- the judge itself answered TIE;
+    GPT         -- almost all are pairs whose verdict FLIPPED when the
+                   candidates were swapped (1M: 1755 of 1792), i.e. our
+                   own bookkeeping for 'no position-independent opinion'.
+  Read GPT's tie% as an instability rate, not as the judge calling it even.
+
+  ROUGE is exactly 100 - PMI: one measurement shown from both sides, NOT
+  independent confirmation. The CI is printed on PMI only for that reason.
+
+  ckpt                                     GPT                            Prometheus
+                   PMI        ROUGE       tie%           PMI        ROUGE       tie%
+  1M        46.81 +/-1.06        53.19      28.56    47.76 +/-0.98        52.24      11.16
+  2M        52.92 +/-1.09        47.08      25.66    51.49 +/-1.08        48.51       9.56
+  3M        48.24 +/-1.05        51.76      28.10    50.13 +/-0.97        49.87      10.59
+  4M        52.90 +/-1.04        47.10      27.70    51.74 +/-0.96        48.26      10.75
+  5M        50.85 +/-1.06        49.15      28.25    50.10 +/-0.97        49.90      10.22
+  6M        57.47 +/-1.05        42.53      28.05            --           --         --
+  7M        54.67 +/-1.06        45.33      28.03            --           --         --
+  8M        47.41 +/-1.08        52.59      27.95            --           --         --
+
+GPT (step 7, dual-order consensus)
+------------------------------------------------------------------------------
+  LENGTH BIAS OF THIS JUDGE (all checkpoints pooled)
+    PMI 10+ shorter : PMI wins  35.06%  (n=15876)
+    PMI 5-9 shorter : PMI wins  43.64%  (n=8473)
+    PMI 2-4 shorter : PMI wins  47.57%  (n=6086)
+    within 1 word   : PMI wins  53.44%  (n=6342)
+    PMI 2-4 longer  : PMI wins  54.96%  (n=5937)
+    PMI 5-9 longer  : PMI wins  58.46%  (n=7987)
+    PMI 10+ longer  : PMI wins  68.89%  (n=15675)
+
+  ckpt                 raw       length-standardized        n
+  1M           45.03 +/-1.08               46.81 +/-1.06     8208
+  2M           58.22 +/-1.05               52.92 +/-1.09     8542
+  3M           46.91 +/-1.08               48.24 +/-1.05     8261
+  4M           53.61 +/-1.07               52.90 +/-1.04     8307
+  5M           49.44 +/-1.08               50.85 +/-1.06     8244
+  6M           58.82 +/-1.06               57.47 +/-1.05     8267
+  7M           55.44 +/-1.07               54.67 +/-1.06     8269
+  8M           45.41 +/-1.07               47.41 +/-1.08     8278
+
+  1M -> 8M raw          : +0.38 +/-1.52 pts   not significant
+  1M -> 8M standardized : +0.61 +/-1.51 pts   not significant
+  standardized slope       : +0.460 +/-1.466 pts per 1M steps   not significant
+
+Prometheus (step 5)
+------------------------------------------------------------------------------
+  LENGTH BIAS OF THIS JUDGE (all checkpoints pooled)
+    PMI 10+ shorter : PMI wins  56.84%  (n=12184)
+    PMI 5-9 shorter : PMI wins  54.47%  (n=6675)
+    PMI 2-4 shorter : PMI wins  51.69%  (n=4842)
+    within 1 word   : PMI wins  50.16%  (n=4898)
+    PMI 2-4 longer  : PMI wins  48.43%  (n=4522)
+    PMI 5-9 longer  : PMI wins  46.34%  (n=6226)
+    PMI 10+ longer  : PMI wins  44.11%  (n=12097)
+
+  ckpt                 raw       length-standardized        n
+  1M           48.41 +/-0.97               47.76 +/-0.98    10208
+  2M           50.89 +/-0.96               51.49 +/-1.08    10392
+  3M           50.63 +/-0.97               50.13 +/-0.97    10273
+  4M           51.38 +/-0.97               51.74 +/-0.96    10255
+  5M           50.71 +/-0.96               50.10 +/-0.97    10316
+  6M             (not run)
+  7M             (not run)
+  8M             (not run)
+
+  1M -> 5M raw          : +2.29 +/-1.37 pts   SIGNIFICANT
+  1M -> 5M standardized : +2.34 +/-1.37 pts   SIGNIFICANT
+  standardized slope       : +0.491 +/-1.230 pts per 1M steps   not significant
+
+LENGTH-DIFFERENCE MIX PER CHECKPOINT (% of decided pairs)
+------------------------------------------------------------------------------
+  (coarse view for reading; the standardization above uses 20 quantile bins)
+  ckpt    PMI 10+ short  PMI 5-9 short  PMI 2-4 short  within 1 word  PMI 2-4 longe  PMI 5-9 longe  PMI 10+ longe   PMI/ROUGE
+  1M              27.2%          14.1%          10.0%           9.8%           8.5%          11.7%          18.7%       0.962
+  2M              14.8%          11.8%           9.1%           9.4%           8.9%          12.5%          33.5%       1.100
+  3M              26.9%          13.3%           9.8%           9.6%           9.0%          11.3%          20.1%       0.970
+  4M              22.3%          12.2%           8.9%           9.1%           9.3%          12.7%          25.5%       1.012
+  5M              27.7%          13.2%           9.7%           9.6%           8.8%          11.2%          19.8%       0.966
+  6M              20.3%          11.7%           8.4%           9.5%           9.2%          13.3%          27.6%       1.028
+  7M              21.5%          11.9%           8.5%           9.8%           9.7%          13.0%          25.5%       1.018
+  8M              31.0%          13.9%           9.0%           9.7%           8.3%          10.4%          17.8%       0.948
+  (the last column is the mean word-count ratio; drift here is exactly
+   what the standardization above corrects for)
+
+STANDARDIZATION CHECK -- GPT (step 7, dual-order consensus)
+------------------------------------------------------------------------------
+  correlation(PMI/ROUGE length ratio, win rate) over 8 checkpoints
+    raw          r = +0.883
+    standardized r = +0.678
+  (near zero means length has been removed; a value still close to the
+   raw one means the bins are too coarse for this dataset's length spread)
+
+STANDARDIZATION CHECK -- Prometheus (step 5)
+------------------------------------------------------------------------------
+  correlation(PMI/ROUGE length ratio, win rate) over 5 checkpoints
+    raw          r = +0.441
+    standardized r = +0.664
+  (near zero means length has been removed; a value still close to the
+   raw one means the bins are too coarse for this dataset's length spread)
+
+JUDGE AGREEMENT ACROSS CHECKPOINTS (standardized)
+------------------------------------------------------------------------------
+  r = +0.918 over 5 checkpoints
+  (on wikihow this rises from -0.08 raw to +0.50 standardized: the two
+   judges look uncorrelated only because their length biases point in
+   OPPOSITE directions and each scrambles the ordering differently)

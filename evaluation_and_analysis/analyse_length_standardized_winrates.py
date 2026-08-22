@@ -49,12 +49,28 @@ CHECKPOINTS = [f"{i}M" for i in range(1, 9)]
 RESULT_FOLDER = {"cnn": "cnn_result_files", "xsum": "xsum_result_files",
                  "wikihow": "wikihow_result_files"}
 
-# (low, high, label) on (PMI words - ROUGE words), inclusive.
-BINS = [(-10**9, -10, "PMI 10+ shorter"), (-9, -5, "PMI 5-9 shorter"),
-        (-4, -2, "PMI 2-4 shorter"), (-1, 1, "within 1 word"),
-        (2, 4, "PMI 2-4 longer"), (5, 9, "PMI 5-9 longer"),
-        (10, 10**9, "PMI 10+ longer")]
+# Standardization bins are built ADAPTIVELY per dataset (see make_bins).
+#
+# They used to be seven fixed bins. That worked on wikihow but silently failed
+# on cnn: the outer bins spanned -70..-10 and 10..70 words, so most of cnn's
+# length variation lived INSIDE a bin where the correction cannot see it. The
+# diagnostic is the residual correlation between a checkpoint's PMI/ROUGE length
+# ratio and its standardized win rate -- if standardization worked that should
+# collapse toward zero. With fixed bins it was +0.013 on wikihow but +0.749 on
+# cnn, i.e. cnn was barely corrected at all.
+#
+# The three datasets simply need different bins: the middle 90% of the
+# PMI-minus-ROUGE word difference spans -9..8 on xsum but -30..23 on wikihow.
+# Quantile bins adapt to each automatically.
+TARGET_BINS = 20
 MIN_BIN = 30
+
+# Coarse bins used ONLY for the human-readable tables (the per-judge length-bias
+# summary and the per-checkpoint mix). Computation never uses these.
+DISPLAY_BINS = [(-10**9, -10, "PMI 10+ shorter"), (-9, -5, "PMI 5-9 shorter"),
+                (-4, -2, "PMI 2-4 shorter"), (-1, 1, "within 1 word"),
+                (2, 4, "PMI 2-4 longer"), (5, 9, "PMI 5-9 longer"),
+                (10, 10**9, "PMI 10+ longer")]
 
 # Judges to look for. Each is (label, filename template).
 JUDGES = [
@@ -65,11 +81,70 @@ JUDGES = [
 ]
 
 
-def bin_index(delta):
-    for j, (lo, hi, _) in enumerate(BINS):
+def make_bins(deltas, target=TARGET_BINS, min_count=MIN_BIN):
+    """
+    Quantile bins over the observed PMI-minus-ROUGE word differences.
+
+    Cut points are taken at equally spaced quantiles and de-duplicated, so a
+    value that occupies more than one quantile's worth of mass (a delta of 0 is
+    ~9% of xsum) simply gets its own bin instead of being split across bins it
+    cannot be split across. Bins that still end up below `min_count` are merged
+    into their neighbour, so a sparse tail cannot produce a noisy cell.
+    """
+
+    ordered = sorted(deltas)
+    n = len(ordered)
+
+    cuts = sorted({ordered[min(int(n * k / target), n - 1)] for k in range(1, target)})
+    edges = []
+    low = -10 ** 9
+    for c in cuts:
+        edges.append((low, c - 1))
+        low = c
+    edges.append((low, 10 ** 9))
+    edges = [(lo, hi) for lo, hi in edges if lo <= hi]
+
+    counts = []
+    for lo, hi in edges:
+        counts.append(sum(1 for d in ordered if lo <= d <= hi))
+
+    # merge undersized bins forward (last one merges backward)
+    merged = []
+    carry = None
+    for (lo, hi), c in zip(edges, counts):
+        if carry:
+            lo, c = carry[0], carry[1] + c
+            carry = None
+        if c < min_count:
+            carry = (lo, c)
+            continue
+        merged.append((lo, hi))
+    if carry:
+        if merged:
+            merged[-1] = (merged[-1][0], 10 ** 9)
+        else:
+            merged = [(-10 ** 9, 10 ** 9)]
+
+    out = []
+    for lo, hi in merged:
+        lo_s = "<=" if lo <= -10 ** 8 else str(lo)
+        hi_s = "+" if hi >= 10 ** 8 else str(hi)
+        out.append((lo, hi, f"{lo_s}..{hi_s}" if lo != hi else str(lo)))
+    return out
+
+
+def bin_index(delta, bins):
+    for j, (lo, hi, _) in enumerate(bins):
         if lo <= delta <= hi:
             return j
     raise AssertionError("bins must cover the line")
+
+
+def display_index(delta):
+    for j, (lo, hi, _) in enumerate(DISPLAY_BINS):
+        if lo <= delta <= hi:
+            return j
+    raise AssertionError("display bins must cover the line")
 
 
 def load_pairs(path):
@@ -85,15 +160,15 @@ def load_pairs(path):
     return out
 
 
-def standardize(pairs, weights):
+def standardize(pairs, weights, bins):
     """(standardized PMI rate, its variance) against the given bin weights."""
     per = defaultdict(lambda: [0, 0])
     for delta, won in pairs:
-        cell = per[bin_index(delta)]
+        cell = per[bin_index(delta, bins)]
         cell[0] += won
         cell[1] += 1
 
-    usable = [j for j in range(len(BINS)) if per[j][1] >= MIN_BIN]
+    usable = [j for j in range(len(bins)) if per[j][1] >= MIN_BIN]
     total_weight = sum(weights[j] for j in usable)
     if not usable or total_weight == 0:
         return None, None
@@ -128,8 +203,15 @@ def ols_slope(xs, ys):
     return slope, 2.447 * se  # t(6, 0.975)
 
 
-def collect_judge(dataset, result_dir, template):
-    """Per-checkpoint raw and standardized rates for one judge, or None."""
+def collect_judge(dataset, result_dir, template, bins, weights):
+    """Per-checkpoint raw and standardized rates for one judge, or None.
+
+    `bins` and `weights` are dataset-level and shared by every judge, so the
+    judges are standardized to ONE common reference population. They used to be
+    derived per judge from that judge's own decided pairs, which made the target
+    population differ slightly between judges (the two exclude different ties,
+    and Prometheus's tie rate is length-dependent).
+    """
 
     found = {}
     for ck in CHECKPOINTS:
@@ -139,39 +221,61 @@ def collect_judge(dataset, result_dir, template):
     if not found:
         return None
 
-    pooled = defaultdict(int)
+    # coarse display-only view of this judge's length preference
+    disp = defaultdict(lambda: [0, 0])
     for pairs in found.values():
-        for delta, _ in pairs:
-            pooled[bin_index(delta)] += 1
-    weights = [pooled[j] for j in range(len(BINS))]
-
-    bias = []
-    for j, (_, _, label) in enumerate(BINS):
-        n = pooled[j]
-        if n:
-            hits = sum(1 for pairs in found.values()
-                       for delta, won in pairs if bin_index(delta) == j and won)
-            bias.append((label, hits / n, n))
+        for delta, won in pairs:
+            cell = disp[display_index(delta)]
+            cell[0] += won
+            cell[1] += 1
+    bias = [(label, disp[j][0] / disp[j][1], disp[j][1])
+            for j, (_, _, label) in enumerate(DISPLAY_BINS) if disp[j][1]]
 
     rows = {}
     for ck, pairs in found.items():
         pr, pv = raw_rate(pairs)
-        sr, sv = standardize(pairs, weights)
+        sr, sv = standardize(pairs, weights, bins)
         with open(result_dir / template.format(ds=dataset, ck=ck), "r", encoding="utf-8") as f:
             all_rows = json.load(f)
         ties = sum(1 for r in all_rows if r["llm_judge_winner"] == "tie")
+        lp = sum(len(r["pmi_summary"].split()) for r in all_rows) / len(all_rows)
+        lr = sum(len(r["rouge_summary"].split()) for r in all_rows) / len(all_rows)
         rows[ck] = {"raw": (pr, pv), "std": (sr, sv), "n": len(pairs),
-                    "ties": ties, "total": len(all_rows)}
+                    "ties": ties, "total": len(all_rows), "ratio": lp / lr}
 
-    return {"bias": bias, "rows": rows, "pooled": pooled, "found": found}
+    return {"bias": bias, "rows": rows, "found": found}
 
 
 def analyse_dataset(dataset):
     result_dir = SCRIPT_DIR / RESULT_FOLDER[dataset]
 
+    # ---- one set of bins and one reference population for the whole dataset -
+    # Built from ALL pairs (ties included) of whichever judge file exists: the
+    # PMI-minus-ROUGE length difference is a property of the candidate summaries,
+    # so it is identical whichever judge scored them.
+    all_deltas = []
+    for _, template in JUDGES:
+        for ck in CHECKPOINTS:
+            path = result_dir / template.format(ds=dataset, ck=ck)
+            if path.exists():
+                with open(path, "r", encoding="utf-8") as f:
+                    all_deltas += [len(r["pmi_summary"].split()) - len(r["rouge_summary"].split())
+                                   for r in json.load(f)]
+        if all_deltas:
+            break
+
+    if not all_deltas:
+        return f"LENGTH-STANDARDIZED PMI WIN RATES -- {dataset}\n\nno result files found"
+
+    bins = make_bins(all_deltas)
+    counts = defaultdict(int)
+    for d in all_deltas:
+        counts[bin_index(d, bins)] += 1
+    weights = [counts[j] for j in range(len(bins))]
+
     judges = []
     for label, template in JUDGES:
-        data = collect_judge(dataset, result_dir, template)
+        data = collect_judge(dataset, result_dir, template, bins, weights)
         judges.append((label, template, data))
 
     lines = [f"LENGTH-STANDARDIZED PMI WIN RATES -- {dataset}", "=" * 78]
@@ -266,29 +370,53 @@ def analyse_dataset(dataset):
         standardized_series[judge_label] = {ck: r for ck, r, _ in stds}
 
     # ---- length-difference mix per checkpoint -------------------------------
-    ref = next((t for lab, t, d in judges if d), None)
+    ref = next(((t, d) for lab, t, d in judges if d), None)
     if ref:
+        template, data = ref
         lines += ["", "LENGTH-DIFFERENCE MIX PER CHECKPOINT (% of decided pairs)",
                   "-" * 78,
-                  "  " + f"{'ckpt':6s}" + "".join(f"{lab[:13]:>15s}" for _, _, lab in BINS)
+                  "  (coarse view for reading; the standardization above uses "
+                  f"{len(bins)} quantile bins)",
+                  "  " + f"{'ckpt':6s}" + "".join(f"{lab[:13]:>15s}" for _, _, lab in DISPLAY_BINS)
                   + f"{'PMI/ROUGE':>12s}"]
         for ck in CHECKPOINTS:
-            path = result_dir / ref.format(ds=dataset, ck=ck)
+            path = result_dir / template.format(ds=dataset, ck=ck)
             if not path.exists():
                 continue
             pairs = load_pairs(path)
-            counts = defaultdict(int)
+            counts_d = defaultdict(int)
             for delta, _ in pairs:
-                counts[bin_index(delta)] += 1
-            with open(path, "r", encoding="utf-8") as f:
-                rows = json.load(f)
-            lp = sum(len(r["pmi_summary"].split()) for r in rows) / len(rows)
-            lr = sum(len(r["rouge_summary"].split()) for r in rows) / len(rows)
+                counts_d[display_index(delta)] += 1
             lines.append("  " + f"{ck:6s}"
-                         + "".join(f"{counts[j] / len(pairs) * 100:14.1f}%" for j in range(len(BINS)))
-                         + f"{lp / lr:12.3f}")
+                         + "".join(f"{counts_d[j] / len(pairs) * 100:14.1f}%"
+                                   for j in range(len(DISPLAY_BINS)))
+                         + f"{data['rows'][ck]['ratio']:12.3f}")
         lines.append("  (the last column is the mean word-count ratio; drift here is exactly")
         lines.append("   what the standardization above corrects for)")
+
+    # ---- did the standardization actually work? ----------------------------
+    # If length has been removed, a checkpoint's standardized win rate should no
+    # longer track its PMI/ROUGE length ratio. This is the check that caught the
+    # fixed-bin version under-correcting cnn (+0.749 residual, vs +0.013 wikihow).
+    def _corr(u, v):
+        n = len(u)
+        mu, mv = sum(u) / n, sum(v) / n
+        den = math.sqrt(sum((a - mu) ** 2 for a in u) * sum((b - mv) ** 2 for b in v))
+        return sum((a - mu) * (b - mv) for a, b in zip(u, v)) / den if den else 0.0
+
+    for judge_label, _, data in judges:
+        if not data or len(data["rows"]) < 3:
+            continue
+        cks = [ck for ck in CHECKPOINTS if ck in data["rows"]]
+        ratios = [data["rows"][ck]["ratio"] for ck in cks]
+        rr = [data["rows"][ck]["raw"][0] for ck in cks]
+        sr = [data["rows"][ck]["std"][0] for ck in cks]
+        lines += ["", f"STANDARDIZATION CHECK -- {judge_label}", "-" * 78,
+                  f"  correlation(PMI/ROUGE length ratio, win rate) over {len(cks)} checkpoints",
+                  f"    raw          r = {_corr(ratios, rr):+.3f}",
+                  f"    standardized r = {_corr(ratios, sr):+.3f}",
+                  "  (near zero means length has been removed; a value still close to the",
+                  "   raw one means the bins are too coarse for this dataset's length spread)"]
 
     # ---- do the judges agree once length is removed? -----------------------
     if len(standardized_series) == 2:

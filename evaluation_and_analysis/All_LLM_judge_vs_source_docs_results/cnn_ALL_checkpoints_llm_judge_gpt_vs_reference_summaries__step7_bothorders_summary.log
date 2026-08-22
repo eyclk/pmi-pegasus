@@ -1,0 +1,60 @@
+LLM-as-a-judge (OpenAI API) versus REFERENCE SUMMARIES -- step 7
+DATASET: cnn
+PROMPT : step 5 reference-summary prompt (same for every dataset)
+METHOD : every pair judged in BOTH orders; disagreements recorded as ties
+======================================================================
+1M: pairs=11490 (22980 calls) | pmi=3696 (32.1671%) | rouge=4512 (39.2689%) | tie=3282 (28.5640%) | $8.76
+    consensus: pmi=45.0292% +/-1.0763 | rouge=54.9708% (over 8208 pairs both orders agreed on)
+    orders disagreed on 28.2768% of pairs | slot-A advantage=+24.89 pts (diagnostic)
+2M: pairs=11490 (22980 calls) | pmi=4973 (43.2811%) | rouge=3569 (31.0618%) | tie=2948 (25.6571%) | $8.49
+    consensus: pmi=58.2182% +/-1.0459 | rouge=41.7818% (over 8542 pairs both orders agreed on)
+    orders disagreed on 25.4656% of pairs | slot-A advantage=+22.29 pts (diagnostic)
+3M: pairs=11490 (22980 calls) | pmi=3875 (33.7250%) | rouge=4386 (38.1723%) | tie=3229 (28.1027%) | $8.77
+    consensus: pmi=46.9072% +/-1.0762 | rouge=53.0928% (over 8261 pairs both orders agreed on)
+    orders disagreed on 27.5979% of pairs | slot-A advantage=+24.15 pts (diagnostic)
+4M: pairs=11490 (22980 calls) | pmi=4453 (38.7554%) | rouge=3854 (33.5422%) | tie=3183 (27.7023%) | $8.83
+    consensus: pmi=53.6054% +/-1.0724 | rouge=46.3946% (over 8307 pairs both orders agreed on)
+    orders disagreed on 27.4238% of pairs | slot-A advantage=+23.79 pts (diagnostic)
+5M: pairs=11490 (22980 calls) | pmi=4076 (35.4743%) | rouge=4168 (36.2750%) | tie=3246 (28.2507%) | $8.84
+    consensus: pmi=49.4420% +/-1.0793 | rouge=50.5580% (over 8244 pairs both orders agreed on)
+    orders disagreed on 27.8851% of pairs | slot-A advantage=+24.58 pts (diagnostic)
+6M: pairs=11490 (22980 calls) | pmi=4863 (42.3238%) | rouge=3404 (29.6258%) | tie=3223 (28.0505%) | $8.86
+    consensus: pmi=58.8242% +/-1.0609 | rouge=41.1758% (over 8267 pairs both orders agreed on)
+    orders disagreed on 27.8503% of pairs | slot-A advantage=+24.52 pts (diagnostic)
+7M: pairs=11490 (22980 calls) | pmi=4584 (39.8956%) | rouge=3685 (32.0714%) | tie=3221 (28.0331%) | $8.88
+    consensus: pmi=55.4360% +/-1.0713 | rouge=44.5640% (over 8269 pairs both orders agreed on)
+    orders disagreed on 27.7111% of pairs | slot-A advantage=+24.62 pts (diagnostic)
+8M: pairs=11490 (22980 calls) | pmi=3759 (32.7154%) | rouge=4519 (39.3299%) | tie=3212 (27.9547%) | $8.89
+    consensus: pmi=45.4095% +/-1.0726 | rouge=54.5905% (over 8278 pairs both orders agreed on)
+    orders disagreed on 27.7285% of pairs | slot-A advantage=+24.79 pts (diagnostic)
+======================================================================
+TOTAL SPENT ON THIS DATASET: $70.32
+
+======================================================================
+RAW ORDER 1 -- PMI shown as candidate A, ROUGE as candidate B
+(diagnostic only -- one order in isolation is NOT a fair comparison;
+ the consensus figures above are the result. Kept because the trend
+ is visible in each order separately, which the consensus hides.)
+======================================================================
+ckpt           PMI wins       ROUGE wins            ties   PMI of decided
+1M         6679 (58.13%)     4670 (40.64%)     141 ( 1.23%)         58.85%
+2M         7663 (66.69%)     3724 (32.41%)     103 ( 0.90%)         67.30%
+3M         6759 (58.83%)     4542 (39.53%)     189 ( 1.64%)         59.81%
+4M         7331 (63.80%)     4028 (35.06%)     131 ( 1.14%)         64.54%
+5M         7026 (61.15%)     4328 (37.67%)     136 ( 1.18%)         61.88%
+6M         7841 (68.24%)     3568 (31.05%)      81 ( 0.70%)         68.73%
+7M         7534 (65.57%)     3831 (33.34%)     125 ( 1.09%)         66.29%
+8M         6720 (58.49%)     4661 (40.57%)     109 ( 0.95%)         59.05%
+
+======================================================================
+RAW ORDER 2 -- PMI shown as candidate B, ROUGE as candidate A
+======================================================================
+ckpt           PMI wins       ROUGE wins            ties   PMI of decided
+1M         3853 (33.53%)     7493 (65.21%)     144 ( 1.25%)         33.96%
+2M         5128 (44.63%)     6266 (54.53%)      96 ( 0.84%)         45.01%
+3M         4042 (35.18%)     7294 (63.48%)     154 ( 1.34%)         35.66%
+4M         4628 (40.28%)     6728 (58.56%)     134 ( 1.17%)         40.75%
+5M         4234 (36.85%)     7118 (61.95%)     138 ( 1.20%)         37.30%
+6M         5028 (43.76%)     6347 (55.24%)     115 ( 1.00%)         44.20%
+7M         4732 (41.18%)     6624 (57.65%)     134 ( 1.17%)         41.67%
+8M         3904 (33.98%)     7494 (65.22%)      92 ( 0.80%)         34.25%
