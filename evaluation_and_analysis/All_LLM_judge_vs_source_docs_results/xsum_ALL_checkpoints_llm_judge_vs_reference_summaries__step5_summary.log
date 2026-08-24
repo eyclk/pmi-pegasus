@@ -1,0 +1,12 @@
+LLM-as-a-judge (prometheus-eval/prometheus-7b-v2.0) versus REFERENCE SUMMARIES -- step 5
+DATASET: xsum
+ENV    : torch=2.13.0+cu132, transformers=5.14.1, bitsandbytes=0.50.0, device=NVIDIA GeForce RTX 5080, attn=efficient_attention+math (rebuild host)
+======================================================================
+1M: samples=11334 | pmi=3877 (34.2068%) | rouge=3760 (33.1745%) | tie=3697 (32.6187%) | no_result_tag=11 (0.0971%)
+2M: samples=11334 | pmi=3621 (31.9481%) | rouge=4247 (37.4713%) | tie=3466 (30.5806%) | no_result_tag=9 (0.0794%)
+3M: (not run yet)
+4M: (not run yet)
+5M: (not run yet)
+6M: (not run yet)
+7M: (not run yet)
+8M: (not run yet)

@@ -23,16 +23,16 @@ STANDARDIZED PMI vs ROUGE PER CHECKPOINT
   ROUGE is exactly 100 - PMI: one measurement shown from both sides, NOT
   independent confirmation. The CI is printed on PMI only for that reason.
 
-  ckpt                                     GPT
-                   PMI        ROUGE       tie%
-  1M        46.24 +/-1.10        53.76      29.46
-  2M        42.80 +/-1.09        57.20      28.60
-  3M        42.92 +/-1.08        57.08      29.05
-  4M        44.25 +/-1.08        55.75      28.45
-  5M        45.32 +/-1.10        54.68      29.75
-  6M        41.59 +/-1.09        58.41      28.35
-  7M        46.06 +/-1.09        53.94      28.26
-  8M        47.12 +/-1.10        52.88      28.99
+  ckpt                                     GPT                            Prometheus
+                   PMI        ROUGE       tie%           PMI        ROUGE       tie%
+  1M        46.24 +/-1.10        53.76      29.46    50.67 +/-1.12        49.33      32.62
+  2M        42.80 +/-1.09        57.20      28.60    46.12 +/-1.11        53.88      30.58
+  3M        42.92 +/-1.08        57.08      29.05            --           --         --
+  4M        44.25 +/-1.08        55.75      28.45            --           --         --
+  5M        45.32 +/-1.10        54.68      29.75            --           --         --
+  6M        41.59 +/-1.09        58.41      28.35            --           --         --
+  7M        46.06 +/-1.09        53.94      28.26            --           --         --
+  8M        47.12 +/-1.10        52.88      28.99            --           --         --
 
 GPT (step 7, dual-order consensus)
 ------------------------------------------------------------------------------
@@ -59,8 +59,29 @@ GPT (step 7, dual-order consensus)
   1M -> 8M standardized : +0.88 +/-1.55 pts   not significant
   standardized slope       : +0.233 +/-0.765 pts per 1M steps   not significant
 
-Prometheus (step 5): no result files found
+Prometheus (step 5)
 ------------------------------------------------------------------------------
+  LENGTH BIAS OF THIS JUDGE (all checkpoints pooled)
+    PMI 10+ shorter : PMI wins  39.64%  (n=560)
+    PMI 5-9 shorter : PMI wins  48.17%  (n=2292)
+    PMI 2-4 shorter : PMI wins  47.62%  (n=3129)
+    within 1 word   : PMI wins  48.47%  (n=4013)
+    PMI 2-4 longer  : PMI wins  48.92%  (n=3048)
+    PMI 5-9 longer  : PMI wins  49.93%  (n=2065)
+    PMI 10+ longer  : PMI wins  54.02%  (n=398)
+
+  ckpt                 raw       length-standardized        n
+  1M           50.77 +/-1.12               50.67 +/-1.12     7637
+  2M           46.02 +/-1.10               46.12 +/-1.11     7868
+  3M             (not run)
+  4M             (not run)
+  5M             (not run)
+  6M             (not run)
+  7M             (not run)
+  8M             (not run)
+
+  1M -> 2M raw          : -4.74 +/-1.57 pts   SIGNIFICANT
+  1M -> 2M standardized : -4.55 +/-1.58 pts   SIGNIFICANT
 
 LENGTH-DIFFERENCE MIX PER CHECKPOINT (% of decided pairs)
 ------------------------------------------------------------------------------

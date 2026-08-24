@@ -9,4 +9,4 @@ ENV    : torch=2.13.0+cu132, transformers=5.14.1, bitsandbytes=0.50.0, device=NV
 5M: samples=11490 | pmi=5231 (45.5265%) | rouge=5085 (44.2559%) | tie=1174 (10.2176%) | no_result_tag=22 (0.1915%)
 6M: samples=11490 | pmi=5330 (46.3882%) | rouge=4980 (43.3420%) | tie=1180 (10.2698%) | no_result_tag=19 (0.1654%)
 7M: samples=11490 | pmi=5323 (46.3272%) | rouge=5026 (43.7424%) | tie=1141 (9.9304%) | no_result_tag=17 (0.1480%)
-8M: (not run yet)
+8M: samples=11490 | pmi=5191 (45.1784%) | rouge=5124 (44.5953%) | tie=1175 (10.2263%) | no_result_tag=15 (0.1305%)

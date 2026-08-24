@@ -30,9 +30,9 @@ STANDARDIZED PMI vs ROUGE PER CHECKPOINT
   3M        48.24 +/-1.05        51.76      28.10    50.13 +/-0.97        49.87      10.59
   4M        52.90 +/-1.04        47.10      27.70    51.74 +/-0.96        48.26      10.75
   5M        50.85 +/-1.06        49.15      28.25    50.10 +/-0.97        49.90      10.22
-  6M        57.47 +/-1.05        42.53      28.05            --           --         --
-  7M        54.67 +/-1.06        45.33      28.03            --           --         --
-  8M        47.41 +/-1.08        52.59      27.95            --           --         --
+  6M        57.47 +/-1.05        42.53      28.05    52.65 +/-0.96        47.35      10.27
+  7M        54.67 +/-1.06        45.33      28.03    52.10 +/-0.95        47.90       9.93
+  8M        47.41 +/-1.08        52.59      27.95    48.77 +/-0.97        51.23      10.23
 
 GPT (step 7, dual-order consensus)
 ------------------------------------------------------------------------------
@@ -62,13 +62,13 @@ GPT (step 7, dual-order consensus)
 Prometheus (step 5)
 ------------------------------------------------------------------------------
   LENGTH BIAS OF THIS JUDGE (all checkpoints pooled)
-    PMI 10+ shorter : PMI wins  56.84%  (n=12184)
-    PMI 5-9 shorter : PMI wins  54.47%  (n=6675)
-    PMI 2-4 shorter : PMI wins  51.69%  (n=4842)
-    within 1 word   : PMI wins  50.16%  (n=4898)
-    PMI 2-4 longer  : PMI wins  48.43%  (n=4522)
-    PMI 5-9 longer  : PMI wins  46.34%  (n=6226)
-    PMI 10+ longer  : PMI wins  44.11%  (n=12097)
+    PMI 10+ shorter : PMI wins  58.40%  (n=19764)
+    PMI 5-9 shorter : PMI wins  55.54%  (n=10537)
+    PMI 2-4 shorter : PMI wins  52.34%  (n=7486)
+    within 1 word   : PMI wins  50.76%  (n=7785)
+    PMI 2-4 longer  : PMI wins  48.37%  (n=7333)
+    PMI 5-9 longer  : PMI wins  46.21%  (n=10048)
+    PMI 10+ longer  : PMI wins  42.75%  (n=19465)
 
   ckpt                 raw       length-standardized        n
   1M           48.41 +/-0.97               47.76 +/-0.98    10208
@@ -76,13 +76,13 @@ Prometheus (step 5)
   3M           50.63 +/-0.97               50.13 +/-0.97    10273
   4M           51.38 +/-0.97               51.74 +/-0.96    10255
   5M           50.71 +/-0.96               50.10 +/-0.97    10316
-  6M             (not run)
-  7M             (not run)
-  8M             (not run)
+  6M           51.70 +/-0.96               52.65 +/-0.96    10310
+  7M           51.43 +/-0.96               52.10 +/-0.95    10349
+  8M           50.32 +/-0.96               48.77 +/-0.97    10315
 
-  1M -> 5M raw          : +2.29 +/-1.37 pts   SIGNIFICANT
-  1M -> 5M standardized : +2.34 +/-1.37 pts   SIGNIFICANT
-  standardized slope       : +0.491 +/-1.230 pts per 1M steps   not significant
+  1M -> 8M raw          : +1.91 +/-1.37 pts   SIGNIFICANT
+  1M -> 8M standardized : +1.01 +/-1.38 pts   not significant
+  standardized slope       : +0.191 +/-0.671 pts per 1M steps   not significant
 
 LENGTH-DIFFERENCE MIX PER CHECKPOINT (% of decided pairs)
 ------------------------------------------------------------------------------
@@ -109,15 +109,15 @@ STANDARDIZATION CHECK -- GPT (step 7, dual-order consensus)
 
 STANDARDIZATION CHECK -- Prometheus (step 5)
 ------------------------------------------------------------------------------
-  correlation(PMI/ROUGE length ratio, win rate) over 5 checkpoints
-    raw          r = +0.441
-    standardized r = +0.664
+  correlation(PMI/ROUGE length ratio, win rate) over 8 checkpoints
+    raw          r = +0.490
+    standardized r = +0.705
   (near zero means length has been removed; a value still close to the
    raw one means the bins are too coarse for this dataset's length spread)
 
 JUDGE AGREEMENT ACROSS CHECKPOINTS (standardized)
 ------------------------------------------------------------------------------
-  r = +0.918 over 5 checkpoints
+  r = +0.944 over 8 checkpoints
   (on wikihow this rises from -0.08 raw to +0.50 standardized: the two
    judges look uncorrelated only because their length biases point in
    OPPOSITE directions and each scrambles the ordering differently)
