@@ -44,3 +44,4 @@ __pycache__/
 .idea/copilot.data.migration.edit.xml
 .idea/copilot.data.migration.ask.xml
 evaluation_and_analysis/__pycache__/principal_sent_selection_analysis__B3.cpython-39.pyc
+.claude/settings.local.json
