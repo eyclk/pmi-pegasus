@@ -3,6 +3,7 @@ from datasets import Dataset
 from tqdm import tqdm
 import json
 from sacrerouge.metrics import QAEval
+from eval_logging_utils import log_printed_output_to
 
 # from qafacteval import QAFactEval    # -------------> FAILED TO INSTALL LIBRARY DUE TO DEPENDENCY ISSUES (TORCH MUST BE EXACTLY 1.6.0, BUT CONFLICTS WITH BERTSCORE)
 # import torch                        ## ------------> Created a new virtual environment named "qaeval" only for this task, with torch==1.6.0 and qafacteval installed.
@@ -16,20 +17,34 @@ eval_for_FactPEGASUS = False
 
 eval_for_SBERT = True  # Set to False if you want to skip the SBERT-Pegasus model
 
+eval_for_only_sbert = False  # Set to True to evaluate ONLY SBERT-Pegasus, ignoring the PMI and ROUGE folders
 
+if eval_for_only_sbert:
+    # An only-SBERT run needs SBERT itself switched on, and has nothing to compare
+    # against, so FactPEGASUS is forced off too.
+    eval_for_SBERT = True
+    eval_for_FactPEGASUS = False
+
+# Kept empty on a normal run, so an only-SBERT run writes its own JSON and log
+# files instead of overwriting the combined PMI/ROUGE/SBERT ones.
+only_sbert_marker = "_only_sbert" if eval_for_only_sbert else ""
+
+
+@log_printed_output_to(f"xsum_result_files/xsum_combined_results_for_analysis__step2{only_sbert_marker}.log")
 def calc_qaeval_metric_of_xsum():
     batch_size = 32
 
     test_dataset_path = "xsum_result_files/test_set_xsum/dataset.arrow"
-    pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
-    rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
+    if not eval_for_only_sbert:
+        pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
+        rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
     if eval_for_SBERT:
         sbert_generated_predictions_file_path = "xsum_result_files/sbert_pegasus_xsum_generated_summaries/generated_predictions.txt"
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "xsum_result_files/factpegasus_public_xsum_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step1.json"
-    combined_output_path_with_qaeval = "xsum_result_files/xsum_combined_results_for_analysis__step2.json"
+    combined_output_path = f"xsum_result_files/xsum_combined_results_for_analysis__step1{only_sbert_marker}.json"
+    combined_output_path_with_qaeval = f"xsum_result_files/xsum_combined_results_for_analysis__step2{only_sbert_marker}.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -39,12 +54,13 @@ def calc_qaeval_metric_of_xsum():
     target_summaries = pd_ds["summary"].tolist()
 
     # Read the predicted summaries from the PMI and ROUGE files
-    with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        pmi_generated_summaries = f.readlines()
-    pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
-    with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        rouge_generated_summaries = f.readlines()
-    rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if not eval_for_only_sbert:
+        with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            pmi_generated_summaries = f.readlines()
+        pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
+        with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            rouge_generated_summaries = f.readlines()
+        rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
     if eval_for_SBERT:
         with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
             sbert_generated_summaries = f.readlines()
@@ -56,10 +72,11 @@ def calc_qaeval_metric_of_xsum():
         factPegasus_generated_summaries = [line.strip() for line in factPegasus_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
-    if len(pmi_generated_summaries) != len(pd_ds):
-        raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
-    if len(rouge_generated_summaries) != len(pd_ds):
-        raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if not eval_for_only_sbert:
+        if len(pmi_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
+        if len(rouge_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_SBERT:
         if len(sbert_generated_summaries) != len(pd_ds):
             raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
@@ -68,13 +85,14 @@ def calc_qaeval_metric_of_xsum():
             raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
 
     all_target_summaries = []
-    all_pmi_predicted_summaries = []
-    all_rouge_predicted_summaries = []
+    if not eval_for_only_sbert:
+        all_pmi_predicted_summaries = []
+        all_rouge_predicted_summaries = []
 
-    all_pmi_qaeval_f1_scores = []
-    all_rouge_qaeval_f1_scores = []
-    all_pmi_qaeval_scores_is_answered = []
-    all_rouge_qaeval_scores_is_answered = []
+        all_pmi_qaeval_f1_scores = []
+        all_rouge_qaeval_f1_scores = []
+        all_pmi_qaeval_scores_is_answered = []
+        all_rouge_qaeval_scores_is_answered = []
     if eval_for_SBERT:
         all_sbert_predicted_summaries = []
         all_sbert_qaeval_f1_scores = []
@@ -86,42 +104,45 @@ def calc_qaeval_metric_of_xsum():
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating QAeval scores for XSUM dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
-        batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
-        batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
-
         all_target_summaries.extend(batch_target_summaries)
-        all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
-        all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
+
+        if not eval_for_only_sbert:
+            batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
+            batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
+
+            all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
+            all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
 
         # Each item in batch_target_summaries should be a list containing a single string, so we convert it to a list of lists
         batch_target_summaries_for_metric = [[summary] for summary in batch_target_summaries]
 
-        # Compute QAEval scores
-        qaeval_scores_pmi_model = qa_metric.score_all(
-            batch_pmi_generated_summaries,
-            batch_target_summaries_for_metric
-        )
+        if not eval_for_only_sbert:
+            # Compute QAEval scores
+            qaeval_scores_pmi_model = qa_metric.score_all(
+                batch_pmi_generated_summaries,
+                batch_target_summaries_for_metric
+            )
 
-        qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
-                                           qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
+            qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
+                                               qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
+            all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
 
-        qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
-                                                  qaeval_scores_pmi_model]
-        all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
+            qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                      qaeval_scores_pmi_model]
+            all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
 
-        qaeval_scores_rouge_model = qa_metric.score_all(
-            batch_rouge_generated_summaries,
-            batch_target_summaries_for_metric
-        )
+            qaeval_scores_rouge_model = qa_metric.score_all(
+                batch_rouge_generated_summaries,
+                batch_target_summaries_for_metric
+            )
 
-        qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
-                                             qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
+            qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
+                                                 qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
+            all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
 
-        qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
-                                               qaeval_scores_rouge_model]
-        all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
+            qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                   qaeval_scores_rouge_model]
+            all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
 
         if eval_for_SBERT:
             batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
@@ -165,10 +186,11 @@ def calc_qaeval_metric_of_xsum():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
-        result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
-        result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
-        result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
+        if not eval_for_only_sbert:
+            result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
+            result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
+            result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
+            result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
         if eval_for_SBERT:
             result["sbert_pegasus_qaeval_f1_score"] = all_sbert_qaeval_f1_scores[i]
             result["sbert_pegasus_qaeval_is_answered_score"] = all_sbert_qaeval_scores_is_answered[i]
@@ -184,17 +206,18 @@ def calc_qaeval_metric_of_xsum():
     print(f"\nQAeval scores written to {combined_output_path_with_qaeval}")
 
     # Print average QAeval scores for both models
-    avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
-    avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
+    if not eval_for_only_sbert:
+        avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
+        avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
 
-    avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
-    avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
+        avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
+        avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
 
-    print(f"\nAverage PMI Pegasus QAEval F1 Score for XSUM: {avg_pmi_qaeval_f1}")
-    print(f"Average ROUGE Pegasus QAEval F1 Score for XSUM: {avg_rouge_qaeval_f1}")
+        print(f"\nAverage PMI Pegasus QAEval F1 Score for XSUM: {avg_pmi_qaeval_f1}")
+        print(f"Average ROUGE Pegasus QAEval F1 Score for XSUM: {avg_rouge_qaeval_f1}")
 
-    print(f"\nAverage PMI Pegasus QAEval Is Answered Score for XSUM: {avg_pmi_qaeval_is_answered}")
-    print(f"Average ROUGE Pegasus QAEval Is Answered Score for XSUM: {avg_rouge_qaeval_is_answered}")
+        print(f"\nAverage PMI Pegasus QAEval Is Answered Score for XSUM: {avg_pmi_qaeval_is_answered}")
+        print(f"Average ROUGE Pegasus QAEval Is Answered Score for XSUM: {avg_rouge_qaeval_is_answered}")
 
     if eval_for_SBERT:
         avg_sbert_qaeval_f1 = sum(all_sbert_qaeval_f1_scores) / len(all_sbert_qaeval_f1_scores)
@@ -211,20 +234,22 @@ def calc_qaeval_metric_of_xsum():
         print(f"Average FactPEGASUS QAEval Is Answered Score for XSUM: {avg_factPegasus_qaeval_is_answered}")
 
 
+@log_printed_output_to(f"cnn_result_files/cnn_combined_results_for_analysis__step2{only_sbert_marker}.log")
 def calc_qaeval_metric_of_cnn():
     batch_size = 32
 
     test_dataset_path = "cnn_result_files/test_set_cnn/data-00000-of-00001.arrow"
-    pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
-    rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
+    if not eval_for_only_sbert:
+        pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
+        rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
     if eval_for_SBERT:
         sbert_generated_predictions_file_path = "cnn_result_files/sbert_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "cnn_result_files/factpegasus_public_cnn_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "cnn_result_files/cnn_combined_results_for_analysis__step1.json"
-    combined_output_path_with_qaeval = "cnn_result_files/cnn_combined_results_for_analysis__step2.json"
+    combined_output_path = f"cnn_result_files/cnn_combined_results_for_analysis__step1{only_sbert_marker}.json"
+    combined_output_path_with_qaeval = f"cnn_result_files/cnn_combined_results_for_analysis__step2{only_sbert_marker}.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -234,12 +259,13 @@ def calc_qaeval_metric_of_cnn():
     target_summaries = pd_ds["summary"].tolist()
 
     # Read the predicted summaries from the PMI and ROUGE files
-    with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        pmi_generated_summaries = f.readlines()
-    pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
-    with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        rouge_generated_summaries = f.readlines()
-    rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if not eval_for_only_sbert:
+        with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            pmi_generated_summaries = f.readlines()
+        pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
+        with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            rouge_generated_summaries = f.readlines()
+        rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
     if eval_for_SBERT:
         with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
             sbert_generated_summaries = f.readlines()
@@ -250,12 +276,13 @@ def calc_qaeval_metric_of_cnn():
         factPegasus_generated_summaries = [line.strip() for line in factPegasus_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
-    if len(pmi_generated_summaries) != len(pd_ds):
-        raise ValueError(
-            "The number of PMI generated summaries does not match the number of rows in the DataFrame.")
-    if len(rouge_generated_summaries) != len(pd_ds):
-        raise ValueError(
-            "The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if not eval_for_only_sbert:
+        if len(pmi_generated_summaries) != len(pd_ds):
+            raise ValueError(
+                "The number of PMI generated summaries does not match the number of rows in the DataFrame.")
+        if len(rouge_generated_summaries) != len(pd_ds):
+            raise ValueError(
+                "The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_SBERT:
         if len(sbert_generated_summaries) != len(pd_ds):
             raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
@@ -264,13 +291,14 @@ def calc_qaeval_metric_of_cnn():
             raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
 
     all_target_summaries = []
-    all_pmi_predicted_summaries = []
-    all_rouge_predicted_summaries = []
+    if not eval_for_only_sbert:
+        all_pmi_predicted_summaries = []
+        all_rouge_predicted_summaries = []
 
-    all_pmi_qaeval_f1_scores = []
-    all_rouge_qaeval_f1_scores = []
-    all_pmi_qaeval_scores_is_answered = []
-    all_rouge_qaeval_scores_is_answered = []
+        all_pmi_qaeval_f1_scores = []
+        all_rouge_qaeval_f1_scores = []
+        all_pmi_qaeval_scores_is_answered = []
+        all_rouge_qaeval_scores_is_answered = []
     if eval_for_SBERT:
         all_sbert_predicted_summaries = []
         all_sbert_qaeval_f1_scores = []
@@ -282,42 +310,45 @@ def calc_qaeval_metric_of_cnn():
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating QAeval scores for CNN dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
-        batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
-        batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
-
         all_target_summaries.extend(batch_target_summaries)
-        all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
-        all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
+
+        if not eval_for_only_sbert:
+            batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
+            batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
+
+            all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
+            all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
 
         # Each item in batch_target_summaries should be a list containing a single string, so we convert it to a list of lists
         batch_target_summaries_for_metric = [[summary] for summary in batch_target_summaries]
 
-        # Compute QAEval scores
-        qaeval_scores_pmi_model = qa_metric.score_all(
-            batch_pmi_generated_summaries,
-            batch_target_summaries_for_metric
-        )
+        if not eval_for_only_sbert:
+            # Compute QAEval scores
+            qaeval_scores_pmi_model = qa_metric.score_all(
+                batch_pmi_generated_summaries,
+                batch_target_summaries_for_metric
+            )
 
-        qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
-                                      qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
+            qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
+                                          qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
+            all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
 
-        qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
-                                               qaeval_scores_pmi_model]
-        all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
+            qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                   qaeval_scores_pmi_model]
+            all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
 
-        qaeval_scores_rouge_model = qa_metric.score_all(
-            batch_rouge_generated_summaries,
-            batch_target_summaries_for_metric
-        )
+            qaeval_scores_rouge_model = qa_metric.score_all(
+                batch_rouge_generated_summaries,
+                batch_target_summaries_for_metric
+            )
 
-        qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
-                                        qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
+            qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
+                                            qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
+            all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
 
-        qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
-                                                 qaeval_scores_rouge_model]
-        all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
+            qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                     qaeval_scores_rouge_model]
+            all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
 
         if eval_for_SBERT:
             batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
@@ -361,10 +392,11 @@ def calc_qaeval_metric_of_cnn():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
-        result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
-        result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
-        result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
+        if not eval_for_only_sbert:
+            result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
+            result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
+            result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
+            result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
         if eval_for_SBERT:
             result["sbert_pegasus_qaeval_f1_score"] = all_sbert_qaeval_f1_scores[i]
             result["sbert_pegasus_qaeval_is_answered_score"] = all_sbert_qaeval_scores_is_answered[i]
@@ -380,17 +412,18 @@ def calc_qaeval_metric_of_cnn():
     print(f"\nQAeval scores written to {combined_output_path_with_qaeval}")
 
     # Print average QAeval scores for both models
-    avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
-    avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
+    if not eval_for_only_sbert:
+        avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
+        avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
 
-    avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
-    avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
+        avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
+        avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
 
-    print(f"\nAverage PMI Pegasus QAEval F1 Score for CNN: {avg_pmi_qaeval_f1}")
-    print(f"Average ROUGE Pegasus QAEval F1 Score for CNN: {avg_rouge_qaeval_f1}")
+        print(f"\nAverage PMI Pegasus QAEval F1 Score for CNN: {avg_pmi_qaeval_f1}")
+        print(f"Average ROUGE Pegasus QAEval F1 Score for CNN: {avg_rouge_qaeval_f1}")
 
-    print(f"\nAverage PMI Pegasus QAEval Is Answered Score for CNN: {avg_pmi_qaeval_is_answered}")
-    print(f"Average ROUGE Pegasus QAEval Is Answered Score for CNN: {avg_rouge_qaeval_is_answered}")
+        print(f"\nAverage PMI Pegasus QAEval Is Answered Score for CNN: {avg_pmi_qaeval_is_answered}")
+        print(f"Average ROUGE Pegasus QAEval Is Answered Score for CNN: {avg_rouge_qaeval_is_answered}")
 
     if eval_for_SBERT:
         avg_sbert_qaeval_f1 = sum(all_sbert_qaeval_f1_scores) / len(all_sbert_qaeval_f1_scores)
@@ -407,17 +440,19 @@ def calc_qaeval_metric_of_cnn():
         print(f"Average FactPEGASUS QAEval Is Answered Score for CNN: {avg_factPegasus_qaeval_is_answered}")
 
 
+@log_printed_output_to(f"wikihow_result_files/wikihow_combined_results_for_analysis__step2{only_sbert_marker}.log")
 def calc_qaeval_metric_of_wikihow():
     batch_size = 32
 
     test_dataset_path = "wikihow_result_files/test_set_wikihow/dataset.arrow"
-    pmi_generated_predictions_file_path = "wikihow_result_files/pmi_pegasus_wikihow_generated_summaries/generated_predictions.txt"
-    rouge_generated_predictions_file_path = "wikihow_result_files/rouge_pegasus_wikihow_generated_summaries/generated_predictions.txt"
+    if not eval_for_only_sbert:
+        pmi_generated_predictions_file_path = "wikihow_result_files/pmi_pegasus_wikihow_generated_summaries/generated_predictions.txt"
+        rouge_generated_predictions_file_path = "wikihow_result_files/rouge_pegasus_wikihow_generated_summaries/generated_predictions.txt"
     if eval_for_SBERT:
         sbert_generated_predictions_file_path = "wikihow_result_files/sbert_pegasus_wikihow_generated_summaries/generated_predictions.txt"
 
-    combined_output_path = "wikihow_result_files/wikihow_combined_results_for_analysis__step1.json"
-    combined_output_path_with_qaeval = "wikihow_result_files/wikihow_combined_results_for_analysis__step2.json"
+    combined_output_path = f"wikihow_result_files/wikihow_combined_results_for_analysis__step1{only_sbert_marker}.json"
+    combined_output_path_with_qaeval = f"wikihow_result_files/wikihow_combined_results_for_analysis__step2{only_sbert_marker}.json"
 
     # Load test dataset
     ds = Dataset.from_file(test_dataset_path)
@@ -427,36 +462,39 @@ def calc_qaeval_metric_of_wikihow():
     target_summaries = pd_ds["summary"].tolist()
 
     # Read the predicted summaries from the PMI and ROUGE files
-    with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        pmi_generated_summaries = f.readlines()
-    pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
-    with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        rouge_generated_summaries = f.readlines()
-    rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if not eval_for_only_sbert:
+        with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            pmi_generated_summaries = f.readlines()
+        pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
+        with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            rouge_generated_summaries = f.readlines()
+        rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
     if eval_for_SBERT:
         with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
             sbert_generated_summaries = f.readlines()
         sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
-    if len(pmi_generated_summaries) != len(pd_ds):
-        raise ValueError(
-            "The number of PMI generated summaries does not match the number of rows in the DataFrame.")
-    if len(rouge_generated_summaries) != len(pd_ds):
-        raise ValueError(
-            "The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if not eval_for_only_sbert:
+        if len(pmi_generated_summaries) != len(pd_ds):
+            raise ValueError(
+                "The number of PMI generated summaries does not match the number of rows in the DataFrame.")
+        if len(rouge_generated_summaries) != len(pd_ds):
+            raise ValueError(
+                "The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_SBERT:
         if len(sbert_generated_summaries) != len(pd_ds):
             raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
 
     all_target_summaries = []
-    all_pmi_predicted_summaries = []
-    all_rouge_predicted_summaries = []
+    if not eval_for_only_sbert:
+        all_pmi_predicted_summaries = []
+        all_rouge_predicted_summaries = []
 
-    all_pmi_qaeval_f1_scores = []
-    all_rouge_qaeval_f1_scores = []
-    all_pmi_qaeval_scores_is_answered = []
-    all_rouge_qaeval_scores_is_answered = []
+        all_pmi_qaeval_f1_scores = []
+        all_rouge_qaeval_f1_scores = []
+        all_pmi_qaeval_scores_is_answered = []
+        all_rouge_qaeval_scores_is_answered = []
     if eval_for_SBERT:
         all_sbert_predicted_summaries = []
         all_sbert_qaeval_f1_scores = []
@@ -464,42 +502,45 @@ def calc_qaeval_metric_of_wikihow():
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating QAeval scores for WIKIHOW dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
-        batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
-        batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
-
         all_target_summaries.extend(batch_target_summaries)
-        all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
-        all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
+
+        if not eval_for_only_sbert:
+            batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
+            batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
+
+            all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
+            all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
 
         # Each item in batch_target_summaries should be a list containing a single string, so we convert it to a list of lists
         batch_target_summaries_for_metric = [[summary] for summary in batch_target_summaries]
 
-        # Compute QAEval scores
-        qaeval_scores_pmi_model = qa_metric.score_all(
-            batch_pmi_generated_summaries,
-            batch_target_summaries_for_metric
-        )
+        if not eval_for_only_sbert:
+            # Compute QAEval scores
+            qaeval_scores_pmi_model = qa_metric.score_all(
+                batch_pmi_generated_summaries,
+                batch_target_summaries_for_metric
+            )
 
-        qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
-                                      qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
+            qaeval_scores_pmi_model_f1 = [s["qa-eval"]["f1"] for s in
+                                          qaeval_scores_pmi_model]  # We choose to only keep the F1 score from the QAEval scores
+            all_pmi_qaeval_f1_scores.extend(qaeval_scores_pmi_model_f1)
 
-        qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
-                                               qaeval_scores_pmi_model]
-        all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
+            qaeval_scores_pmi_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                   qaeval_scores_pmi_model]
+            all_pmi_qaeval_scores_is_answered.extend(qaeval_scores_pmi_model_is_answered)
 
-        qaeval_scores_rouge_model = qa_metric.score_all(
-            batch_rouge_generated_summaries,
-            batch_target_summaries_for_metric
-        )
+            qaeval_scores_rouge_model = qa_metric.score_all(
+                batch_rouge_generated_summaries,
+                batch_target_summaries_for_metric
+            )
 
-        qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
-                                        qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
-        all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
+            qaeval_scores_rouge_model_f1 = [s["qa-eval"]["f1"] for s in
+                                            qaeval_scores_rouge_model]  # We choose to only keep the F1 score from the QAEval scores
+            all_rouge_qaeval_f1_scores.extend(qaeval_scores_rouge_model_f1)
 
-        qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
-                                                 qaeval_scores_rouge_model]
-        all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
+            qaeval_scores_rouge_model_is_answered = [s["qa-eval"]["is_answered"] for s in
+                                                     qaeval_scores_rouge_model]
+            all_rouge_qaeval_scores_is_answered.extend(qaeval_scores_rouge_model_is_answered)
 
         if eval_for_SBERT:
             batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
@@ -527,10 +568,11 @@ def calc_qaeval_metric_of_wikihow():
             raise ValueError(
                 f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
 
-        result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
-        result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
-        result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
-        result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
+        if not eval_for_only_sbert:
+            result["pmi_pegasus_qaeval_f1_score"] = all_pmi_qaeval_f1_scores[i]
+            result["rouge_pegasus_qaeval_f1_score"] = all_rouge_qaeval_f1_scores[i]
+            result["pmi_pegasus_qaeval_is_answered_score"] = all_pmi_qaeval_scores_is_answered[i]
+            result["rouge_pegasus_qaeval_is_answered_score"] = all_rouge_qaeval_scores_is_answered[i]
         if eval_for_SBERT:
             result["sbert_pegasus_qaeval_f1_score"] = all_sbert_qaeval_f1_scores[i]
             result["sbert_pegasus_qaeval_is_answered_score"] = all_sbert_qaeval_scores_is_answered[i]
@@ -543,17 +585,18 @@ def calc_qaeval_metric_of_wikihow():
     print(f"\nQAeval scores written to {combined_output_path_with_qaeval}")
 
     # Print average QAeval scores for both models
-    avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
-    avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
+    if not eval_for_only_sbert:
+        avg_pmi_qaeval_f1 = sum(all_pmi_qaeval_f1_scores) / len(all_pmi_qaeval_f1_scores)
+        avg_rouge_qaeval_f1 = sum(all_rouge_qaeval_f1_scores) / len(all_rouge_qaeval_f1_scores)
 
-    avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
-    avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
+        avg_pmi_qaeval_is_answered = sum(all_pmi_qaeval_scores_is_answered) / len(all_pmi_qaeval_scores_is_answered)
+        avg_rouge_qaeval_is_answered = sum(all_rouge_qaeval_scores_is_answered) / len(all_rouge_qaeval_scores_is_answered)
 
-    print(f"\nAverage PMI Pegasus QAEval F1 Score for WIKIHOW: {avg_pmi_qaeval_f1}")
-    print(f"Average ROUGE Pegasus QAEval F1 Score for WIKIHOW: {avg_rouge_qaeval_f1}")
+        print(f"\nAverage PMI Pegasus QAEval F1 Score for WIKIHOW: {avg_pmi_qaeval_f1}")
+        print(f"Average ROUGE Pegasus QAEval F1 Score for WIKIHOW: {avg_rouge_qaeval_f1}")
 
-    print(f"\nAverage PMI Pegasus QAEval Is Answered Score for WIKIHOW: {avg_pmi_qaeval_is_answered}")
-    print(f"Average ROUGE Pegasus QAEval Is Answered Score for WIKIHOW: {avg_rouge_qaeval_is_answered}")
+        print(f"\nAverage PMI Pegasus QAEval Is Answered Score for WIKIHOW: {avg_pmi_qaeval_is_answered}")
+        print(f"Average ROUGE Pegasus QAEval Is Answered Score for WIKIHOW: {avg_rouge_qaeval_is_answered}")
 
     if eval_for_SBERT:
         avg_sbert_qaeval_f1 = sum(all_sbert_qaeval_f1_scores) / len(all_sbert_qaeval_f1_scores)
