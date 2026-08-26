@@ -13,6 +13,8 @@ llm_name = "llama"
 
 eval_for_FactPEGASUS = False
 
+eval_for_SBERT = True  # Set to False if you want to skip the SBERT-Pegasus model
+
 
 # Read HF token for Llama model from a local file named "HF_TOKEN.txt"
 token_file_path = "HF_TOKEN.txt"
@@ -155,6 +157,8 @@ def calc_llm_f1_metric_of_xsum():
     test_dataset_path = "xsum_result_files/test_set_xsum/dataset.arrow"
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "xsum_result_files/sbert_pegasus_xsum_generated_summaries/generated_predictions.txt"
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "xsum_result_files/factpegasus_public_xsum_generated_summaries/generated_predictions.txt"
 
@@ -175,6 +179,10 @@ def calc_llm_f1_metric_of_xsum():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
     if eval_for_FactPEGASUS:
         with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
             factPegasus_generated_summaries = f.readlines()
@@ -185,6 +193,9 @@ def calc_llm_f1_metric_of_xsum():
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_FactPEGASUS and (len(factPegasus_generated_summaries) != len(pd_ds)):
         raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
 
@@ -194,6 +205,10 @@ def calc_llm_f1_metric_of_xsum():
 
     all_pmi_llm_f1_scores = []
     all_rouge_llm_f1_scores = []
+
+    if eval_for_SBERT:
+        all_sbert_predicted_summaries = []
+        all_sbert_llm_f1_scores = []
 
     if eval_for_FactPEGASUS:
         all_factPegasus_predicted_summaries = []
@@ -219,6 +234,15 @@ def calc_llm_f1_metric_of_xsum():
 
         all_rouge_llm_f1_scores.extend(llm_scores_rouge_model)
 
+        if eval_for_SBERT:
+            batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
+            all_sbert_predicted_summaries.extend(batch_sbert_generated_summaries)
+
+            # Compute LLM scores for SBERT model
+            llm_scores_sbert_model = compute_llm_score_batch(batch_sbert_generated_summaries, batch_target_summaries)
+
+            all_sbert_llm_f1_scores.extend(llm_scores_sbert_model)
+
         if eval_for_FactPEGASUS:
             batch_factPegasus_generated_summaries = factPegasus_generated_summaries[i:i + batch_size]
             all_factPegasus_predicted_summaries.extend(batch_factPegasus_generated_summaries)
@@ -239,6 +263,8 @@ def calc_llm_f1_metric_of_xsum():
 
         result[f"pmi_pegasus_{llm_name}_f1_score"] = all_pmi_llm_f1_scores[i]
         result[f"rouge_pegasus_{llm_name}_f1_score"] = all_rouge_llm_f1_scores[i]
+        if eval_for_SBERT:
+            result[f"sbert_pegasus_{llm_name}_f1_score"] = all_sbert_llm_f1_scores[i]
         if eval_for_FactPEGASUS:
             result[f"factpegasus_{llm_name}_f1_score"] = all_factPegasus_llm_f1_scores[i]
 
@@ -256,6 +282,10 @@ def calc_llm_f1_metric_of_xsum():
     print(f"\nAverage PMI Pegasus {llm_name} F1 score for XSUM: {avg_pmi_llm_f1_score}")
     print(f"Average ROUGE Pegasus {llm_name} F1 score for XSUM: {avg_rouge_llm_f1_score}")
 
+    if eval_for_SBERT:
+        avg_sbert_llm_f1_score = sum(all_sbert_llm_f1_scores) / len(all_sbert_llm_f1_scores)
+        print(f"Average SBERT Pegasus {llm_name} F1 score for XSUM: {avg_sbert_llm_f1_score}")
+
     if eval_for_FactPEGASUS:
         avg_factPegasus_llm_f1_score = sum(all_factPegasus_llm_f1_scores) / len(all_factPegasus_llm_f1_scores)
         print(f"Average FactPEGASUS {llm_name} F1 score for XSUM: {avg_factPegasus_llm_f1_score}")
@@ -266,6 +296,8 @@ def calc_llm_f1_metric_of_cnn():
     test_dataset_path = "cnn_result_files/test_set_cnn/data-00000-of-00001.arrow"
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "cnn_result_files/sbert_pegasus_cnn_generated_summaries/generated_predictions.txt"
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "cnn_result_files/factpegasus_public_cnn_generated_summaries/generated_predictions.txt"
 
@@ -286,6 +318,10 @@ def calc_llm_f1_metric_of_cnn():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
     if eval_for_FactPEGASUS:
         with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
             factPegasus_generated_summaries = f.readlines()
@@ -296,6 +332,9 @@ def calc_llm_f1_metric_of_cnn():
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_FactPEGASUS and (len(factPegasus_generated_summaries) != len(pd_ds)):
         raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
 
@@ -305,6 +344,10 @@ def calc_llm_f1_metric_of_cnn():
 
     all_pmi_llm_f1_scores = []
     all_rouge_llm_f1_scores = []
+
+    if eval_for_SBERT:
+        all_sbert_predicted_summaries = []
+        all_sbert_llm_f1_scores = []
 
     if eval_for_FactPEGASUS:
         all_factPegasus_predicted_summaries = []
@@ -329,6 +372,15 @@ def calc_llm_f1_metric_of_cnn():
 
         all_rouge_llm_f1_scores.extend(llm_scores_rouge_model)
 
+        if eval_for_SBERT:
+            batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
+            all_sbert_predicted_summaries.extend(batch_sbert_generated_summaries)
+
+            # Compute LLM scores for SBERT model
+            llm_scores_sbert_model = compute_llm_score_batch(batch_sbert_generated_summaries, batch_target_summaries)
+
+            all_sbert_llm_f1_scores.extend(llm_scores_sbert_model)
+
         if eval_for_FactPEGASUS:
             batch_factPegasus_generated_summaries = factPegasus_generated_summaries[i:i + batch_size]
             all_factPegasus_predicted_summaries.extend(batch_factPegasus_generated_summaries)
@@ -349,6 +401,8 @@ def calc_llm_f1_metric_of_cnn():
 
         result[f"pmi_pegasus_{llm_name}_f1_score"] = all_pmi_llm_f1_scores[i]
         result[f"rouge_pegasus_{llm_name}_f1_score"] = all_rouge_llm_f1_scores[i]
+        if eval_for_SBERT:
+            result[f"sbert_pegasus_{llm_name}_f1_score"] = all_sbert_llm_f1_scores[i]
         if eval_for_FactPEGASUS:
             result[f"factpegasus_{llm_name}_f1_score"] = all_factPegasus_llm_f1_scores[i]
 
@@ -366,120 +420,13 @@ def calc_llm_f1_metric_of_cnn():
     print(f"\nAverage PMI Pegasus {llm_name} F1 score for CNN: {avg_pmi_llm_f1_score}")
     print(f"Average ROUGE Pegasus {llm_name} F1 score for CNN: {avg_rouge_llm_f1_score}")
 
+    if eval_for_SBERT:
+        avg_sbert_llm_f1_score = sum(all_sbert_llm_f1_scores) / len(all_sbert_llm_f1_scores)
+        print(f"Average SBERT Pegasus {llm_name} F1 score for CNN: {avg_sbert_llm_f1_score}")
+
     if eval_for_FactPEGASUS:
         avg_factPegasus_llm_f1_score = sum(all_factPegasus_llm_f1_scores) / len(all_factPegasus_llm_f1_scores)
         print(f"Average FactPEGASUS {llm_name} F1 score for CNN: {avg_factPegasus_llm_f1_score}")
-
-
-def calc_llm_f1_metric_of_xsum():
-
-    test_dataset_path = "xsum_result_files/test_set_xsum/dataset.arrow"
-    pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
-    rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
-    if eval_for_FactPEGASUS:
-        factPegasus_generated_predictions_file_path = "xsum_result_files/factpegasus_public_xsum_generated_summaries/generated_predictions.txt"
-
-    combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step3.json"
-    combined_output_path_with_llm_score = f"xsum_result_files/xsum_combined_results_for_analysis__step4.json"
-
-    # Load test dataset
-    ds = Dataset.from_file(test_dataset_path)
-    pd_ds = ds.to_pandas()
-
-    # Acquire the target summaries from the test dataset
-    target_summaries = pd_ds["summary"].tolist()
-
-    # Read the predicted summaries from the PMI and ROUGE files
-    with open(pmi_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        pmi_generated_summaries = f.readlines()
-    pmi_generated_summaries = [line.strip() for line in pmi_generated_summaries]
-    with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
-        rouge_generated_summaries = f.readlines()
-    rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
-    if eval_for_FactPEGASUS:
-        with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
-            factPegasus_generated_summaries = f.readlines()
-        factPegasus_generated_summaries = [line.strip() for line in factPegasus_generated_summaries]
-
-    # Check if the number of predicted summaries matches the number of rows in pd_ds
-    if len(pmi_generated_summaries) != len(pd_ds):
-        raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
-    if len(rouge_generated_summaries) != len(pd_ds):
-        raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
-    if eval_for_FactPEGASUS and (len(factPegasus_generated_summaries) != len(pd_ds)):
-        raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
-
-    all_target_summaries = []
-    all_pmi_predicted_summaries = []
-    all_rouge_predicted_summaries = []
-
-    all_pmi_llm_f1_scores = []
-    all_rouge_llm_f1_scores = []
-
-    if eval_for_FactPEGASUS:
-        all_factPegasus_predicted_summaries = []
-        all_factPegasus_llm_f1_scores = []
-
-    for i in tqdm(range(0, len(pd_ds), batch_size), desc=f"Calculating LLM ({llm_name}) scores for XSUM dataset"):
-        batch_target_summaries = target_summaries[i:i + batch_size]
-        batch_pmi_generated_summaries = pmi_generated_summaries[i:i + batch_size]
-        batch_rouge_generated_summaries = rouge_generated_summaries[i:i + batch_size]
-
-        all_target_summaries.extend(batch_target_summaries)
-        all_pmi_predicted_summaries.extend(batch_pmi_generated_summaries)
-        all_rouge_predicted_summaries.extend(batch_rouge_generated_summaries)
-
-        # Compute LLM scores for PMI model
-        llm_scores_pmi_model = compute_llm_score_batch(batch_pmi_generated_summaries, batch_target_summaries)
-
-        all_pmi_llm_f1_scores.extend(llm_scores_pmi_model)
-
-
-        # Compute LLM scores for ROUGE model
-        llm_scores_rouge_model = compute_llm_score_batch(batch_rouge_generated_summaries, batch_target_summaries)
-
-        all_rouge_llm_f1_scores.extend(llm_scores_rouge_model)
-
-        if eval_for_FactPEGASUS:
-            batch_factPegasus_generated_summaries = factPegasus_generated_summaries[i:i + batch_size]
-            all_factPegasus_predicted_summaries.extend(batch_factPegasus_generated_summaries)
-
-            # Compute LLM scores for FactPEGASUS model
-            llm_scores_factPegasus_model = compute_llm_score_batch(batch_factPegasus_generated_summaries, batch_target_summaries)
-
-            all_factPegasus_llm_f1_scores.extend(llm_scores_factPegasus_model)
-
-    # Open the combined output file in write mode. Then, add each model's custom LLM scores to the file. For each dictionary in the list stored in the combined results file, add the LLM scores for both models inside the dictionary.
-    with open(combined_output_path, "r", encoding="utf-8") as f:
-        combined_results = json.load(f)
-    for i, result in enumerate(combined_results):
-        # Check if the result dictionary has the expected keys, specifically compare ground_truth_summary
-        if result["ground_truth_summary"] != all_target_summaries[i]:
-            raise ValueError(
-                f"Mismatch in ground truth summary at index {i}. Expected: {all_target_summaries[i]}, Found: {result['ground_truth_summary']}")
-
-        result[f"pmi_pegasus_{llm_name}_f1_score"] = all_pmi_llm_f1_scores[i]
-        result[f"rouge_pegasus_{llm_name}_f1_score"] = all_rouge_llm_f1_scores[i]
-        if eval_for_FactPEGASUS:
-            result[f"factpegasus_{llm_name}_f1_score"] = all_factPegasus_llm_f1_scores[i]
-
-    # Save the updated combined results to a new file
-    with open(combined_output_path_with_llm_score, "w", encoding="utf-8") as f:
-        json.dump(combined_results, f, indent=4)
-
-    # Print a message indicating that the new combined results file that contains new custom LLM scores have been written (xsum dataset)
-    print(f"\nThe new custom LLM ({llm_name}) F1 scores written to {combined_output_path_with_llm_score}")
-
-    # Print average LLM F1 scores for both models
-    avg_pmi_llm_f1_score = sum(all_pmi_llm_f1_scores) / len(all_pmi_llm_f1_scores)
-    avg_rouge_llm_f1_score = sum(all_rouge_llm_f1_scores) / len(all_rouge_llm_f1_scores)
-
-    print(f"\nAverage PMI Pegasus {llm_name} F1 score for XSUM: {avg_pmi_llm_f1_score}")
-    print(f"Average ROUGE Pegasus {llm_name} F1 score for XSUM: {avg_rouge_llm_f1_score}")
-
-    if eval_for_FactPEGASUS:
-        avg_factPegasus_llm_f1_score = sum(all_factPegasus_llm_f1_scores) / len(all_factPegasus_llm_f1_scores)
-        print(f"Average FactPEGASUS {llm_name} F1 score for XSUM: {avg_factPegasus_llm_f1_score}")
 
 
 def calc_llm_f1_metric_of_wikihow():
@@ -487,6 +434,8 @@ def calc_llm_f1_metric_of_wikihow():
     test_dataset_path = "wikihow_result_files/test_set_wikihow/dataset.arrow"
     pmi_generated_predictions_file_path = "wikihow_result_files/pmi_pegasus_wikihow_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "wikihow_result_files/rouge_pegasus_wikihow_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "wikihow_result_files/sbert_pegasus_wikihow_generated_summaries/generated_predictions.txt"
 
     combined_output_path = "wikihow_result_files/wikihow_combined_results_for_analysis__step3.json"
     combined_output_path_with_llm_score = f"wikihow_result_files/wikihow_combined_results_for_analysis__step4.json"
@@ -505,12 +454,19 @@ def calc_llm_f1_metric_of_wikihow():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
     if len(pmi_generated_summaries) != len(pd_ds):
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
 
     all_target_summaries = []
     all_pmi_predicted_summaries = []
@@ -518,6 +474,10 @@ def calc_llm_f1_metric_of_wikihow():
 
     all_pmi_llm_f1_scores = []
     all_rouge_llm_f1_scores = []
+
+    if eval_for_SBERT:
+        all_sbert_predicted_summaries = []
+        all_sbert_llm_f1_scores = []
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc=f"Calculating LLM ({llm_name}) scores for WIKIHOW dataset"):
         batch_target_summaries = target_summaries[i:i + batch_size]
@@ -538,6 +498,15 @@ def calc_llm_f1_metric_of_wikihow():
 
         all_rouge_llm_f1_scores.extend(llm_scores_rouge_model)
 
+        if eval_for_SBERT:
+            batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
+            all_sbert_predicted_summaries.extend(batch_sbert_generated_summaries)
+
+            # Compute LLM scores for SBERT model
+            llm_scores_sbert_model = compute_llm_score_batch(batch_sbert_generated_summaries, batch_target_summaries)
+
+            all_sbert_llm_f1_scores.extend(llm_scores_sbert_model)
+
     # Open the combined output file in write mode. Then, add each model's custom LLM scores to the file. For each dictionary in the list stored in the combined results file, add the LLM scores for both models inside the dictionary.
     with open(combined_output_path, "r", encoding="utf-8") as f:
         combined_results = json.load(f)
@@ -549,6 +518,8 @@ def calc_llm_f1_metric_of_wikihow():
 
         result[f"pmi_pegasus_{llm_name}_f1_score"] = all_pmi_llm_f1_scores[i]
         result[f"rouge_pegasus_{llm_name}_f1_score"] = all_rouge_llm_f1_scores[i]
+        if eval_for_SBERT:
+            result[f"sbert_pegasus_{llm_name}_f1_score"] = all_sbert_llm_f1_scores[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_llm_score, "w", encoding="utf-8") as f:
@@ -563,6 +534,10 @@ def calc_llm_f1_metric_of_wikihow():
 
     print(f"\nAverage PMI Pegasus {llm_name} F1 score for WIKIHOW: {avg_pmi_llm_f1_score}")
     print(f"Average ROUGE Pegasus {llm_name} F1 score for WIKIHOW: {avg_rouge_llm_f1_score}")
+
+    if eval_for_SBERT:
+        avg_sbert_llm_f1_score = sum(all_sbert_llm_f1_scores) / len(all_sbert_llm_f1_scores)
+        print(f"Average SBERT Pegasus {llm_name} F1 score for WIKIHOW: {avg_sbert_llm_f1_score}")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ AutoModel.from_pretrained("roberta-large")  # , force_download=True   # Download
 
 eval_for_FactPEGASUS = False  # Set to False if you want to evaluate only for PMI-Pegasus and ROUGE-Pegasus
 
+eval_for_SBERT = True  # Set to False if you want to skip the SBERT-Pegasus model
+
 
 # Function to compute ROUGE scores
 def compute_rouge(target_summary, predicted_summary):
@@ -35,6 +37,8 @@ def combine_results_of_xsum():
     test_dataset_path = "xsum_result_files/test_set_xsum/dataset.arrow"
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "xsum_result_files/sbert_pegasus_xsum_generated_summaries/generated_predictions.txt"
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "xsum_result_files/factpegasus_public_xsum_generated_summaries/generated_predictions.txt"
     combined_output_path = "xsum_result_files/xsum_combined_results_for_analysis__step1.json"
@@ -54,6 +58,10 @@ def combine_results_of_xsum():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
     if eval_for_FactPEGASUS:
         with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
             factPegasus_generated_summaries = f.readlines()
@@ -64,6 +72,9 @@ def combine_results_of_xsum():
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_FactPEGASUS:
         if len(factPegasus_generated_summaries) != len(pd_ds):
             raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
@@ -80,6 +91,12 @@ def combine_results_of_xsum():
     all_rouge_bert_scores = []
     all_rouge_rouge2_scores = []
     all_rouge_rougeL_scores = []
+    if eval_for_SBERT:
+        all_sbert_predicted_summaries = []
+        all_sbert_rouge1_scores = []
+        all_sbert_rouge2_scores = []
+        all_sbert_rougeL_scores = []
+        all_sbert_bert_scores = []
     if eval_for_FactPEGASUS:
         all_factPegasus_predicted_summaries = []
         all_factPegasus_rouge1_scores = []
@@ -119,6 +136,22 @@ def combine_results_of_xsum():
         rouge_bert_scores = bert_score(batch_rouge_generated_summaries, batch_target_summaries, lang="en",
                                        model_type="roberta-large", rescale_with_baseline=True)  # rescale_with_baseline=True
         all_rouge_bert_scores.extend(rouge_bert_scores[2].tolist())
+
+        if eval_for_SBERT:
+            batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
+            all_sbert_predicted_summaries.extend(batch_sbert_generated_summaries)
+
+            # Calculate ROUGE1 F1 scores for the SBERT generated summaries
+            for target, sbert_summary in zip(batch_target_summaries, batch_sbert_generated_summaries):
+                rouge_scores = compute_rouge(target, sbert_summary)
+                all_sbert_rouge1_scores.append(rouge_scores["rouge1_f1"])
+                all_sbert_rouge2_scores.append(rouge_scores["rouge2_f1"])
+                all_sbert_rougeL_scores.append(rouge_scores["rougeL_f1"])
+
+            # Calculate BERT F1 scores for the SBERT generated summaries
+            sbert_bert_scores = bert_score(batch_sbert_generated_summaries, batch_target_summaries, lang="en",
+                                           model_type="roberta-large", rescale_with_baseline=True)  # rescale_with_baseline=True
+            all_sbert_bert_scores.extend(sbert_bert_scores[2].tolist())
 
         if eval_for_FactPEGASUS:
             batch_factPegasus_generated_summaries = factPegasus_generated_summaries[i:i + batch_size]
@@ -171,6 +204,13 @@ def combine_results_of_xsum():
             "factpegasus_rougeL_score": all_factPegasus_rougeL_scores,
             "factpegasus_bert_score": all_factPegasus_bert_scores
         })
+
+    if eval_for_SBERT:
+        results_df["sbert_pegasus_generated_summary"] = all_sbert_predicted_summaries
+        results_df["sbert_pegasus_rouge1_score"] = all_sbert_rouge1_scores
+        results_df["sbert_pegasus_rouge2_score"] = all_sbert_rouge2_scores
+        results_df["sbert_pegasus_rougeL_score"] = all_sbert_rougeL_scores
+        results_df["sbert_pegasus_bert_score"] = all_sbert_bert_scores
 
     # Save the DataFrame to a JSON file with pretty formatting
     results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
@@ -197,6 +237,17 @@ def combine_results_of_xsum():
     print(f"Average ROUGE-Pegasus ROUGE-L score for XSUM: {avg_rouge_rougeL:.8f}")
     print(f"Average ROUGE-Pegasus BERT score for XSUM: {avg_rouge_bert:.8f}")
 
+    if eval_for_SBERT:
+        avg_sbert_rouge1 = sum(all_sbert_rouge1_scores) / len(all_sbert_rouge1_scores)
+        avg_sbert_rouge2 = sum(all_sbert_rouge2_scores) / len(all_sbert_rouge2_scores)
+        avg_sbert_rougeL = sum(all_sbert_rougeL_scores) / len(all_sbert_rougeL_scores)
+        avg_sbert_bert = sum(all_sbert_bert_scores) / len(all_sbert_bert_scores)
+
+        print(f"\nAverage SBERT-Pegasus ROUGE1 score for XSUM: {avg_sbert_rouge1:.8f}")
+        print(f"Average SBERT-Pegasus ROUGE2 score for XSUM: {avg_sbert_rouge2:.8f}")
+        print(f"Average SBERT-Pegasus ROUGE-L score for XSUM: {avg_sbert_rougeL:.8f}")
+        print(f"Average SBERT-Pegasus BERT score for XSUM: {avg_sbert_bert:.8f}")
+
     if eval_for_FactPEGASUS:
         avg_factPegasus_rouge1 = sum(all_factPegasus_rouge1_scores) / len(all_factPegasus_rouge1_scores)
         avg_factPegasus_rouge2 = sum(all_factPegasus_rouge2_scores) / len(all_factPegasus_rouge2_scores)
@@ -216,6 +267,8 @@ def combine_results_of_cnn():
     test_dataset_path = "cnn_result_files/test_set_cnn/data-00000-of-00001.arrow"
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "cnn_result_files/sbert_pegasus_cnn_generated_summaries/generated_predictions.txt"
 
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "cnn_result_files/factpegasus_public_cnn_generated_summaries/generated_predictions.txt"
@@ -237,6 +290,10 @@ def combine_results_of_cnn():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
 
     if eval_for_FactPEGASUS:
         with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
@@ -248,6 +305,9 @@ def combine_results_of_cnn():
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_FactPEGASUS:
         if len(factPegasus_generated_summaries) != len(pd_ds):
             raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
@@ -264,6 +324,12 @@ def combine_results_of_cnn():
     all_pmi_rougeL_scores = []
     all_rouge_rouge2_scores = []
     all_rouge_rougeL_scores = []
+    if eval_for_SBERT:
+        all_sbert_predicted_summaries = []
+        all_sbert_rouge1_scores = []
+        all_sbert_rouge2_scores = []
+        all_sbert_rougeL_scores = []
+        all_sbert_bert_scores = []
     if eval_for_FactPEGASUS:
         all_factPegasus_predicted_summaries = []
         all_factPegasus_rouge1_scores = []
@@ -303,6 +369,22 @@ def combine_results_of_cnn():
         rouge_bert_scores = bert_score(batch_rouge_generated_summaries, batch_target_summaries, lang="en",
                                        model_type="roberta-large", rescale_with_baseline=True)  # rescale_with_baseline=True
         all_rouge_bert_scores.extend(rouge_bert_scores[2].tolist())
+
+        if eval_for_SBERT:
+            batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
+            all_sbert_predicted_summaries.extend(batch_sbert_generated_summaries)
+
+            # Calculate ROUGE1 F1 scores for the SBERT generated summaries
+            for target, sbert_summary in zip(batch_target_summaries, batch_sbert_generated_summaries):
+                rouge_scores = compute_rouge(target, sbert_summary)
+                all_sbert_rouge1_scores.append(rouge_scores["rouge1_f1"])
+                all_sbert_rouge2_scores.append(rouge_scores["rouge2_f1"])
+                all_sbert_rougeL_scores.append(rouge_scores["rougeL_f1"])
+
+            # Calculate BERT F1 scores for the SBERT generated summaries
+            sbert_bert_scores = bert_score(batch_sbert_generated_summaries, batch_target_summaries, lang="en",
+                                           model_type="roberta-large", rescale_with_baseline=True)  # rescale_with_baseline=True
+            all_sbert_bert_scores.extend(sbert_bert_scores[2].tolist())
 
         if eval_for_FactPEGASUS:
             batch_factPegasus_generated_summaries = factPegasus_generated_summaries[i:i + batch_size]
@@ -356,6 +438,13 @@ def combine_results_of_cnn():
             "factpegasus_bert_score": all_factPegasus_bert_scores
         })
 
+    if eval_for_SBERT:
+        results_df["sbert_pegasus_generated_summary"] = all_sbert_predicted_summaries
+        results_df["sbert_pegasus_rouge1_score"] = all_sbert_rouge1_scores
+        results_df["sbert_pegasus_rouge2_score"] = all_sbert_rouge2_scores
+        results_df["sbert_pegasus_rougeL_score"] = all_sbert_rougeL_scores
+        results_df["sbert_pegasus_bert_score"] = all_sbert_bert_scores
+
     # Save the DataFrame to a JSON file with pretty formatting
     results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
     print(f"Combined results saved to {combined_output_path}")
@@ -380,6 +469,17 @@ def combine_results_of_cnn():
     print(f"Average ROUGE-Pegasus ROUGE2 score for CNN: {avg_rouge_rouge2:.8f}")
     print(f"Average ROUGE-Pegasus ROUGE-L score for CNN: {avg_rouge_rougeL:.8f}")
     print(f"Average ROUGE-Pegasus BERT score for CNN: {avg_rouge_bert:.8f}")
+
+    if eval_for_SBERT:
+        avg_sbert_rouge1 = sum(all_sbert_rouge1_scores) / len(all_sbert_rouge1_scores)
+        avg_sbert_rouge2 = sum(all_sbert_rouge2_scores) / len(all_sbert_rouge2_scores)
+        avg_sbert_rougeL = sum(all_sbert_rougeL_scores) / len(all_sbert_rougeL_scores)
+        avg_sbert_bert = sum(all_sbert_bert_scores) / len(all_sbert_bert_scores)
+
+        print(f"\nAverage SBERT-Pegasus ROUGE1 score for CNN: {avg_sbert_rouge1:.8f}")
+        print(f"Average SBERT-Pegasus ROUGE2 score for CNN: {avg_sbert_rouge2:.8f}")
+        print(f"Average SBERT-Pegasus ROUGE-L score for CNN: {avg_sbert_rougeL:.8f}")
+        print(f"Average SBERT-Pegasus BERT score for CNN: {avg_sbert_bert:.8f}")
 
     if eval_for_FactPEGASUS:
         avg_factPegasus_rouge1 = sum(all_factPegasus_rouge1_scores) / len(all_factPegasus_rouge1_scores)
@@ -429,6 +529,8 @@ def combine_results_of_wikihow():
     test_dataset_path = "wikihow_result_files/test_set_wikihow/dataset.arrow"
     pmi_generated_predictions_file_path = "wikihow_result_files/pmi_pegasus_wikihow_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "wikihow_result_files/rouge_pegasus_wikihow_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "wikihow_result_files/sbert_pegasus_wikihow_generated_summaries/generated_predictions.txt"
 
     combined_output_path = "wikihow_result_files/wikihow_combined_results_for_analysis__step1.json"
 
@@ -447,12 +549,19 @@ def combine_results_of_wikihow():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
     if len(pmi_generated_summaries) != len(pd_ds):
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
 
     all_target_summaries = []
     all_pmi_predicted_summaries = []
@@ -465,6 +574,12 @@ def combine_results_of_wikihow():
     all_pmi_rougeL_scores = []
     all_rouge_rouge2_scores = []
     all_rouge_rougeL_scores = []
+    if eval_for_SBERT:
+        all_sbert_predicted_summaries = []
+        all_sbert_rouge1_scores = []
+        all_sbert_rouge2_scores = []
+        all_sbert_rougeL_scores = []
+        all_sbert_bert_scores = []
 
     for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating scores"):
         batch_target_summaries = target_summaries[i:i + batch_size]
@@ -499,6 +614,22 @@ def combine_results_of_wikihow():
                                        model_type="roberta-large", rescale_with_baseline=True)  # rescale_with_baseline=True
         all_rouge_bert_scores.extend(rouge_bert_scores[2].tolist())
 
+        if eval_for_SBERT:
+            batch_sbert_generated_summaries = sbert_generated_summaries[i:i + batch_size]
+            all_sbert_predicted_summaries.extend(batch_sbert_generated_summaries)
+
+            # Calculate ROUGE1 F1 scores for the SBERT generated summaries
+            for target, sbert_summary in zip(batch_target_summaries, batch_sbert_generated_summaries):
+                rouge_scores = compute_rouge(target, sbert_summary)
+                all_sbert_rouge1_scores.append(rouge_scores["rouge1_f1"])
+                all_sbert_rouge2_scores.append(rouge_scores["rouge2_f1"])
+                all_sbert_rougeL_scores.append(rouge_scores["rougeL_f1"])
+
+            # Calculate BERT F1 scores for the SBERT generated summaries
+            sbert_bert_scores = bert_score(batch_sbert_generated_summaries, batch_target_summaries, lang="en",
+                                           model_type="roberta-large", rescale_with_baseline=True)  # rescale_with_baseline=True
+            all_sbert_bert_scores.extend(sbert_bert_scores[2].tolist())
+
     # Create a DataFrame to store the results
     results_df = pd.DataFrame({
         "ground_truth_summary": all_target_summaries,
@@ -513,6 +644,13 @@ def combine_results_of_wikihow():
         "pmi_pegasus_bert_score": all_pmi_bert_scores,
         "rouge_pegasus_bert_score": all_rouge_bert_scores
     })
+
+    if eval_for_SBERT:
+        results_df["sbert_pegasus_generated_summary"] = all_sbert_predicted_summaries
+        results_df["sbert_pegasus_rouge1_score"] = all_sbert_rouge1_scores
+        results_df["sbert_pegasus_rouge2_score"] = all_sbert_rouge2_scores
+        results_df["sbert_pegasus_rougeL_score"] = all_sbert_rougeL_scores
+        results_df["sbert_pegasus_bert_score"] = all_sbert_bert_scores
 
     # Save the DataFrame to a JSON file with pretty formatting
     results_df.to_json(combined_output_path, orient="records", indent=4)  # , lines=True
@@ -538,6 +676,17 @@ def combine_results_of_wikihow():
     print(f"Average ROUGE-Pegasus ROUGE2 score for WIKIHOW: {avg_rouge_rouge2:.8f}")
     print(f"Average ROUGE-Pegasus ROUGE-L score for WIKIHOW: {avg_rouge_rougeL:.8f}")
     print(f"Average ROUGE-Pegasus BERT score for WIKIHOW: {avg_rouge_bert:.8f}")
+
+    if eval_for_SBERT:
+        avg_sbert_rouge1 = sum(all_sbert_rouge1_scores) / len(all_sbert_rouge1_scores)
+        avg_sbert_rouge2 = sum(all_sbert_rouge2_scores) / len(all_sbert_rouge2_scores)
+        avg_sbert_rougeL = sum(all_sbert_rougeL_scores) / len(all_sbert_rougeL_scores)
+        avg_sbert_bert = sum(all_sbert_bert_scores) / len(all_sbert_bert_scores)
+
+        print(f"\nAverage SBERT-Pegasus ROUGE1 score for WIKIHOW: {avg_sbert_rouge1:.8f}")
+        print(f"Average SBERT-Pegasus ROUGE2 score for WIKIHOW: {avg_sbert_rouge2:.8f}")
+        print(f"Average SBERT-Pegasus ROUGE-L score for WIKIHOW: {avg_sbert_rougeL:.8f}")
+        print(f"Average SBERT-Pegasus BERT score for WIKIHOW: {avg_sbert_bert:.8f}")
 
 
 if __name__ == "__main__":

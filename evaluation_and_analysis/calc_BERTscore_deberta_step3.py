@@ -13,12 +13,16 @@ batch_size = 32  # Adjust as needed for your GPU
 
 eval_for_FactPEGASUS = False
 
+eval_for_SBERT = True  # Set to False if you want to skip the SBERT-Pegasus model
+
 
 def calc_deberta_f1_metric_of_xsum():
 
     test_dataset_path = "xsum_result_files/test_set_xsum/dataset.arrow"
     pmi_generated_predictions_file_path = "xsum_result_files/pmi_pegasus_xsum_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "xsum_result_files/rouge_pegasus_xsum_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "xsum_result_files/sbert_pegasus_xsum_generated_summaries/generated_predictions.txt"
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "xsum_result_files/factpegasus_public_xsum_generated_summaries/generated_predictions.txt"
 
@@ -39,6 +43,10 @@ def calc_deberta_f1_metric_of_xsum():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
     if eval_for_FactPEGASUS:
         with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
             factPegasus_generated_summaries = f.readlines()
@@ -49,6 +57,9 @@ def calc_deberta_f1_metric_of_xsum():
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_FactPEGASUS:
         if len(factPegasus_generated_summaries) != len(pd_ds):
             raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
@@ -83,6 +94,18 @@ def calc_deberta_f1_metric_of_xsum():
         rescale_with_baseline=True  ## NEW
     )
     all_rouge_deberta_f1_scores = f1_rouge.tolist()
+
+    if eval_for_SBERT:
+        _, _, f1_sbert = bert_score.score(
+            cands=sbert_generated_summaries,
+            refs=target_summaries,
+            model_type=model_name,
+            device=device,
+            batch_size=batch_size,
+            lang="en",
+            rescale_with_baseline=True  ## NEW
+        )
+        all_sbert_deberta_f1_scores = f1_sbert.tolist()
 
     if eval_for_FactPEGASUS:
         _, _, f1_factPegasus = bert_score.score(
@@ -126,6 +149,8 @@ def calc_deberta_f1_metric_of_xsum():
 
         result["pmi_pegasus_deberta_f1_score"] = all_pmi_deberta_f1_scores[i]
         result["rouge_pegasus_deberta_f1_score"] = all_rouge_deberta_f1_scores[i]
+        if eval_for_SBERT:
+            result["sbert_pegasus_deberta_f1_score"] = all_sbert_deberta_f1_scores[i]
         if eval_for_FactPEGASUS:
             result["factpegasus_public_deberta_f1_score"] = all_factPegasus_deberta_f1_scores[i]
 
@@ -143,6 +168,10 @@ def calc_deberta_f1_metric_of_xsum():
     print(f"\nAverage PMI DeBERTa F1 score for XSUM: {avg_pmi_f1}")
     print(f"Average ROUGE DeBERTa F1 score for XSUM: {avg_rouge_f1}")
 
+    if eval_for_SBERT:
+        avg_sbert_f1 = sum(all_sbert_deberta_f1_scores) / len(all_sbert_deberta_f1_scores)
+        print(f"Average SBERT DeBERTa F1 score for XSUM: {avg_sbert_f1}")
+
     if eval_for_FactPEGASUS:
         avg_factPegasus_f1 = sum(all_factPegasus_deberta_f1_scores) / len(all_factPegasus_deberta_f1_scores)
         print(f"Average FactPEGASUS DeBERTa F1 score for XSUM: {avg_factPegasus_f1}")
@@ -153,6 +182,8 @@ def calc_deberta_f1_metric_of_cnn():
     test_dataset_path = "cnn_result_files/test_set_cnn/data-00000-of-00001.arrow"
     pmi_generated_predictions_file_path = "cnn_result_files/pmi_pegasus_cnn_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "cnn_result_files/rouge_pegasus_cnn_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "cnn_result_files/sbert_pegasus_cnn_generated_summaries/generated_predictions.txt"
     if eval_for_FactPEGASUS:
         factPegasus_generated_predictions_file_path = "cnn_result_files/factpegasus_public_cnn_generated_summaries/generated_predictions.txt"
 
@@ -173,6 +204,10 @@ def calc_deberta_f1_metric_of_cnn():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
     if eval_for_FactPEGASUS:
         with open(factPegasus_generated_predictions_file_path, "r", encoding="utf-8") as f:
             factPegasus_generated_summaries = f.readlines()
@@ -183,6 +218,9 @@ def calc_deberta_f1_metric_of_cnn():
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
     if eval_for_FactPEGASUS:
         if len(factPegasus_generated_summaries) != len(pd_ds):
             raise ValueError("The number of FactPEGASUS generated summaries does not match the number of rows in the DataFrame.")
@@ -210,6 +248,18 @@ def calc_deberta_f1_metric_of_cnn():
         rescale_with_baseline=True  ## NEW
     )
     all_rouge_deberta_f1_scores = f1_rouge.tolist()
+
+    if eval_for_SBERT:
+        _, _, f1_sbert = bert_score.score(
+            cands=sbert_generated_summaries,
+            refs=target_summaries,
+            model_type=model_name,
+            device=device,
+            batch_size=batch_size,
+            lang="en",
+            rescale_with_baseline=True  ## NEW
+        )
+        all_sbert_deberta_f1_scores = f1_sbert.tolist()
 
     if eval_for_FactPEGASUS:
         _, _, f1_factPegasus = bert_score.score(
@@ -260,6 +310,8 @@ def calc_deberta_f1_metric_of_cnn():
 
         result["pmi_pegasus_deberta_f1_score"] = all_pmi_deberta_f1_scores[i]
         result["rouge_pegasus_deberta_f1_score"] = all_rouge_deberta_f1_scores[i]
+        if eval_for_SBERT:
+            result["sbert_pegasus_deberta_f1_score"] = all_sbert_deberta_f1_scores[i]
         if eval_for_FactPEGASUS:
             result["factpegasus_public_deberta_f1_score"] = all_factPegasus_deberta_f1_scores[i]
 
@@ -277,6 +329,10 @@ def calc_deberta_f1_metric_of_cnn():
     print(f"\nAverage PMI DeBERTa F1 score for CNN: {avg_pmi_f1}")
     print(f"Average ROUGE DeBERTa F1 score for CNN: {avg_rouge_f1}")
 
+    if eval_for_SBERT:
+        avg_sbert_f1 = sum(all_sbert_deberta_f1_scores) / len(all_sbert_deberta_f1_scores)
+        print(f"Average SBERT DeBERTa F1 score for CNN: {avg_sbert_f1}")
+
     if eval_for_FactPEGASUS:
         avg_factPegasus_f1 = sum(all_factPegasus_deberta_f1_scores) / len(all_factPegasus_deberta_f1_scores)
         print(f"Average FactPEGASUS DeBERTa F1 score for CNN: {avg_factPegasus_f1}")
@@ -287,6 +343,8 @@ def calc_deberta_f1_metric_of_wikihow():
     test_dataset_path = "wikihow_result_files/test_set_wikihow/dataset.arrow"
     pmi_generated_predictions_file_path = "wikihow_result_files/pmi_pegasus_wikihow_generated_summaries/generated_predictions.txt"
     rouge_generated_predictions_file_path = "wikihow_result_files/rouge_pegasus_wikihow_generated_summaries/generated_predictions.txt"
+    if eval_for_SBERT:
+        sbert_generated_predictions_file_path = "wikihow_result_files/sbert_pegasus_wikihow_generated_summaries/generated_predictions.txt"
 
     combined_output_path = "wikihow_result_files/wikihow_combined_results_for_analysis__step2.json"
     combined_output_path_with_deberta_score = "wikihow_result_files/wikihow_combined_results_for_analysis__step3.json"
@@ -305,12 +363,19 @@ def calc_deberta_f1_metric_of_wikihow():
     with open(rouge_generated_predictions_file_path, "r", encoding="utf-8") as f:
         rouge_generated_summaries = f.readlines()
     rouge_generated_summaries = [line.strip() for line in rouge_generated_summaries]
+    if eval_for_SBERT:
+        with open(sbert_generated_predictions_file_path, "r", encoding="utf-8") as f:
+            sbert_generated_summaries = f.readlines()
+        sbert_generated_summaries = [line.strip() for line in sbert_generated_summaries]
 
     # Check if the number of predicted summaries matches the number of rows in pd_ds
     if len(pmi_generated_summaries) != len(pd_ds):
         raise ValueError("The number of PMI generated summaries does not match the number of rows in the DataFrame.")
     if len(rouge_generated_summaries) != len(pd_ds):
         raise ValueError("The number of ROUGE generated summaries does not match the number of rows in the DataFrame.")
+    if eval_for_SBERT:
+        if len(sbert_generated_summaries) != len(pd_ds):
+            raise ValueError("The number of SBERT generated summaries does not match the number of rows in the DataFrame.")
 
     #  all_target_summaries = []
     """all_pmi_predicted_summaries = []
@@ -343,6 +408,18 @@ def calc_deberta_f1_metric_of_wikihow():
     )
     all_rouge_deberta_f1_scores = f1_rouge.tolist()
 
+    if eval_for_SBERT:
+        _, _, f1_sbert = bert_score.score(
+            cands=sbert_generated_summaries,
+            refs=target_summaries,
+            model_type=model_name,
+            device=device,
+            batch_size=batch_size,
+            lang="en",
+            rescale_with_baseline=True  ## NEW
+        )
+        all_sbert_deberta_f1_scores = f1_sbert.tolist()
+
     all_target_summaries = target_summaries
 
     """for i in tqdm(range(0, len(pd_ds), batch_size), desc="Calculating LLM scores for WIKIHOW dataset"):
@@ -373,6 +450,8 @@ def calc_deberta_f1_metric_of_wikihow():
 
         result["pmi_pegasus_deberta_f1_score"] = all_pmi_deberta_f1_scores[i]
         result["rouge_pegasus_deberta_f1_score"] = all_rouge_deberta_f1_scores[i]
+        if eval_for_SBERT:
+            result["sbert_pegasus_deberta_f1_score"] = all_sbert_deberta_f1_scores[i]
 
     # Save the updated combined results to a new file
     with open(combined_output_path_with_deberta_score, "w", encoding="utf-8") as f:
@@ -387,6 +466,10 @@ def calc_deberta_f1_metric_of_wikihow():
 
     print(f"\nAverage PMI DeBERTa F1 score for WIKIHOW: {avg_pmi_f1}")
     print(f"Average ROUGE DeBERTa F1 score for WIKIHOW: {avg_rouge_f1}")
+
+    if eval_for_SBERT:
+        avg_sbert_f1 = sum(all_sbert_deberta_f1_scores) / len(all_sbert_deberta_f1_scores)
+        print(f"Average SBERT DeBERTa F1 score for WIKIHOW: {avg_sbert_f1}")
 
 
 if __name__ == "__main__":
