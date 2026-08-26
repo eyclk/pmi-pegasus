@@ -27,12 +27,12 @@ STANDARDIZED PMI vs ROUGE PER CHECKPOINT
                    PMI        ROUGE       tie%           PMI        ROUGE       tie%
   1M        46.24 +/-1.10        53.76      29.46    50.67 +/-1.12        49.33      32.62
   2M        42.80 +/-1.09        57.20      28.60    46.12 +/-1.11        53.88      30.58
-  3M        42.92 +/-1.08        57.08      29.05            --           --         --
-  4M        44.25 +/-1.08        55.75      28.45            --           --         --
-  5M        45.32 +/-1.10        54.68      29.75            --           --         --
-  6M        41.59 +/-1.09        58.41      28.35            --           --         --
-  7M        46.06 +/-1.09        53.94      28.26            --           --         --
-  8M        47.12 +/-1.10        52.88      28.99            --           --         --
+  3M        42.92 +/-1.08        57.08      29.05    47.84 +/-1.10        52.16      29.51
+  4M        44.25 +/-1.08        55.75      28.45    48.41 +/-1.08        51.59      27.44
+  5M        45.32 +/-1.10        54.68      29.75    49.85 +/-1.09        50.15      28.08
+  6M        41.59 +/-1.09        58.41      28.35    45.55 +/-1.09        54.45      27.64
+  7M        46.06 +/-1.09        53.94      28.26    49.03 +/-1.09        50.97      27.73
+  8M        47.12 +/-1.10        52.88      28.99    51.74 +/-1.10        48.26      28.77
 
 GPT (step 7, dual-order consensus)
 ------------------------------------------------------------------------------
@@ -62,26 +62,27 @@ GPT (step 7, dual-order consensus)
 Prometheus (step 5)
 ------------------------------------------------------------------------------
   LENGTH BIAS OF THIS JUDGE (all checkpoints pooled)
-    PMI 10+ shorter : PMI wins  39.64%  (n=560)
-    PMI 5-9 shorter : PMI wins  48.17%  (n=2292)
-    PMI 2-4 shorter : PMI wins  47.62%  (n=3129)
-    within 1 word   : PMI wins  48.47%  (n=4013)
-    PMI 2-4 longer  : PMI wins  48.92%  (n=3048)
-    PMI 5-9 longer  : PMI wins  49.93%  (n=2065)
-    PMI 10+ longer  : PMI wins  54.02%  (n=398)
+    PMI 10+ shorter : PMI wins  47.96%  (n=2448)
+    PMI 5-9 shorter : PMI wins  49.97%  (n=9199)
+    PMI 2-4 shorter : PMI wins  48.94%  (n=12534)
+    within 1 word   : PMI wins  48.60%  (n=15969)
+    PMI 2-4 longer  : PMI wins  47.76%  (n=12931)
+    PMI 5-9 longer  : PMI wins  47.93%  (n=9239)
+    PMI 10+ longer  : PMI wins  51.34%  (n=2014)
 
   ckpt                 raw       length-standardized        n
   1M           50.77 +/-1.12               50.67 +/-1.12     7637
   2M           46.02 +/-1.10               46.12 +/-1.11     7868
-  3M             (not run)
-  4M             (not run)
-  5M             (not run)
-  6M             (not run)
-  7M             (not run)
-  8M             (not run)
+  3M           47.84 +/-1.10               47.84 +/-1.10     7989
+  4M           48.44 +/-1.08               48.41 +/-1.08     8224
+  5M           49.97 +/-1.09               49.85 +/-1.09     8151
+  6M           45.26 +/-1.08               45.55 +/-1.09     8201
+  7M           49.03 +/-1.08               49.03 +/-1.09     8191
+  8M           52.01 +/-1.09               51.74 +/-1.10     8073
 
-  1M -> 2M raw          : -4.74 +/-1.57 pts   SIGNIFICANT
-  1M -> 2M standardized : -4.55 +/-1.58 pts   SIGNIFICANT
+  1M -> 8M raw          : +1.25 +/-1.56 pts   not significant
+  1M -> 8M standardized : +1.07 +/-1.57 pts   not significant
+  standardized slope       : +0.197 +/-0.848 pts per 1M steps   not significant
 
 LENGTH-DIFFERENCE MIX PER CHECKPOINT (% of decided pairs)
 ------------------------------------------------------------------------------
@@ -105,3 +106,18 @@ STANDARDIZATION CHECK -- GPT (step 7, dual-order consensus)
     standardized r = -0.380
   (near zero means length has been removed; a value still close to the
    raw one means the bins are too coarse for this dataset's length spread)
+
+STANDARDIZATION CHECK -- Prometheus (step 5)
+------------------------------------------------------------------------------
+  correlation(PMI/ROUGE length ratio, win rate) over 8 checkpoints
+    raw          r = -0.386
+    standardized r = -0.368
+  (near zero means length has been removed; a value still close to the
+   raw one means the bins are too coarse for this dataset's length spread)
+
+JUDGE AGREEMENT ACROSS CHECKPOINTS (standardized)
+------------------------------------------------------------------------------
+  r = +0.950 over 8 checkpoints
+  (on wikihow this rises from -0.08 raw to +0.50 standardized: the two
+   judges look uncorrelated only because their length biases point in
+   OPPOSITE directions and each scrambles the ordering differently)
