@@ -9,9 +9,14 @@ checkpoint -- and asks two separate questions per item:
     BEST ACCORDING TO INFORMATIVENESS   (A / B / tie)
 
 This script puts the SAME 105 items, in the SAME candidate arrangement, to
-gpt-5.6-luna, one question at a time: 105 faithfulness calls + 105
-informativeness calls = 210 paid calls per full run. It then measures how well
-the paid judge agrees with the humans.
+gpt-5.6-sol at reasoning effort "medium", one question at a time: 105
+faithfulness calls + 105 informativeness calls = 210 paid calls. It then
+measures how well the paid judge agrees with the humans, three ways:
+
+    1. judge vs. the annotator CONSENSUS  -- the headline number
+    2. judge vs. EACH annotator on their own
+    3. every rater against every other, judge included -- who agrees with
+       whom, as raw counts and percentages
 
 WHY THE ARRANGEMENT MATTERS
 ---------------------------
@@ -47,12 +52,37 @@ that. What is pinned is the exact model id, the reasoning effort, the prompts
 and the candidate positions -- and the results themselves, since a judged
 (item, dimension) pair is never asked twice: the ".partial.jsonl" is the cache.
 
+So this is ONE draw from the judge, and the agreement figures below carry an
+unknown amount of sampling noise. Nothing here estimates that noise. If a
+later comparison turns on a small difference between two configurations, that
+is the point at which repeating a run and looking at the spread would start to
+matter; for a single headline number it is not worth the money.
+
 COST
 ----
-210 calls over ~105 source documents (~55k words, read twice). At effort=low on
-gpt-5.6-luna that is roughly 170k input + 45k output tokens, about $0.09 --
-three orders of magnitude below the step 7 grid, because this is 210 calls
-rather than 227208. --estimate still exists and still runs first.
+210 calls over ~105 source documents (~55k words, read twice). At
+effort="medium" on gpt-5.6-sol that is roughly 280k input + 105k output
+tokens -- much of the output being reasoning -- or about $4.55. --estimate
+still exists and still sends nothing; RUN IT FIRST -- at Sol prices a mistake
+in the prompts or the packet costs real money.
+
+That $4.55 is two multipliers on the ~$0.03 a single run of this file
+originally cost, and either can be given back on its own:
+
+  model    Sol is 25x Luna per token ($5.00/$30.00 vs $0.20/$1.20 per 1M),
+           and is the whole reason this is dollars rather than cents.
+           --model gpt-5.6-luna brings the run to ~$0.18.
+  effort   "medium" spends roughly 2.4x the output tokens of "low", nearly
+           all of it reasoning; "high" would be ~5x and put the run at
+           ~$8.33. The output-token budget follows the effort on its own
+           (MAX_OUTPUT_TOKENS_BY_EFFORT), so changing one changes both.
+
+Both multipliers are bets on the same thing -- that a more capable judge,
+thinking longer, tracks the annotators more closely. Neither is measured yet
+on this set. The honest way to find out is to run the cheap configuration
+too, into its own --out-dir, and compare the two against the same human
+votes; that costs ~$0.18 on top and tells you whether the $4.55 bought
+anything.
 
 SETUP
 -----
@@ -61,10 +91,23 @@ SETUP
   3. copy human_eval_set.txt (the FINAL_VERSION copy) and answer_key.txt next to
      this script -- see EVAL_SET_PATH / ANSWER_KEY_PATH
   4. python GPT_API_corralation_check_with_human_eval.py --estimate
-  5. python GPT_API_corralation_check_with_human_eval.py
+  5. python GPT_API_corralation_check_with_human_eval.py --get-gpt-results-only
   6. once the annotators are done:
-     python GPT_API_corralation_check_with_human_eval.py --report-only \
-            --human-answers votes.csv
+     python prepare_human_answers_csv.py
+     python GPT_API_corralation_check_with_human_eval.py \
+            --calc-correlation-statistics-only \
+            --human-answers human_answers.csv
+
+Steps 5 and 6 are the paid half and the free half, and they are deliberately
+separable -- see GET_GPT_RESULTS_ONLY / CALC_CORRELATION_STATISTICS_ONLY at
+the top of the configuration. Running with neither flag does both at once,
+which is what the file did before they existed.
+
+The verdicts land in gpt_judge_vs_human_eval.json and the report in
+gpt_judge_vs_human_eval.log (a judge-only run writes
+gpt_judge_vs_human_eval.gpt_only.log instead, so it cannot overwrite a full
+report). Step 6 sends nothing and can be re-run as often as you like -- as
+more annotators come in, or as a statistic is added -- without paying again.
 
 Step 6 collects the human votes. See load_human_answers() for the CSV format;
 the correlation section is skipped entirely until that file is supplied, so
@@ -82,7 +125,10 @@ at SURFACE_NOTE_ENABLED -- so it is a switch, not a decision baked into the file
     python GPT_API_corralation_check_with_human_eval.py --no-surface-note \
            --out-dir without_note
 
-At ~$0.11 a run the pair costs about $0.22 and settles the question with data.
+At the default (Sol, medium) each side of that comparison is ~$4.55, so settle
+it on the cheap configuration instead -- --model gpt-5.6-luna
+--reasoning-effort low makes the pair ~$0.07, and there is no reason to think
+a prompt sentence that matters on one model stops mattering on the other.
 Every record stores which way it was run, and the log says so at the top.
 """
 
@@ -92,9 +138,11 @@ import json
 import math
 import os
 import re
+import textwrap
 import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from itertools import combinations
 from pathlib import Path
 
 from tqdm import tqdm
@@ -113,10 +161,52 @@ except ImportError:
 # CONFIGURATION
 ###############################################################################
 
-# Pinned to the exact model, deliberately NOT the "gpt-5.6" alias -- that alias
-# routes to Sol at 25x the price and OpenAI can repoint it without notice. Same
-# choice, and the same reasoning, as step 7.
-MODEL = "gpt-5.6-luna"
+# THE TWO HALVES OF THIS SCRIPT, AND HOW TO RUN JUST ONE OF THEM
+#
+# A full run does two quite different jobs back to back:
+#
+#   1. ask the judge  -- 210 paid API calls, minutes, costs ~$4.55, and the
+#                        only part that can fail on a network or a bill;
+#   2. do the sums    -- consensus, correlation, agreement tables. Free,
+#                        instant, and the part you re-run over and over as
+#                        annotators come in or a statistic gets added.
+#
+# Tying them together means every look at the numbers drags the paid half
+# behind it, so either half can be run alone. Set ONE of these to True (or
+# pass the matching --flag, which overrides whatever is set here):
+#
+#   GET_GPT_RESULTS_ONLY             judge, save the JSON, stop. Human votes
+#                                    are not needed and are not read.
+#   CALC_CORRELATION_STATISTICS_ONLY read the saved JSON, compute everything,
+#                                    send nothing. Needs --human-answers.
+#
+# Both False (the default) runs the whole thing end to end, as before. Both
+# True is a contradiction and is refused rather than silently resolved.
+#
+# Judging is idempotent either way: verdicts already in the JSON or the
+# .partial.jsonl are never bought twice, so re-running the first half after
+# it has finished costs nothing.
+GET_GPT_RESULTS_ONLY = False              # MODIFY HERE TO ONLY CALL THE API
+CALC_CORRELATION_STATISTICS_ONLY = False  # MODIFY HERE TO ONLY DO THE SUMS
+
+# Sol -- the most capable judge available, chosen deliberately here and only
+# here. Steps 5/6/7 run Luna because they issue judgements by the hundred
+# thousand and Sol is 25x the price per token; this file issues 630, so the
+# whole grid's reasoning about cost per judgement does not apply to it. What
+# is being bought is agreement with the annotators on 105 items, and that is
+# the one number in the project no cheaper model can be substituted into
+# after the fact.
+#
+# Still pinned to the exact model id, NOT the "gpt-5.6" alias, for step 7's
+# reason: the alias is OpenAI's to repoint without notice, which would
+# silently change what a run means. Sol here is a choice, not an alias
+# resolving to one.
+#
+# NOTE the price gap before re-running anything: at the default effort a run
+# costs ~$4.55 on Sol against ~$0.18 on Luna. --model gpt-5.6-luna switches
+# back, and the model is recorded per call so the two can never be pooled by
+# accident.
+MODEL = "gpt-5.6-sol"
 
 # USD per 1M tokens, standard (non-batch) tier. Kept in sync with step 7.
 PRICING = {
@@ -137,15 +227,44 @@ PRICING = {
 REASONING_MODEL_PREFIXES = ("gpt-5", "o1", "o3", "o4")
 SEED = 0
 
-# "low" rather than "none", matching the step 7 setting that measurably halved
-# this judge's slot-A preference (+25.1 -> +10.9 points on wikihow/1M). A
-# correlation study is exactly where that bias would do the most damage, and
-# 210 calls is cheap enough that the extra reasoning tokens do not matter.
-REASONING_EFFORT = "low"
+# "medium" -- a deliberate compromise, and the place where the cost of this
+# file is actually decided.
+#
+# Effort is the one knob that measurably moved this judge: going from "none"
+# to "low" halved its slot-A preference (+25.1 -> +10.9 points on wikihow/1M)
+# in step 7 -- more deliberation bought less positional bias. A correlation
+# study is exactly where that bias does the most damage, since it caps the
+# achievable agreement however good the judgement itself is, which argues for
+# buying as much deliberation as possible.
+#
+# Against that: reasoning tokens are billed at Sol's output rate, and they
+# dominate the bill. A run comes to ~$4.55 at "medium" against ~$8.33 at
+# "high" -- the same 210 verdicts for $3.78 less. "medium" is the setting that
+# keeps most of the measured benefit of deliberating at all (the big step in
+# step 7 was none -> low, not low -> high) without paying the top rate for
+# reasoning nobody has yet shown is needed on 105 items.
+#
+# Nothing here is measured on THIS set, so treat it as a starting point, not
+# a finding: --reasoning-effort high is one flag away if the correlation at
+# medium looks capped by the judge rather than by the task, and
+# --reasoning-effort low reproduces step 7's original setting exactly. Every
+# record stores the effort it was judged at, so runs at different efforts can
+# never be pooled by accident.
+REASONING_EFFORT = "medium"
 
-# Feedback plus the [RESULT] tag; also caps reasoning tokens. Step 7's value,
-# where nothing came within range of it at this effort.
-MAX_OUTPUT_TOKENS = 768
+# Room for the feedback and the [RESULT] tag -- and, on a reasoning model, for
+# the reasoning tokens too, which are billed and counted against this same
+# budget. A call that exhausts the budget mid-reasoning returns no [RESULT] tag
+# at all and is scored as a tie, so the budget has to scale with the effort:
+# step 7's 768 was measured at effort="low" (~209 output tokens per call) and
+# would truncate a meaningful share of calls at "medium" or above.
+MAX_OUTPUT_TOKENS_BY_EFFORT = {
+    "none":   512,
+    "low":    768,
+    "medium": 1536,
+    "high":   3072,
+}
+DEFAULT_MAX_OUTPUT_TOKENS = 3072
 
 # Parallel in-flight requests. Purely a throughput knob -- each call is judged
 # independently, so concurrency cannot change a verdict.
@@ -154,11 +273,31 @@ CONCURRENCY = 8
 # Retry policy for 429s and transient 5xx. Sleeps 2, 4, 8, 16, 32 seconds.
 MAX_RETRIES = 5
 
-# Output tokens per verdict, for the --estimate projection only. Step 7's
-# measured figure at effort="low" (209 = ~117 reasoning + ~92 visible). The
-# single-criterion prompts here should land at or below that, so the estimate
-# errs high, which is the safe direction. Re-measure from a completed .log.
-EXPECTED_OUTPUT_TOKENS = 209
+# Output tokens per verdict, for the --estimate projection only, by effort.
+# "low" is step 7's measured figure (209 = ~117 reasoning + ~92 visible); the
+# others are projected from it, reasoning tokens being what actually scales
+# with effort. They lean high, which is the safe direction for a cost estimate.
+#
+# These are the softest numbers in the file, and on Sol they carry most of the
+# bill: output is ~69% of the projected $4.55, and the 500 below is a guess
+# extrapolated from a DIFFERENT model at a DIFFERENT effort. Sol has never
+# been measured on this prompt. The projection cannot run away without limit
+# -- MAX_OUTPUT_TOKENS_BY_EFFORT caps each call at 1536 at this effort, so the
+# true worst case is ~$11 rather than $4.55 -- but that is a wide bracket to
+# start a paid run inside.
+#
+# So bound it before committing: start the run, Ctrl-C after a chunk or two,
+# read the real output_tokens back out of
+# gpt_judge_vs_human_eval.partial.jsonl, correct the number here, and re-run
+# --estimate. The partial is a resume cache, so those calls are not wasted --
+# the full run picks up from them.
+EXPECTED_OUTPUT_TOKENS_BY_EFFORT = {
+    "none":   110,
+    "low":    209,
+    "medium": 500,
+    "high":   1100,
+}
+DEFAULT_EXPECTED_OUTPUT_TOKENS = 1100
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -253,6 +392,26 @@ def request_parameters_for(model):
     if is_reasoning_model(model):
         return {"reasoning": {"effort": REASONING_EFFORT}}
     return {"temperature": 0, "seed": SEED}
+
+
+def max_output_tokens_for(model):
+    """Output budget for one call. On a reasoning model it has to cover the
+    reasoning tokens as well, so it follows the effort; a non-reasoning model
+    spends none and takes the smallest budget."""
+
+    if not is_reasoning_model(model):
+        return MAX_OUTPUT_TOKENS_BY_EFFORT["none"]
+    return MAX_OUTPUT_TOKENS_BY_EFFORT.get(
+        REASONING_EFFORT, DEFAULT_MAX_OUTPUT_TOKENS)
+
+
+def expected_output_tokens_for(model):
+    """Projected output tokens per call, for --estimate only."""
+
+    if not is_reasoning_model(model):
+        return EXPECTED_OUTPUT_TOKENS_BY_EFFORT["none"]
+    return EXPECTED_OUTPUT_TOKENS_BY_EFFORT.get(
+        REASONING_EFFORT, DEFAULT_EXPECTED_OUTPUT_TOKENS)
 
 
 def price_of(model, input_tokens, output_tokens):
@@ -408,9 +567,12 @@ SYSTEM_MESSAGE = (
 #
 # The counter-argument is just as real: steps 5/6/7 carry no such note, so a
 # judge that has one is not the judge those steps deploy. That is what
-# --no-surface-note is for. The run is ~$0.11, so settle it by measurement
-# rather than by argument: run both into separate --out-dir folders and compare.
-# Every record stores which way it was run, so the two cannot be confused.
+# --no-surface-note is for. Settle it by measurement rather than by argument:
+# run both into separate --out-dir folders and compare. On the default (Sol,
+# medium) that pair is ~$9, so run the comparison on --model gpt-5.6-luna
+# --reasoning-effort low instead, where it is ~$0.07 and answers the same
+# question about the prompt. Every record stores which way it was run, so the
+# two cannot be confused.
 #
 # What is deliberately NOT in here, having been cut as unjustified:
 #   * length guidance -- defensible, but not grounded in anything measured here;
@@ -495,8 +657,10 @@ def parse_judge_output(decoded_output):
     Splits the completion into (feedback, raw_result).
 
     "TIE_2" means no [RESULT] tag was emitted at all. Those count as ties but
-    are reported separately, so it is obvious if MAX_OUTPUT_TOKENS is cutting
-    the judge off. Carried over from step 5/7 unchanged.
+    are reported separately, so it is obvious if the output budget is cutting
+    the judge off -- the failure mode to watch for at any effort above "none",
+    where the reasoning tokens come out of the same budget. Carried over from
+    step 5/7.
     """
 
     if "[RESULT]" not in decoded_output:
@@ -544,7 +708,7 @@ def judge_one_with_retry(item, dimension):
 
     request = {
         "model": MODEL,
-        "max_output_tokens": MAX_OUTPUT_TOKENS,
+        "max_output_tokens": max_output_tokens_for(MODEL),
         "input": [
             {"role": "system", "content": system_message},
             {"role": "user", "content": user_message},
@@ -630,18 +794,20 @@ def print_estimate(items, dimensions):
             input_tokens += estimate_tokens(system_message) + estimate_tokens(user_message)
             calls += 1
 
-    output_tokens = calls * EXPECTED_OUTPUT_TOKENS
+    per_call_output = expected_output_tokens_for(MODEL)
+    output_tokens = calls * per_call_output
     cost = price_of(MODEL, input_tokens, output_tokens)
 
     print(f"\nmodel                {MODEL}")
     print(f"reasoning effort     {REASONING_EFFORT}")
+    print(f"output budget/call   {max_output_tokens_for(MODEL):,} tokens")
     print(f"surface note         {'included' if SURFACE_NOTE_ENABLED else 'OMITTED'}")
     print(f"dimensions           {', '.join(dimensions)}")
     print(f"items                {len(items)}")
-    print(f"API calls            {calls}")
+    print(f"API calls            {calls:,}")
     print(f"input tokens  (est)  {input_tokens:,}")
     print(f"output tokens (est)  {output_tokens:,}  "
-          f"({EXPECTED_OUTPUT_TOKENS}/call, incl. reasoning)")
+          f"({per_call_output}/call, incl. reasoning)")
     print(f"COST          (est)  ${cost:,.2f}")
     print("\nNothing was sent. Drop --estimate to run.")
 
@@ -686,6 +852,18 @@ def run_judging(items, dimensions, out_dir, concurrency):
     json_path = out_dir / f"{BASE_NAME}.json"
 
     done = read_partial(partial_path)
+
+    # A finished run leaves its verdicts in the JSON and deletes the partial,
+    # so without this a second run would re-buy all 210 calls. Seeded per
+    # (item, dimension) rather than skipping wholesale, so adding a dimension
+    # later pays only for the new one.
+    if json_path.exists():
+        try:
+            for entry in json.loads(json_path.read_text(encoding="utf-8")):
+                done.setdefault((entry["item"], entry["dimension"]), entry)
+        except (json.JSONDecodeError, KeyError, TypeError):
+            print(f"[WARN] {json_path.name} is unreadable and will be "
+                  f"rebuilt from scratch")
     tasks = [(item, dimension)
              for dimension in dimensions
              for item in items
@@ -801,22 +979,50 @@ def load_human_answers(path):
     return votes
 
 
-def majority_vote(slot_votes):
+def consensus_vote(slot_votes):
     """
-    -> the agreed slot ("A"/"B"/"tie"), or None when there is no strict
-    majority.
+    The annotators' agreed slot -- "A", "B" or "tie". None only when nobody
+    voted on the item at all.
 
-    With three annotators and three options a 1-1-1 or 1-1 split is possible.
-    Those items are excluded from the correlation and counted in the report
-    rather than being folded into "tie", which would invent an agreement the
-    annotators did not reach.
+    The rule is plurality, with a split that has no plurality resolved to
+    "tie". Worked through for three annotators, which is every case that can
+    arise:
+
+        A, A, A     -> A     unanimous
+        A, A, B     -> A     2-1
+        A, B, B     -> B     2-1
+        A, A, tie   -> A     2-1
+        A, tie, tie -> tie   2-1
+        A, B, tie   -> tie   1-1-1, nothing leads
+
+    The last line is the only judgement call in here, and it is the reason
+    this is not just Counter.most_common(1). Three annotators who each say
+    something different have told you the item does not separate the two
+    systems, which is what "tie" means on this scale -- so it is recorded as
+    a tie rather than dropped.
+
+    Dropping was the previous behaviour and it was worse in a specific way:
+    excluded items are not missing at random. They are the hardest items, the
+    ones the annotators split on, and removing them inflates every agreement
+    figure computed afterwards -- including the judge's -- by quietly deleting
+    the cases most likely to be got wrong. Folding them to "tie" keeps n fixed
+    at 105 and keeps the hard items in the denominator.
+
+    Note this is a rule about the CONSENSUS only. Each annotator's own votes
+    are reported separately and untouched, so nothing here can hide behind it.
+
+    With an even number of raters a 1-1 or 2-2 split also has no plurality and
+    likewise becomes "tie", by the same reasoning.
     """
 
     if not slot_votes:
         return None
+
     counts = Counter(slot_votes.values())
-    top, n = counts.most_common(1)[0]
-    return top if n * 2 > len(slot_votes) else None
+    ranked = counts.most_common()
+    if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+        return "tie"          # no single leader
+    return ranked[0][0]
 
 ###############################################################################
 # CORRELATION
@@ -909,45 +1115,126 @@ def human_agreement(votes, items_by_number, dimension):
     }
 
 
-def correlation_report(entries, items_by_number, votes):
-    """Builds the human-readable correlation section."""
+def comparison_rows(entries, items_by_number, votes, dimension, human_slot_of):
+    """
+    The comparable (human, GPT) pairs for one dimension.
+
+    `human_slot_of` turns one item's {annotator: slot} into the single human
+    slot to compare against -- consensus_vote for the consensus block, or
+    "just this annotator's vote" for the per-annotator blocks. Returning None
+    skips the item, which is how an annotator who did not answer everything is
+    handled without affecting anyone else's n.
+
+    Both sides are decoded from slots to systems here, through this item's own
+    answer-key row, so "A" is never compared against "A" -- it is PMI against
+    PMI.
+    """
 
     gpt = {(e["item"], e["dimension"]): e for e in entries}
+    rows = []
+    no_human = 0
+    missing_gpt = 0
+
+    for item in sorted(items_by_number):
+        slot_votes = votes.get((item, dimension))
+        human_slot = human_slot_of(slot_votes) if slot_votes else None
+        if human_slot is None:
+            no_human += 1
+            continue
+
+        record = gpt.get((item, dimension))
+        if record is None:
+            missing_gpt += 1
+            continue
+
+        meta = items_by_number[item]
+        human_winner = decode_winner(human_slot, meta["system_a"], meta["system_b"]) \
+            if human_slot in ("A", "B") else "tie"
+        rows.append({
+            "dataset": meta["dataset"],
+            "human": human_winner,
+            "gpt": record["gpt_winner"],
+            "human_slot": human_slot,
+            "gpt_slot": record["raw_result"],
+        })
+
+    return rows, no_human, missing_gpt
+
+
+def block_stats(subset):
+    """The numbers behind one line of a correlation table."""
+
+    if not subset:
+        return None
+    return {
+        "n": len(subset),
+        "agreement": sum(1 for r in subset if r["human"] == r["gpt"]) / len(subset),
+        "kappa": cohens_kappa([(r["human"], r["gpt"]) for r in subset]),
+        "tau": kendall_tau_b([(SCORE[r["human"]], SCORE[r["gpt"]]) for r in subset]),
+        "human_pmi": sum(1 for r in subset if r["human"] == "pmi"),
+        "gpt_pmi": sum(1 for r in subset if r["gpt"] == "pmi"),
+        "human_tie": sum(1 for r in subset if r["human"] == "tie"),
+        "gpt_tie": sum(1 for r in subset if r["gpt"] == "tie"),
+    }
+
+
+def stats_line(label, block):
+    return (f"  {label:<12} n={block['n']:>3}  agree {block['agreement']:6.1%}  "
+            f"kappa {block['kappa']:+.3f}  tau-b {block['tau']:+.3f}  "
+            f"PMI-wins h/g {block['human_pmi']:>3}/{block['gpt_pmi']:<3}  "
+            f"ties h/g {block['human_tie']:>3}/{block['gpt_tie']:<3}")
+
+
+def slot_a_line(rows):
+    """
+    Slot-A preference, for both sides, on the identical arrangement.
+
+    A judge that picks slot A far more often than the humans do on the same
+    items has a positional bias, and that alone can cap the correlation no
+    matter how good its reasoning is.
+    """
+
+    decided = [r for r in rows
+               if r["human_slot"] in ("A", "B") and r["gpt_slot"] in ("A", "B")]
+    if not decided:
+        return None
+    human_a = sum(1 for r in decided if r["human_slot"] == "A") / len(decided)
+    gpt_a = sum(1 for r in decided if r["gpt_slot"] == "A") / len(decided)
+    return (f"  slot-A rate on decided pairs (n={len(decided)}): "
+            f"human {human_a:6.1%}   gpt {gpt_a:6.1%}")
+
+
+def annotators_in(votes):
+    """Every annotator id that appears anywhere in the votes, sorted."""
+
+    return sorted({name for slot_votes in votes.values() for name in slot_votes})
+
+
+def correlation_report(entries, items_by_number, votes):
+    """
+    The judge against the humans, two ways per dimension:
+
+      1. against the annotator CONSENSUS -- the headline number, and the one
+         to quote, because it is the humans' collective answer;
+      2. against EACH annotator separately -- which says whether a weak
+         consensus figure is the judge disagreeing with everyone, or the
+         judge siding with one annotator against the others.
+
+    Both are broken down by dataset, since cnn / wikihow / xsum behave quite
+    differently and a pooled number hides that.
+    """
+
     lines = ["", "=" * 78,
              "CORRELATION: GPT JUDGE vs. HUMAN ANNOTATORS",
              "=" * 78]
 
+    names = annotators_in(votes)
+
     for dimension in DIMENSIONS:
-        rows = []
-        no_majority = 0
-        missing_gpt = 0
-
-        for item in sorted(items_by_number):
-            slot_votes = votes.get((item, dimension))
-            if not slot_votes:
-                continue
-            slot = majority_vote(slot_votes)
-            if slot is None:
-                no_majority += 1
-                continue
-
-            record = gpt.get((item, dimension))
-            if record is None:
-                missing_gpt += 1
-                continue
-
-            meta = items_by_number[item]
-            human_winner = decode_winner(slot, meta["system_a"], meta["system_b"]) \
-                if slot in ("A", "B") else "tie"
-            rows.append({
-                "dataset": meta["dataset"],
-                "human": human_winner,
-                "gpt": record["gpt_winner"],
-                "human_slot": slot,
-                "gpt_slot": record["raw_result"],
-            })
-
         lines += ["", "-" * 78, dimension.upper(), "-" * 78]
+
+        rows, no_human, missing_gpt = comparison_rows(
+            entries, items_by_number, votes, dimension, consensus_vote)
 
         if not rows:
             lines.append("  no comparable items (no human votes loaded)")
@@ -960,47 +1247,354 @@ def correlation_report(entries, items_by_number, votes):
                 f"agreement {ceiling['agreement']:6.1%}   "
                 f"mean pairwise kappa {ceiling['kappa']:+.3f}"
             )
-        if no_majority:
-            lines.append(f"  excluded, no majority among annotators: {no_majority}")
+        if no_human:
+            lines.append(f"  excluded, no human vote on file: {no_human}")
         if missing_gpt:
             lines.append(f"  excluded, no GPT verdict on file: {missing_gpt}")
 
-        def block(label, subset):
-            if not subset:
-                return
-            agreement = sum(1 for r in subset if r["human"] == r["gpt"]) / len(subset)
-            kappa = cohens_kappa([(r["human"], r["gpt"]) for r in subset])
-            tau = kendall_tau_b([(SCORE[r["human"]], SCORE[r["gpt"]])
-                                 for r in subset])
-            human_pmi = sum(1 for r in subset if r["human"] == "pmi")
-            gpt_pmi = sum(1 for r in subset if r["gpt"] == "pmi")
-            human_tie = sum(1 for r in subset if r["human"] == "tie")
-            gpt_tie = sum(1 for r in subset if r["gpt"] == "tie")
-            lines.append(
-                f"  {label:<10} n={len(subset):>3}  agree {agreement:6.1%}  "
-                f"kappa {kappa:+.3f}  tau-b {tau:+.3f}  "
-                f"PMI-wins h/g {human_pmi:>3}/{gpt_pmi:<3}  "
-                f"ties h/g {human_tie:>3}/{gpt_tie:<3}"
-            )
-
-        lines.append("")
-        block("ALL", rows)
+        lines += ["", "  vs. ANNOTATOR CONSENSUS"]
+        lines.append(stats_line("ALL", block_stats(rows)))
         for dataset in sorted({r["dataset"] for r in rows}):
-            block(dataset, [r for r in rows if r["dataset"] == dataset])
+            lines.append(stats_line(
+                dataset, block_stats([r for r in rows if r["dataset"] == dataset])))
+        slot_a = slot_a_line(rows)
+        if slot_a:
+            lines.append(slot_a)
 
-        # Slot-A preference, for both sides, on the identical arrangement.
-        # A judge that picks slot A far more often than the humans do on the
-        # same items has a positional bias, and that alone can cap the
-        # correlation no matter how good its reasoning is.
-        decided = [r for r in rows if r["human_slot"] in ("A", "B")
-                   and r["gpt_slot"] in ("A", "B")]
-        if decided:
-            human_a = sum(1 for r in decided if r["human_slot"] == "A") / len(decided)
-            gpt_a = sum(1 for r in decided if r["gpt_slot"] == "A") / len(decided)
-            lines.append(
-                f"  slot-A rate on decided pairs (n={len(decided)}): "
-                f"human {human_a:6.1%}   gpt {gpt_a:6.1%}"
+        if len(names) > 1:
+            lines += ["", "  vs. EACH ANNOTATOR (same judge, one rater at a time)"]
+            for name in names:
+                own_rows, _, _ = comparison_rows(
+                    entries, items_by_number, votes, dimension,
+                    lambda slot_votes, name=name: slot_votes.get(name))
+                block = block_stats(own_rows)
+                if block is None:
+                    lines.append(f"  {name:<12} no votes on this dimension")
+                    continue
+                lines.append(stats_line(name, block))
+
+    lines.append("")
+    return "\n".join(lines)
+
+###############################################################################
+# WHO AGREES WITH WHOM
+###############################################################################
+
+# The correlation section above measures the judge against the humans. This one
+# measures everybody against everybody -- each pair of annotators, all three
+# together, and the same combinations with the judge substituted in or added.
+#
+# It is reported as raw counts as well as percentages on purpose: with 105 items
+# the difference between 61 and 66 agreements is a percentage point and a half,
+# and the count makes it obvious how few items that actually is.
+#
+# Agreement is computed on the A/B/tie SLOTS rather than on decoded systems. The
+# two give identical numbers -- decoding is a per-item relabelling of the same
+# three categories, so two raters match on slots exactly when they match on
+# systems -- and slots keep the judge's unparsed "TIE_2" verdicts in one place.
+
+GPT_LABEL = "GPT"
+
+
+def gpt_label_for(names):
+    """A label for the judge that cannot collide with an annotator id."""
+
+    label = GPT_LABEL
+    while label in names:
+        label += "_"
+    return label
+
+
+def rater_slots(entries, votes, dimension, judge_label):
+    """-> {rater: {item: slot}} across the annotators and the judge."""
+
+    slots = defaultdict(dict)
+
+    for (item, dim), slot_votes in votes.items():
+        if dim != dimension:
+            continue
+        for name, slot in slot_votes.items():
+            slots[name][item] = slot
+
+    for entry in entries:
+        if entry["dimension"] != dimension:
+            continue
+        # "TIE_2" (no [RESULT] tag emitted) is scored as a tie here, exactly as
+        # it is everywhere else in this file.
+        raw = entry["raw_result"]
+        slots[judge_label][entry["item"]] = raw if raw in ("A", "B") else "tie"
+
+    return slots
+
+
+def group_agreement(slots, group):
+    """
+    -> (items where every member of `group` voted, items where they all gave
+    the same answer).
+
+    Unanimity, not pairwise-averaged: for a group of three this is "all three
+    said the same thing", which is the number people mean by "all three agreed".
+    """
+
+    shared = set.intersection(*(set(slots[name]) for name in group))
+    same = sum(1 for item in shared
+               if len({slots[name][item] for name in group}) == 1)
+    return len(shared), same
+
+
+def mean_of(values):
+    """Plain mean over the usable values, NaNs dropped. NaN if none survive."""
+
+    usable = [v for v in values if v is not None and not math.isnan(v)]
+    if not usable:
+        return float("nan")
+    return sum(usable) / len(usable)
+
+
+def mean_rows(label, rows, width=34):
+    """
+    One averaged line over a set of agreement rows.
+
+    The average is UNWEIGHTED -- the mean of the percentages actually printed
+    above it, which is what "average of these rows" means. When every row
+    covers the same items, which is the normal case here (105 items, everyone
+    answering everything), that is identical to pooling the counts. When it is
+    not -- an annotator who skipped items -- the two differ, so the pooled
+    figure is printed alongside rather than silently chosen for you.
+    """
+
+    if len(rows) < 2:
+        return []                       # a "mean" of one row is that row
+
+    mean_pct = mean_of([r["pct"] for r in rows])
+    kappas = [r["kappa"] for r in rows if r["kappa"] is not None]
+    line = f"    {label:<{width}} {'':>7}  {mean_pct:6.1%}"
+    if kappas:
+        line += f"   kappa {mean_of(kappas):+.3f}"
+
+    sizes = {r["shared"] for r in rows}
+    if len(sizes) > 1:
+        same = sum(r["same"] for r in rows)
+        shared = sum(r["shared"] for r in rows)
+        line += f"   (pooled {same}/{shared} = {same / shared:.1%})"
+
+    return [line]
+
+
+def rater_agreement_report(entries, items_by_number, votes):
+    """Every combination of raters, from pairs upward, then their averages."""
+
+    names = annotators_in(votes)
+    if not names:
+        return ""
+
+    judge_label = gpt_label_for(names)
+    everyone = names + [judge_label]
+
+    lines = ["", "=" * 78,
+             "AGREEMENT AMONG RATERS (annotators and the GPT judge)",
+             "=" * 78,
+             "",
+             "Raw agreement: how often two or more raters wrote the same answer.",
+             "Unanimous for groups of three or more. Percentages are over the",
+             "items every member of that group answered, which is why n can",
+             "differ between rows.",
+             "",
+             "Cohen's kappa is shown for pairs only -- it is a two-rater",
+             "statistic. It corrects for agreement expected by chance, so on a",
+             "three-category scale where everyone ties often, a high raw",
+             "percentage can still be a low kappa.",
+             "",
+             "Each block ends with the averages of its own rows, split three",
+             "ways: the annotators among themselves (the human ceiling), the",
+             "judge against the annotators (what the judge achieves against a",
+             "typical single human), and everything pooled together. The first",
+             "two are the pair worth comparing -- the judge is doing well when",
+             "its row approaches the annotators' row, not when it approaches",
+             "100%."]
+
+    for dimension in DIMENSIONS:
+        slots = rater_slots(entries, votes, dimension, judge_label)
+        present = [name for name in everyone if slots.get(name)]
+        if len(present) < 2:
+            continue
+
+        lines += ["", "-" * 78, dimension.upper(), "-" * 78]
+
+        for size in range(2, len(present) + 1):
+            groups = list(combinations(present, size))
+            if not groups:
+                continue
+
+            if size == 2:
+                heading = "  PAIRS"
+            elif size == len(everyone):
+                heading = f"  ALL {size} RATERS"
+            else:
+                heading = f"  GROUPS OF {size}"
+            lines += ["", heading]
+
+            # Annotator-only combinations first: those are the inter-annotator
+            # numbers, and the judge's rows are a separate question.
+            rows = []
+            for group in sorted(groups, key=lambda g: (judge_label in g, g)):
+                shared, same = group_agreement(slots, group)
+                if not shared:
+                    continue
+
+                kappa = None
+                if size == 2:
+                    first, second = group
+                    items = sorted(set(slots[first]) & set(slots[second]))
+                    value = cohens_kappa(
+                        [(slots[first][i], slots[second][i]) for i in items])
+                    kappa = None if math.isnan(value) else value
+
+                rows.append({"group": group, "shared": shared, "same": same,
+                             "pct": same / shared, "kappa": kappa,
+                             "has_gpt": judge_label in group})
+
+            for row in rows:
+                line = (f"    {' & '.join(row['group']):<34} "
+                        f"{row['same']:>3}/{row['shared']:<3}  {row['pct']:6.1%}")
+                if row["kappa"] is not None:
+                    line += f"   kappa {row['kappa']:+.3f}"
+                lines.append(line)
+
+            human_rows = [r for r in rows if not r["has_gpt"]]
+            gpt_rows = [r for r in rows if r["has_gpt"]]
+            averages = (
+                mean_rows(f"mean, annotators only ({len(human_rows)})", human_rows)
+                + mean_rows(f"mean, including {judge_label} ({len(gpt_rows)})",
+                            gpt_rows)
+                + mean_rows(f"mean, all ({len(rows)})", rows)
             )
+            if averages:
+                lines.append("    " + "-" * 70)
+                lines += averages
+
+    lines.append("")
+    return "\n".join(lines)
+
+###############################################################################
+# STRONG DISAGREEMENTS
+###############################################################################
+
+# Not every disagreement is worth reading back. Two raters who split A against
+# "tie" have essentially the same reading of the item, one of them just held it
+# to a stricter standard -- there is usually nothing to see. Two raters who
+# split A against B have read the same item in opposite directions, and one of
+# them is wrong in a way that is worth looking at.
+#
+# So only the second kind is listed, per the examples this was specified from:
+#
+#     rater 1: A, tie      rater 2: tie, B      -> soft, not listed
+#         faithfulness A vs tie, informativeness tie vs B: neither dimension
+#         has the two of them picking opposite candidates.
+#
+#     rater 1: A, A        rater 2: B, tie      -> STRONG, listed
+#         faithfulness is A vs B. (Informativeness, A vs tie, is soft -- but one
+#         dimension is enough to make the item worth a look.)
+#
+# Slots, not systems, but the distinction does not matter here: A vs B is
+# exactly "one picked PMI and the other picked ROUGE", whichever way round the
+# arrangement put them for that item.
+
+
+def wrap_numbers(numbers, indent):
+    """Item indices as wrapped, indented lines -- 105 of them do not fit on
+    one."""
+
+    if not numbers:
+        return []
+    text = ", ".join(str(n) for n in numbers)
+    return [indent + line
+            for line in textwrap.wrap(text, width=78 - len(indent))]
+
+
+def opposite_picks(slots_a, slots_b):
+    """Items where one rater said A and the other said B."""
+
+    return sorted(item for item in set(slots_a) & set(slots_b)
+                  if {slots_a[item], slots_b[item]} == {"A", "B"})
+
+
+def strong_disagreement_report(entries, items_by_number, votes):
+    """Which items two raters read in opposite directions, and where."""
+
+    names = annotators_in(votes)
+    if not names:
+        return ""
+
+    judge_label = gpt_label_for(names)
+    everyone = names + [judge_label]
+    by_dimension = {dimension: rater_slots(entries, votes, dimension, judge_label)
+                    for dimension in DIMENSIONS}
+
+    lines = ["", "=" * 78,
+             "STRONG DISAGREEMENTS -- one rater picked A, the other picked B",
+             "=" * 78,
+             "",
+             "Items read in opposite directions. A against 'tie' is a soft",
+             "disagreement and is not listed; only A against B is, on the same",
+             "item and the same dimension.",
+             "",
+             "'either' is the union: items strongly disagreed on for at least one",
+             "of the two dimensions. Percentages are over the items both raters",
+             "answered."]
+
+    present = [name for name in everyone
+               if any(by_dimension[d].get(name) for d in DIMENSIONS)]
+
+    for first, second in sorted(combinations(present, 2),
+                                key=lambda g: (judge_label in g, g)):
+        per_dimension = {}
+        shared_items = set()
+        for dimension in DIMENSIONS:
+            slots = by_dimension[dimension]
+            slots_a = slots.get(first, {})
+            slots_b = slots.get(second, {})
+            shared = set(slots_a) & set(slots_b)
+            if not shared:
+                continue
+            shared_items |= shared
+            per_dimension[dimension] = (opposite_picks(slots_a, slots_b), shared)
+
+        if not per_dimension:
+            continue
+
+        lines += ["", f"  {first} & {second}"]
+
+        either = set()
+        for dimension, (found, shared) in per_dimension.items():
+            either |= set(found)
+            lines.append(f"    {dimension:<16} {len(found):>3}/{len(shared):<3} "
+                         f"{len(found) / len(shared):6.1%}")
+            lines += wrap_numbers(found, " " * 6)
+
+        if len(per_dimension) > 1:
+            lines.append(f"    {'either':<16} {len(either):>3}/"
+                         f"{len(shared_items):<3} "
+                         f"{len(either) / len(shared_items):6.1%}")
+            lines += wrap_numbers(sorted(either), " " * 6)
+
+    # The union over the human pairs only: the items the annotators themselves
+    # could not settle, which is the list to re-read when deciding whether an
+    # item was ambiguous, mis-specified, or simply hard.
+    contested = set()
+    for first, second in combinations(names, 2):
+        for dimension in DIMENSIONS:
+            slots = by_dimension[dimension]
+            contested |= set(opposite_picks(slots.get(first, {}),
+                                            slots.get(second, {})))
+
+    if len(names) > 1:
+        lines += ["", "-" * 78,
+                  f"  CONTESTED ITEMS -- any annotator pair, any dimension: "
+                  f"{len(contested)}/{len(items_by_number)} "
+                  f"({len(contested) / len(items_by_number):.1%})",
+                  "-" * 78]
+        lines += wrap_numbers(sorted(contested), "    ")
 
     lines.append("")
     return "\n".join(lines)
@@ -1030,10 +1624,12 @@ def summary_text(entries, items_by_number):
     total_cost = sum(e.get("cost_usd", 0.0) for e in entries)
     total_in = sum(e.get("input_tokens", 0) for e in entries)
     total_out = sum(e.get("output_tokens", 0) for e in entries)
+    total_reasoning = sum(e.get("reasoning_tokens", 0) for e in entries)
     lines += [
         f"judgements         {len(entries)}",
         f"input tokens       {total_in:,}",
-        f"output tokens      {total_out:,}",
+        f"output tokens      {total_out:,}  "
+        f"(of which reasoning {total_reasoning:,})",
         f"cost               ${total_cost:,.4f}",
         "",
     ]
@@ -1050,8 +1646,8 @@ def summary_text(entries, items_by_number):
                   f"rouge {counts['rouge']:>3} ({counts['rouge']/n:5.1%})   "
                   f"tie {counts['tie']:>3} ({counts['tie']/n:5.1%})"]
         if unparsed:
-            lines.append(f"  no [RESULT] tag emitted: {unparsed} "
-                         f"(counted as ties -- check MAX_OUTPUT_TOKENS)")
+            lines.append(f"  no [RESULT] tag emitted: {unparsed} (counted as ties "
+                         f"-- raise MAX_OUTPUT_TOKENS_BY_EFFORT for this effort)")
 
         for dataset in sorted({e["dataset"] for e in subset}):
             rows = [e for e in subset if e["dataset"] == dataset]
@@ -1073,12 +1669,23 @@ def parse_args():
     )
     parser.add_argument("--estimate", action="store_true",
                         help="print the projected token count and cost, send nothing")
-    parser.add_argument("--report-only", action="store_true",
-                        help="skip the API and rebuild the report from the "
-                             "existing results JSON")
+    parser.add_argument("--get-gpt-results-only", action="store_true",
+                        default=GET_GPT_RESULTS_ONLY,
+                        help="call the API, save the verdicts, stop before "
+                             "the correlation statistics "
+                             f"(default {GET_GPT_RESULTS_ONLY})")
+    # --report-only is the original name for this and still works.
+    parser.add_argument("--calc-correlation-statistics-only", "--report-only",
+                        action="store_true",
+                        default=CALC_CORRELATION_STATISTICS_ONLY,
+                        help="skip the API and compute the statistics from "
+                             "the existing results JSON; needs "
+                             "--human-answers "
+                             f"(default {CALC_CORRELATION_STATISTICS_ONLY})")
     parser.add_argument("--human-answers", type=Path, default=None,
-                        help="CSV of annotator votes; adds the correlation "
-                             "section (see load_human_answers)")
+                        help="CSV of annotator votes, as written by "
+                             "prepare_human_answers_csv.py; adds the "
+                             "correlation and agreement sections")
     parser.add_argument("--dimensions", default=",".join(DIMENSIONS),
                         help="comma-separated subset of "
                              f"{','.join(DIMENSIONS)}")
@@ -1090,7 +1697,8 @@ def parse_args():
                         help="where results and the log are written")
     parser.add_argument("--model", default=MODEL, help=f"default {MODEL}")
     parser.add_argument("--reasoning-effort", default=REASONING_EFFORT,
-                        choices=("none", "low", "medium", "high"))
+                        choices=("none", "low", "medium", "high"),
+                        help=f"default {REASONING_EFFORT}")
     parser.add_argument("--concurrency", type=int, default=CONCURRENCY)
     parser.add_argument("--no-surface-note", action="store_true",
                         help="drop the 'ignore generation artifacts' note from "
@@ -1108,6 +1716,16 @@ def main():
     REASONING_EFFORT = args.reasoning_effort
     SURFACE_NOTE_ENABLED = not args.no_surface_note
 
+    ask_the_judge = not args.calc_correlation_statistics_only
+    do_the_sums = not args.get_gpt_results_only
+    if not ask_the_judge and not do_the_sums:
+        raise SystemExit(
+            "GET_GPT_RESULTS_ONLY and CALC_CORRELATION_STATISTICS_ONLY are "
+            "both set.\nThey are the two halves of the run, so setting both "
+            "leaves nothing to do.\nSet one, or neither to run the whole "
+            "thing."
+        )
+
     dimensions = [d.strip() for d in args.dimensions.split(",") if d.strip()]
     unknown = [d for d in dimensions if d not in DIMENSIONS]
     if unknown:
@@ -1123,25 +1741,57 @@ def main():
         return
 
     json_path = args.out_dir / f"{BASE_NAME}.json"
-    if args.report_only:
+
+    if ask_the_judge:
+        entries = run_judging(items, dimensions, args.out_dir, args.concurrency)
+    else:
         if not json_path.exists():
-            raise SystemExit(f"nothing to report on: {json_path} does not exist")
+            raise SystemExit(
+                f"nothing to compute from: {json_path} does not exist.\n"
+                f"Run the judging half first (GET_GPT_RESULTS_ONLY, or no "
+                f"flag at all)."
+            )
         entries = json.loads(json_path.read_text(encoding="utf-8"))
         print(f"{len(entries)} judgements read from {json_path}")
-    else:
-        entries = run_judging(items, dimensions, args.out_dir, args.concurrency)
 
     report = summary_text(entries, items_by_number)
 
-    if args.human_answers:
-        votes = load_human_answers(args.human_answers)
-        report += correlation_report(entries, items_by_number, votes)
+    if not do_the_sums:
+        if args.human_answers:
+            print("[INFO] --human-answers ignored: this run stops after the "
+                  "GPT verdicts")
+        report += ("\nStopped after the GPT verdicts (GET_GPT_RESULTS_ONLY).\n"
+                   "The correlation and agreement statistics come from a "
+                   "second, free run:\n"
+                   "  python GPT_API_corralation_check_with_human_eval.py \\\n"
+                   "         --calc-correlation-statistics-only \\\n"
+                   "         --human-answers human_answers.csv\n")
+        # Its own file, so stopping early cannot overwrite a full report that
+        # is already on disk.
+        log_path = args.out_dir / f"{BASE_NAME}.gpt_only.log"
     else:
-        report += ("\nNo --human-answers given, so no correlation was computed.\n"
-                   "Re-run with --report-only --human-answers votes.csv once the\n"
-                   "annotators are finished; it costs nothing.\n")
+        if args.human_answers:
+            votes = load_human_answers(args.human_answers)
+            report += correlation_report(entries, items_by_number, votes)
+            report += rater_agreement_report(entries, items_by_number, votes)
+            report += strong_disagreement_report(entries, items_by_number, votes)
+        elif args.calc_correlation_statistics_only:
+            # The whole point of this flag is the statistics, and they need
+            # votes. Saying so beats writing a report with the section missing.
+            raise SystemExit(
+                "--calc-correlation-statistics-only needs --human-answers.\n"
+                "Build the CSV first:\n"
+                "  python prepare_human_answers_csv.py\n"
+                "then pass --human-answers human_answers.csv"
+            )
+        else:
+            report += ("\nNo --human-answers given, so no correlation was "
+                       "computed.\nBuild the CSV with "
+                       "prepare_human_answers_csv.py, then re-run with\n"
+                       "--calc-correlation-statistics-only --human-answers "
+                       "human_answers.csv;\nit costs nothing.\n")
+        log_path = args.out_dir / f"{BASE_NAME}.log"
 
-    log_path = args.out_dir / f"{BASE_NAME}.log"
     log_path.write_text(report, encoding="utf-8")
     print(report)
     print(f"log -> {log_path}")
