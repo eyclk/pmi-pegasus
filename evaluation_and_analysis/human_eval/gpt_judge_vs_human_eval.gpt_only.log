@@ -1,0 +1,42 @@
+==============================================================================
+GPT JUDGE ON THE HUMAN-EVALUATION SET
+==============================================================================
+
+model              gpt-5.6-sol
+reasoning effort   medium
+surface note       included
+judgements         210
+input tokens       238,217
+output tokens      43,219  (of which reasoning 27,336)
+cost               $2.4877
+arrangement        PMI in slot A on 52 of 105 items (49.5%)
+
+------------------------------------------------------------------------------
+FAITHFULNESS
+------------------------------------------------------------------------------
+  n=105   pmi  47 (44.8%)   rouge  39 (37.1%)   tie  19 (18.1%)
+    cnn      n= 35  pmi  10  rouge   9  tie  16
+    wikihow  n= 35  pmi  20  rouge  14  tie   1
+    xsum     n= 35  pmi  17  rouge  16  tie   2
+  slot-A rate (of the 86 verdicts that picked a side): 44/86 = 51.2%   [50% = no preference]
+    cnn      n= 19  slot A  10 (52.6%)
+    wikihow  n= 34  slot A  17 (50.0%)
+    xsum     n= 33  slot A  17 (51.5%)
+
+------------------------------------------------------------------------------
+INFORMATIVENESS
+------------------------------------------------------------------------------
+  n=105   pmi  58 (55.2%)   rouge  45 (42.9%)   tie   2 ( 1.9%)
+    cnn      n= 35  pmi  20  rouge  15  tie   0
+    wikihow  n= 35  pmi  21  rouge  13  tie   1
+    xsum     n= 35  pmi  17  rouge  17  tie   1
+  slot-A rate (of the 103 verdicts that picked a side): 59/103 = 57.3%   [50% = no preference]
+    cnn      n= 35  slot A  17 (48.6%)
+    wikihow  n= 34  slot A  23 (67.6%)
+    xsum     n= 34  slot A  19 (55.9%)
+
+Stopped after the GPT verdicts (GET_GPT_RESULTS_ONLY).
+The correlation and agreement statistics come from a second, free run:
+  python GPT_API_corralation_check_with_human_eval.py \
+         --calc-correlation-statistics-only \
+         --human-answers human_answers.csv

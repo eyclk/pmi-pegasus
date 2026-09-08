@@ -1603,6 +1603,33 @@ def strong_disagreement_report(entries, items_by_number, votes):
 # SUMMARY LOG
 ###############################################################################
 
+def slot_a_counts(records):
+    """
+    The judge's own slot preference: (verdicts that picked a side, of which A).
+
+    Ties express no position and are excluded, TIE_2 (no [RESULT] tag emitted)
+    with them -- a call that ran out of budget mid-reasoning did not choose a
+    slot either. The denominator is therefore smaller than n, and is printed.
+    """
+
+    decided = [e for e in records if e.get("raw_result") in ("A", "B")]
+    return len(decided), sum(1 for e in decided if e["raw_result"] == "A")
+
+
+def arrangement_line(items_by_number):
+    """How often PMI sat in slot A, which is what the slot-A rate is read
+    against: the packet is near-balanced, so a judge with no positional
+    preference and no real preference lands near 50% on both."""
+
+    total = len(items_by_number)
+    if not total:
+        return None
+    pmi_a = sum(1 for item in items_by_number.values()
+                if item["system_a"].upper() == "PMI")
+    return (f"arrangement        PMI in slot A on {pmi_a} of {total} items "
+            f"({pmi_a / total:.1%})")
+
+
 def summary_text(entries, items_by_number):
     lines = ["=" * 78,
              "GPT JUDGE ON THE HUMAN-EVALUATION SET",
@@ -1631,8 +1658,11 @@ def summary_text(entries, items_by_number):
         f"output tokens      {total_out:,}  "
         f"(of which reasoning {total_reasoning:,})",
         f"cost               ${total_cost:,.4f}",
-        "",
     ]
+    arrangement = arrangement_line(items_by_number)
+    if arrangement:
+        lines.append(arrangement)
+    lines.append("")
 
     for dimension in DIMENSIONS:
         subset = [e for e in entries if e["dimension"] == dimension]
@@ -1654,6 +1684,31 @@ def summary_text(entries, items_by_number):
             c = Counter(e["gpt_winner"] for e in rows)
             lines.append(f"    {dataset:<8} n={len(rows):>3}  "
                          f"pmi {c['pmi']:>3}  rouge {c['rouge']:>3}  tie {c['tie']:>3}")
+
+        # POSITIONAL BIAS, from the verdicts alone.
+        #
+        # slot_a_line() in the correlation report measures the same thing
+        # comparatively -- judge against the humans on the identical
+        # arrangement -- and needs the human votes, so it cannot run until the
+        # annotators are in. This one needs nothing but the JSON, which means
+        # the bias is readable straight after the paid run.
+        #
+        # Read it against 50%, not against the humans: the packet puts PMI in
+        # slot A on 52 of 105 items, so a judge with no positional preference
+        # should pick A about half the time. The two denominators differ on
+        # purpose -- here it is every verdict that picked a side, there only
+        # the items where the human picked a side too.
+        decided, slot_a = slot_a_counts(subset)
+        if decided:
+            lines.append(f"  slot-A rate (of the {decided} verdicts that "
+                         f"picked a side): {slot_a}/{decided} = "
+                         f"{slot_a / decided:5.1%}   [50% = no preference]")
+            for dataset in sorted({e["dataset"] for e in subset}):
+                d, a = slot_a_counts([e for e in subset
+                                      if e["dataset"] == dataset])
+                if d:
+                    lines.append(f"    {dataset:<8} n={d:>3}  "
+                                 f"slot A {a:>3} ({a / d:5.1%})")
         lines.append("")
 
     return "\n".join(lines)
