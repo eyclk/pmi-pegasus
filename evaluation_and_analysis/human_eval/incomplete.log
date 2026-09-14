@@ -2,7 +2,7 @@
 RUN CONTEXT
 ==============================================================================
 
-generated          2026-09-14 15:09
+generated          2026-09-14 15:46
 mode               statistics only (no API calls)
 dimensions         faithfulness, informativeness
 eval set           human_eval_set.txt  (105 items)
@@ -384,6 +384,45 @@ answered.
     either            21/70   30.0%   (cnn 8, wikihow 13)
       1, 5, 7, 9, 16, 20, 32, 33, 38, 42, 43, 49, 50, 51, 52, 53, 62, 65, 66,
       68, 70
+
+------------------------------------------------------------------------------
+  THREE-WAY: how ege & harun & st lined up -- FAITHFULNESS
+------------------------------------------------------------------------------
+  Three raters and two sides cannot be mutually opposed, so every
+  opposed item below is 2-1, or two opposed with the third tying.
+
+                                             ALL       cnn   wikihow
+    same side, unanimous              17 (24.3%)         8         9
+    same side + tie(s)                35 (50.0%)        17        18
+    all three tied                     4 ( 5.7%)         3         1
+    ------------------------------
+    NOT OPPOSED                       56 (80.0%)        28        28
+
+    opposed, all committed             6 ( 8.6%)         1         5
+    opposed, one tied                  8 (11.4%)         6         2
+    ------------------------------
+    OPPOSED (three-way strong)        14 (20.0%)         7         7
+      5, 8, 9, 12, 20, 21, 27, 43, 45, 49, 50, 52, 53, 58
+
+------------------------------------------------------------------------------
+  THREE-WAY: how ege & harun & st lined up -- INFORMATIVENESS
+------------------------------------------------------------------------------
+  Three raters and two sides cannot be mutually opposed, so every
+  opposed item below is 2-1, or two opposed with the third tying.
+
+                                             ALL       cnn   wikihow
+    same side, unanimous              21 (30.0%)        11        10
+    same side + tie(s)                26 (37.1%)        15        11
+    all three tied                     1 ( 1.4%)         0         1
+    ------------------------------
+    NOT OPPOSED                       48 (68.6%)        26        22
+
+    opposed, all committed            15 (21.4%)         6         9
+    opposed, one tied                  7 (10.0%)         3         4
+    ------------------------------
+    OPPOSED (three-way strong)        22 (31.4%)         9        13
+      2, 3, 6, 7, 9, 10, 14, 23, 33, 43, 45, 48, 49, 50, 52, 56, 57, 61, 62,
+      66, 68, 70
 
 ------------------------------------------------------------------------------
   CONTESTED ITEMS -- any annotator pair, any dimension: 30/70 (42.9%)   (cnn 15, wikihow 15)

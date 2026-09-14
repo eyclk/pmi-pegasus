@@ -1837,6 +1837,92 @@ def opposite_picks(slots_a, slots_b):
                   if {slots_a[item], slots_b[item]} == {"A", "B"})
 
 
+# THE THREE-WAY CASE
+#
+# With three raters and only two sides, they can never be mutually opposed:
+# by the pigeonhole principle two of them must always land on the same side.
+# So a three-way "strong disagreement" is never a three-way tie-break -- it is
+# always either 2-1, or two raters opposed with the third abstaining into a
+# tie. Reporting it as a single "they disagreed" number would hide which, and
+# those are not the same situation: 2-1 is a minority view, while A/B/tie is
+# two people reading the item in opposite directions and nobody to break it.
+#
+# The five shapes below are mutually exclusive and cover every item, so the
+# counts sum to n.
+
+THREE_WAY_SHAPES = [
+    ("same side, unanimous", False),
+    ("same side + tie(s)", False),
+    ("all three tied", False),
+    ("opposed, all committed", True),
+    ("opposed, one tied", True),
+]
+
+
+def three_way_shape(slots_for_item):
+    """Which of THREE_WAY_SHAPES this item's votes form."""
+
+    sides = {slot for slot in slots_for_item if slot in ("A", "B")}
+    ties = sum(1 for slot in slots_for_item if slot == "tie")
+
+    if len(sides) == 2:
+        return "opposed, all committed" if not ties else "opposed, one tied"
+    if not sides:
+        return "all three tied"
+    return "same side, unanimous" if not ties else "same side + tie(s)"
+
+
+def three_way_block(slots, names, items_by_number, keep):
+    """The shape table, datasets as columns, plus the opposed item indices."""
+
+    datasets = sorted({items_by_number[i]["dataset"] for i in keep})
+    shaped = {}
+    for item in sorted(keep):
+        votes_here = [slots[name][item] for name in names if item in slots[name]]
+        if len(votes_here) == len(names):
+            shaped[item] = three_way_shape(votes_here)
+
+    if not shaped:
+        return []
+
+    total = len(shaped)
+    header = f"    {'':<32}{'ALL':>12}" + "".join(f"{d:>10}" for d in datasets)
+    lines = [header]
+
+    def count(label, wanted_dataset=None):
+        return sum(1 for item, shape in shaped.items()
+                   if shape == label
+                   and (wanted_dataset is None
+                        or items_by_number[item]["dataset"] == wanted_dataset))
+
+    def row(label, n_all, per_dataset, prefix="    "):
+        cells = "".join(f"{v:>10}" for v in per_dataset)
+        return (f"{prefix}{label:<32}{n_all:>4} ({n_all / total:5.1%})" + cells)
+
+    for label, is_opposed in THREE_WAY_SHAPES:
+        if is_opposed and label == "opposed, all committed":
+            agreed = sum(count(lbl) for lbl, opp in THREE_WAY_SHAPES if not opp)
+            lines.append(f"    {'-' * 30}")
+            lines.append(row("NOT OPPOSED", agreed,
+                             [sum(count(lbl, d) for lbl, opp in THREE_WAY_SHAPES
+                                  if not opp) for d in datasets]))
+            lines.append("")
+        lines.append(row(label, count(label),
+                         [count(label, d) for d in datasets]))
+
+    opposed_labels = [lbl for lbl, opp in THREE_WAY_SHAPES if opp]
+    opposed_total = sum(count(lbl) for lbl in opposed_labels)
+    lines.append(f"    {'-' * 30}")
+    lines.append(row("OPPOSED (three-way strong)", opposed_total,
+                     [sum(count(lbl, d) for lbl in opposed_labels)
+                      for d in datasets]))
+
+    opposed_items = sorted(item for item, shape in shaped.items()
+                           if shape in opposed_labels)
+    lines += wrap_numbers(opposed_items, " " * 6)
+    return lines
+
+
 def strong_disagreement_report(entries, items_by_number, votes):
     """Which items two raters read in opposite directions, and where."""
 
@@ -1921,6 +2007,28 @@ def strong_disagreement_report(entries, items_by_number, votes):
             slots = by_dimension[dimension]
             contested |= set(opposite_picks(slots.get(first, {}),
                                             slots.get(second, {})))
+
+    # The three annotators as a panel, per dimension.
+    if len(names) > 2:
+        for dimension in DIMENSIONS:
+            keep = keep_by_dimension[dimension]
+            slots = by_dimension[dimension]
+            rating = [name for name in names if slots.get(name)]
+            if len(rating) < 3 or not keep:
+                continue
+            block = three_way_block(slots, rating, items_by_number, keep)
+            if not block:
+                continue
+            lines += ["", "-" * 78,
+                      f"  THREE-WAY: how {' & '.join(rating)} lined up "
+                      f"-- {dimension.upper()}",
+                      "-" * 78,
+                      "  Three raters and two sides cannot be mutually "
+                      "opposed, so every",
+                      "  opposed item below is 2-1, or two opposed with the "
+                      "third tying.",
+                      ""]
+            lines += block
 
     analysed = set().union(*keep_by_dimension.values()) or set(items_by_number)
     if len(names) > 1:
