@@ -1,0 +1,392 @@
+==============================================================================
+RUN CONTEXT
+==============================================================================
+
+generated          2026-09-14 13:42
+mode               statistics only (no API calls)
+dimensions         faithfulness, informativeness
+eval set           human_eval_set.txt  (105 items)
+answer key         answer_key.txt
+gpt verdicts       gpt_judge_vs_human_eval.json  (210 judgements)
+human votes        human_answers.csv  (3 annotators, 560 votes)
+                     ege          210 votes
+                     harun        210 votes
+                     st           140 votes
+
+==============================================================================
+GPT JUDGE ON THE HUMAN-EVALUATION SET
+==============================================================================
+
+model              gpt-5.6-sol
+reasoning effort   medium
+surface note       included
+judgements         210
+input tokens       238,217
+output tokens      43,219  (of which reasoning 27,336)
+cost               $2.4877
+arrangement        PMI in slot A on 52 of 105 items (49.5%)
+
+------------------------------------------------------------------------------
+FAITHFULNESS
+------------------------------------------------------------------------------
+  n=105   pmi  47 (44.8%)   rouge  39 (37.1%)   tie  19 (18.1%)
+    cnn      n= 35  pmi  10  rouge   9  tie  16
+    wikihow  n= 35  pmi  20  rouge  14  tie   1
+    xsum     n= 35  pmi  17  rouge  16  tie   2
+  slot-A rate (of the 86 verdicts that picked a side): 44/86 = 51.2%   [50% = no preference]
+    cnn      n= 19  slot A  10 (52.6%)
+    wikihow  n= 34  slot A  17 (50.0%)
+    xsum     n= 33  slot A  17 (51.5%)
+
+------------------------------------------------------------------------------
+INFORMATIVENESS
+------------------------------------------------------------------------------
+  n=105   pmi  58 (55.2%)   rouge  45 (42.9%)   tie   2 ( 1.9%)
+    cnn      n= 35  pmi  20  rouge  15  tie   0
+    wikihow  n= 35  pmi  21  rouge  13  tie   1
+    xsum     n= 35  pmi  17  rouge  17  tie   1
+  slot-A rate (of the 103 verdicts that picked a side): 59/103 = 57.3%   [50% = no preference]
+    cnn      n= 35  slot A  17 (48.6%)
+    wikihow  n= 34  slot A  23 (67.6%)
+    xsum     n= 34  slot A  19 (55.9%)
+
+Per-item consensus verdicts, with every annotator's vote and the judge's, were written to
+incomplete.consensus.csv
+
+==============================================================================
+WHAT WAS DECIDED: ANNOTATOR CONSENSUS vs. GPT JUDGE
+==============================================================================
+
+CONSENSUS  the annotators' plurality verdict per item; a split
+           with no plurality is scored a tie (see consensus_vote).
+GPT JUDGE  what the judge decided on those same items, on its own.
+agreement  how often the two verdicts were identical, item by item.
+
+The first two are distributions and the third is a match rate;
+a judge can reproduce the distribution while agreeing item-for-item
+no better than chance.
+
+------------------------------------------------------------------------------
+FAITHFULNESS
+------------------------------------------------------------------------------
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+  consensus reached by: unanimous 21 (30.0%)   plurality 41 (58.6%)   no plurality, scored tie 8 (11.4%)
+
+  ALL DATASETS  (n=70)
+    consensus   PMI    27 (38.6%)   ROUGE  16 (22.9%)   tie    27 (38.6%)
+    gpt judge   PMI    30 (42.9%)   ROUGE  23 (32.9%)   tie    17 (24.3%)
+    agreement    51/70  (72.9%)   kappa +0.592
+
+  cnn  (n=35)
+    consensus   PMI    10 (28.6%)   ROUGE   7 (20.0%)   tie    18 (51.4%)
+    gpt judge   PMI    10 (28.6%)   ROUGE   9 (25.7%)   tie    16 (45.7%)
+    agreement    29/35  (82.9%)   kappa +0.729
+
+  wikihow  (n=35)
+    consensus   PMI    17 (48.6%)   ROUGE   9 (25.7%)   tie     9 (25.7%)
+    gpt judge   PMI    20 (57.1%)   ROUGE  14 (40.0%)   tie     1 ( 2.9%)
+    agreement    22/35  (62.9%)   kappa +0.393
+
+------------------------------------------------------------------------------
+INFORMATIVENESS
+------------------------------------------------------------------------------
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+  consensus reached by: unanimous 22 (31.4%)   plurality 41 (58.6%)   no plurality, scored tie 7 (10.0%)
+
+  ALL DATASETS  (n=70)
+    consensus   PMI    30 (42.9%)   ROUGE  23 (32.9%)   tie    17 (24.3%)
+    gpt judge   PMI    41 (58.6%)   ROUGE  28 (40.0%)   tie     1 ( 1.4%)
+    agreement    44/70  (62.9%)   kappa +0.395
+
+  cnn  (n=35)
+    consensus   PMI    13 (37.1%)   ROUGE  15 (42.9%)   tie     7 (20.0%)
+    gpt judge   PMI    20 (57.1%)   ROUGE  15 (42.9%)   tie     0 ( 0.0%)
+    agreement    24/35  (68.6%)   kappa +0.480
+
+  wikihow  (n=35)
+    consensus   PMI    17 (48.6%)   ROUGE   8 (22.9%)   tie    10 (28.6%)
+    gpt judge   PMI    21 (60.0%)   ROUGE  13 (37.1%)   tie     1 ( 2.9%)
+    agreement    20/35  (57.1%)   kappa +0.304
+
+==============================================================================
+CORRELATION: EVERY RATER vs. THE ANNOTATOR CONSENSUS
+==============================================================================
+
+The judge and each annotator, scored against the same consensus,
+so the rows can be read against each other. The judge is doing as
+well as a human when its row sits inside the annotators' range.
+
+Each annotator helped build the consensus they are scored against,
+so their rows carry a self-agreement bonus the judge does not get.
+The comparison is therefore slightly unfair TO the judge.
+
+kappa corrects for chance agreement. tau-b additionally treats the
+scale as ordered (PMI > tie > ROUGE), so it penalises calling the
+opposite system harder than it penalises a tie/side mismatch --
+tau-b above kappa means the misses are mostly ties, not reversals.
+
+==============================================================================
+FAITHFULNESS
+==============================================================================
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+
+  ALL DATASETS  (n=70)
+    GPT (judge)   51/70    72.9%   kappa +0.592   tau-b +0.606
+    ege           48/70    68.6%   kappa +0.512   tau-b +0.617
+    harun         54/70    77.1%   kappa +0.650   tau-b +0.698
+    st            51/70    72.9%   kappa +0.596   tau-b +0.718
+
+  cnn  (n=35)
+    GPT (judge)   29/35    82.9%   kappa +0.729   tau-b +0.805
+    ege           22/35    62.9%   kappa +0.433   tau-b +0.539
+    harun         29/35    82.9%   kappa +0.715   tau-b +0.787
+    st            24/35    68.6%   kappa +0.544   tau-b +0.730
+
+  wikihow  (n=35)
+    GPT (judge)   22/35    62.9%   kappa +0.393   tau-b +0.470
+    ege           26/35    74.3%   kappa +0.584   tau-b +0.698
+    harun         25/35    71.4%   kappa +0.561   tau-b +0.635
+    st            27/35    77.1%   kappa +0.642   tau-b +0.702
+
+==============================================================================
+INFORMATIVENESS
+==============================================================================
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+
+  ALL DATASETS  (n=70)
+    GPT (judge)   44/70    62.9%   kappa +0.395   tau-b +0.504
+    ege           51/70    72.9%   kappa +0.574   tau-b +0.695
+    harun         58/70    82.9%   kappa +0.737   tau-b +0.778
+    st            46/70    65.7%   kappa +0.467   tau-b +0.516
+
+  cnn  (n=35)
+    GPT (judge)   24/35    68.6%   kappa +0.480   tau-b +0.625
+    ege           27/35    77.1%   kappa +0.653   tau-b +0.758
+    harun         28/35    80.0%   kappa +0.682   tau-b +0.750
+    st            23/35    65.7%   kappa +0.464   tau-b +0.621
+
+  wikihow  (n=35)
+    GPT (judge)   20/35    57.1%   kappa +0.304   tau-b +0.372
+    ege           24/35    68.6%   kappa +0.481   tau-b +0.627
+    harun         30/35    85.7%   kappa +0.776   tau-b +0.785
+    st            23/35    65.7%   kappa +0.462   tau-b +0.401
+
+==============================================================================
+AGREEMENT AMONG RATERS (annotators and the GPT judge)
+==============================================================================
+
+Raw agreement: how often two raters wrote the same answer, and --
+in the last row of each block -- how often all the annotators did
+at once. Percentages are over the items every member of that group
+answered, restricted to the datasets every annotator finished.
+
+Cohen's kappa is shown for pairs only -- it is a two-rater
+statistic. It corrects for agreement expected by chance, so on a
+three-category scale where everyone ties often, a high raw
+percentage can still be a low kappa.
+
+Everything here is computed on the A/B/tie SLOTS. Agreement counts
+are the same either way -- decoding to PMI/ROUGE is a per-item
+relabelling, so two raters match on slots exactly when they match
+on systems -- but kappa is not, because its chance-correction uses
+the marginals, and those do change under relabelling. So the
+consensus-vs-judge kappa here differs in the third decimal from
+the systems-based one in the correlation section. Same comparison,
+same agreement count, two defensible baselines.
+
+Read the per-dataset blocks before the pooled one. The judge is
+doing well when its pair rows approach the annotators' rows, not
+when they approach 100%.
+
+==============================================================================
+FAITHFULNESS
+==============================================================================
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+
+  ALL DATASETS POOLED
+    PAIRS
+      ege & harun                       33/70    47.1%   kappa +0.207
+      ege & st                          34/70    48.6%   kappa +0.228
+      harun & st                        37/70    52.9%   kappa +0.311
+      ege & GPT                         39/70    55.7%   kappa +0.335
+      harun & GPT                       49/70    70.0%   kappa +0.560
+      st & GPT                          39/70    55.7%   kappa +0.321
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  49.5%   kappa +0.249
+      mean, all (6)                              55.0%   kappa +0.327
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   51/70    72.9%   kappa +0.597
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  21/70    30.0%
+
+  CNN  (35 items)
+    PAIRS
+      ege & harun                       17/35    48.6%   kappa +0.224
+      ege & st                          16/35    45.7%   kappa +0.188
+      harun & st                        18/35    51.4%   kappa +0.301
+      ege & GPT                         20/35    57.1%   kappa +0.356
+      harun & GPT                       29/35    82.9%   kappa +0.725
+      st & GPT                          19/35    54.3%   kappa +0.328
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  48.6%   kappa +0.238
+      mean, all (6)                              56.7%   kappa +0.354
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   29/35    82.9%   kappa +0.729
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  11/35    31.4%
+
+  WIKIHOW  (35 items)
+    PAIRS
+      ege & harun                       16/35    45.7%   kappa +0.185
+      ege & st                          18/35    51.4%   kappa +0.267
+      harun & st                        19/35    54.3%   kappa +0.307
+      ege & GPT                         19/35    54.3%   kappa +0.305
+      harun & GPT                       20/35    57.1%   kappa +0.349
+      st & GPT                          20/35    57.1%   kappa +0.292
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  50.5%   kappa +0.253
+      mean, all (6)                              53.3%   kappa +0.284
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   22/35    62.9%   kappa +0.412
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  10/35    28.6%
+
+==============================================================================
+INFORMATIVENESS
+==============================================================================
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+
+  ALL DATASETS POOLED
+    PAIRS
+      ege & harun                       40/70    57.1%   kappa +0.340
+      ege & st                          29/70    41.4%   kappa +0.090
+      harun & st                        38/70    54.3%   kappa +0.290
+      ege & GPT                         37/70    52.9%   kappa +0.233
+      harun & GPT                       44/70    62.9%   kappa +0.391
+      st & GPT                          40/70    57.1%   kappa +0.282
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  51.0%   kappa +0.240
+      mean, all (6)                              54.3%   kappa +0.271
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   44/70    62.9%   kappa +0.403
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  22/70    31.4%
+
+  CNN  (35 items)
+    PAIRS
+      ege & harun                       21/35    60.0%   kappa +0.376
+      ege & st                          15/35    42.9%   kappa +0.123
+      harun & st                        18/35    51.4%   kappa +0.234
+      ege & GPT                         20/35    57.1%   kappa +0.321
+      harun & GPT                       23/35    65.7%   kappa +0.416
+      st & GPT                          21/35    60.0%   kappa +0.333
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  51.4%   kappa +0.244
+      mean, all (6)                              56.2%   kappa +0.300
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   24/35    68.6%   kappa +0.477
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  11/35    31.4%
+
+  WIKIHOW  (35 items)
+    PAIRS
+      ege & harun                       19/35    54.3%   kappa +0.309
+      ege & st                          14/35    40.0%   kappa +0.052
+      harun & st                        20/35    57.1%   kappa +0.347
+      ege & GPT                         17/35    48.6%   kappa +0.178
+      harun & GPT                       21/35    60.0%   kappa +0.365
+      st & GPT                          19/35    54.3%   kappa +0.235
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  50.5%   kappa +0.236
+      mean, all (6)                              52.4%   kappa +0.248
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   20/35    57.1%   kappa +0.340
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  11/35    31.4%
+
+==============================================================================
+STRONG DISAGREEMENTS -- one rater picked A, the other picked B
+==============================================================================
+
+Items read in opposite directions. A against 'tie' is a soft
+disagreement and is not listed; only A against B is, on the same
+item and the same dimension.
+
+'either' is the union: items strongly disagreed on for at least one
+of the two dimensions. Percentages are over the items both raters
+answered.
+
+  ege & harun
+    faithfulness       5/70    7.1%   (cnn 2, wikihow 3)
+      12, 21, 52, 53, 58
+    informativeness    8/70   11.4%   (cnn 5, wikihow 3)
+      2, 3, 9, 14, 23, 61, 62, 70
+    either            13/70   18.6%   (cnn 7, wikihow 6)
+      2, 3, 9, 12, 14, 21, 23, 52, 53, 58, 61, 62, 70
+
+  ege & st
+    faithfulness       9/70   12.9%   (cnn 6, wikihow 3)
+      5, 8, 9, 20, 21, 27, 49, 50, 52
+    informativeness   14/70   20.0%   (cnn 4, wikihow 10)
+      2, 7, 14, 33, 45, 48, 50, 52, 56, 57, 61, 66, 68, 70
+    either            21/70   30.0%   (cnn 10, wikihow 11)
+      2, 5, 7, 8, 9, 14, 20, 21, 27, 33, 45, 48, 49, 50, 52, 56, 57, 61, 66,
+      68, 70
+
+  harun & st
+    faithfulness       6/70    8.6%   (wikihow 6)
+      43, 45, 49, 50, 53, 58
+    informativeness   15/70   21.4%   (cnn 6, wikihow 9)
+      3, 6, 7, 9, 10, 33, 43, 45, 49, 50, 52, 56, 62, 66, 68
+    either            17/70   24.3%   (cnn 6, wikihow 11)
+      3, 6, 7, 9, 10, 33, 43, 45, 49, 50, 52, 53, 56, 58, 62, 66, 68
+
+  ege & GPT
+    faithfulness       9/70   12.9%   (cnn 3, wikihow 6)
+      12, 21, 25, 41, 42, 49, 52, 53, 65
+    informativeness   16/70   22.9%   (cnn 6, wikihow 10)
+      1, 2, 9, 14, 23, 25, 38, 41, 42, 45, 46, 48, 56, 57, 61, 62
+    either            22/70   31.4%   (cnn 8, wikihow 14)
+      1, 2, 9, 12, 14, 21, 23, 25, 38, 41, 42, 45, 46, 48, 49, 52, 53, 56, 57,
+      61, 62, 65
+
+  harun & GPT
+    faithfulness       5/70    7.1%   (wikihow 5)
+      42, 45, 49, 58, 70
+    informativeness   11/70   15.7%   (cnn 6, wikihow 5)
+      1, 3, 6, 10, 16, 25, 38, 42, 45, 56, 70
+    either            13/70   18.6%   (cnn 6, wikihow 7)
+      1, 3, 6, 10, 16, 25, 38, 42, 45, 49, 56, 58, 70
+
+  st & GPT
+    faithfulness       8/70   11.4%   (cnn 1, wikihow 7)
+      20, 42, 43, 50, 51, 53, 65, 70
+    informativeness   18/70   25.7%   (cnn 7, wikihow 11)
+      1, 5, 7, 9, 16, 32, 33, 38, 42, 43, 49, 50, 52, 53, 62, 66, 68, 70
+    either            21/70   30.0%   (cnn 8, wikihow 13)
+      1, 5, 7, 9, 16, 20, 32, 33, 38, 42, 43, 49, 50, 51, 52, 53, 62, 65, 66,
+      68, 70
+
+------------------------------------------------------------------------------
+  CONTESTED ITEMS -- any annotator pair, any dimension: 30/70 (42.9%)   (cnn 15, wikihow 15)
+------------------------------------------------------------------------------
+    2, 3, 5, 6, 7, 8, 9, 10, 12, 14, 20, 21, 23, 27, 33, 43, 45, 48, 49, 50,
+    52, 53, 56, 57, 58, 61, 62, 66, 68, 70

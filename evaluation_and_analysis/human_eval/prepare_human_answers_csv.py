@@ -80,8 +80,13 @@ DEFAULT_OUT = SCRIPT_DIR / "human_answers.csv"
 
 # "human_eval_set - Ege.txt" -> annotator "ege". The blank packet has no " - "
 # and so is never mistaken for a returned one.
+#
+# Anything after a SECOND " - " is a note to self, not part of the name:
+# "human_eval_set - st - cnn & wikihow completed.txt" is annotator "st". People
+# label their working copies, and the label should not leak into the CSV and
+# the report as though it were who they are.
 PACKET_GLOB = "human_eval_set - *.txt"
-ANNOTATOR_FROM_NAME = re.compile(r"^human_eval_set - (.+)$")
+ANNOTATOR_FROM_NAME = re.compile(r"^human_eval_set - (.+?)(?: - .*)?$")
 
 # The dimension columns of the CSV, and the packet headings they come from.
 # Order fixed here because it is the column order of the output.
@@ -120,7 +125,9 @@ def annotator_name_from(path):
     """'human_eval_set - Ege Yigit.txt' -> 'ege_yigit'.
 
     Lowercased and de-spaced so the id is stable whatever the file is called;
-    it ends up in a CSV column and in the report, not in any filename.
+    it ends up in a CSV column and in the report, not in any filename. A
+    trailing " - note" is dropped, so
+    'human_eval_set - st - cnn & wikihow completed.txt' is just 'st'.
     """
 
     match = ANNOTATOR_FROM_NAME.match(path.stem)

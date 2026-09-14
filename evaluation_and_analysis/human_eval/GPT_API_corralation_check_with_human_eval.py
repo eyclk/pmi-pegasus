@@ -141,6 +141,7 @@ import re
 import textwrap
 import time
 from collections import Counter, defaultdict
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from itertools import combinations
 from pathlib import Path
@@ -1084,194 +1085,416 @@ def kendall_tau_b(pairs):
     return (concordant - discordant) / denominator
 
 
-def human_agreement(votes, items_by_number, dimension):
-    """
-    Mean pairwise agreement among the annotators themselves -- the ceiling any
-    automatic judge is being measured against. A judge that matches the humans
-    as often as they match each other has nothing left to explain.
-    """
-
-    scores = []
-    kappa_pairs = defaultdict(list)
-    for (item, dim), slot_votes in votes.items():
-        if dim != dimension or len(slot_votes) < 2:
-            continue
-        names = sorted(slot_votes)
-        for i in range(len(names)):
-            for j in range(i + 1, len(names)):
-                a, b = slot_votes[names[i]], slot_votes[names[j]]
-                scores.append(1.0 if a == b else 0.0)
-                kappa_pairs[(names[i], names[j])].append((a, b))
-
-    if not scores:
-        return None
-
-    kappas = [cohens_kappa(p) for p in kappa_pairs.values() if len(p) > 1]
-    kappas = [k for k in kappas if not math.isnan(k)]
-    return {
-        "agreement": sum(scores) / len(scores),
-        "kappa": sum(kappas) / len(kappas) if kappas else float("nan"),
-        "raters": len({name for sv in votes.values() for name in sv}),
-    }
-
-
-def comparison_rows(entries, items_by_number, votes, dimension, human_slot_of):
-    """
-    The comparable (human, GPT) pairs for one dimension.
-
-    `human_slot_of` turns one item's {annotator: slot} into the single human
-    slot to compare against -- consensus_vote for the consensus block, or
-    "just this annotator's vote" for the per-annotator blocks. Returning None
-    skips the item, which is how an annotator who did not answer everything is
-    handled without affecting anyone else's n.
-
-    Both sides are decoded from slots to systems here, through this item's own
-    answer-key row, so "A" is never compared against "A" -- it is PMI against
-    PMI.
-    """
-
-    gpt = {(e["item"], e["dimension"]): e for e in entries}
-    rows = []
-    no_human = 0
-    missing_gpt = 0
-
-    for item in sorted(items_by_number):
-        slot_votes = votes.get((item, dimension))
-        human_slot = human_slot_of(slot_votes) if slot_votes else None
-        if human_slot is None:
-            no_human += 1
-            continue
-
-        record = gpt.get((item, dimension))
-        if record is None:
-            missing_gpt += 1
-            continue
-
-        meta = items_by_number[item]
-        human_winner = decode_winner(human_slot, meta["system_a"], meta["system_b"]) \
-            if human_slot in ("A", "B") else "tie"
-        rows.append({
-            "dataset": meta["dataset"],
-            "human": human_winner,
-            "gpt": record["gpt_winner"],
-            "human_slot": human_slot,
-            "gpt_slot": record["raw_result"],
-        })
-
-    return rows, no_human, missing_gpt
-
-
-def block_stats(subset):
-    """The numbers behind one line of a correlation table."""
-
-    if not subset:
-        return None
-    return {
-        "n": len(subset),
-        "agreement": sum(1 for r in subset if r["human"] == r["gpt"]) / len(subset),
-        "kappa": cohens_kappa([(r["human"], r["gpt"]) for r in subset]),
-        "tau": kendall_tau_b([(SCORE[r["human"]], SCORE[r["gpt"]]) for r in subset]),
-        "human_pmi": sum(1 for r in subset if r["human"] == "pmi"),
-        "gpt_pmi": sum(1 for r in subset if r["gpt"] == "pmi"),
-        "human_tie": sum(1 for r in subset if r["human"] == "tie"),
-        "gpt_tie": sum(1 for r in subset if r["gpt"] == "tie"),
-    }
-
-
-def stats_line(label, block):
-    return (f"  {label:<12} n={block['n']:>3}  agree {block['agreement']:6.1%}  "
-            f"kappa {block['kappa']:+.3f}  tau-b {block['tau']:+.3f}  "
-            f"PMI-wins h/g {block['human_pmi']:>3}/{block['gpt_pmi']:<3}  "
-            f"ties h/g {block['human_tie']:>3}/{block['gpt_tie']:<3}")
-
-
-def slot_a_line(rows):
-    """
-    Slot-A preference, for both sides, on the identical arrangement.
-
-    A judge that picks slot A far more often than the humans do on the same
-    items has a positional bias, and that alone can cap the correlation no
-    matter how good its reasoning is.
-    """
-
-    decided = [r for r in rows
-               if r["human_slot"] in ("A", "B") and r["gpt_slot"] in ("A", "B")]
-    if not decided:
-        return None
-    human_a = sum(1 for r in decided if r["human_slot"] == "A") / len(decided)
-    gpt_a = sum(1 for r in decided if r["gpt_slot"] == "A") / len(decided)
-    return (f"  slot-A rate on decided pairs (n={len(decided)}): "
-            f"human {human_a:6.1%}   gpt {gpt_a:6.1%}")
-
-
 def annotators_in(votes):
     """Every annotator id that appears anywhere in the votes, sorted."""
 
     return sorted({name for slot_votes in votes.values() for name in slot_votes})
 
 
+def eligible_items(items_by_number, votes, dimension):
+    """
+    -> (items to analyse, {dataset: [annotators who did not finish it]})
+
+    A DATASET IS ALL-OR-NOTHING. If any annotator left even one item of a
+    dataset unanswered on this dimension, the whole dataset is dropped from
+    every statistic that follows -- for everyone, not just for them.
+
+    That is deliberately harsher than dropping the missing items alone, and
+    the reason is the consensus. With three annotators the consensus is a
+    three-way vote; on items one of them skipped it would quietly become a
+    two-way vote, where the tie-breaking rule behaves differently (a 1-1 split
+    has no plurality and becomes "tie"). Mixing two- and three-rater consensus
+    verdicts inside one reported figure makes that figure mean nothing in
+    particular.
+
+    Dropping whole datasets rather than individual items keeps the per-dataset
+    breakdowns honest too: a "cnn" row computed over 35 items and an "xsum"
+    row computed over whatever 12 items happened to be finished are not
+    comparable, and printing them in the same column invites exactly that
+    comparison.
+
+    The concrete case this was written for: annotator "st" returned cnn and
+    wikihow but not xsum. cnn and wikihow are analysed in full; xsum is
+    dropped entirely and said so out loud, rather than being reported as a
+    two-annotator result alongside three-annotator ones.
+    """
+
+    names = annotators_in(votes)
+    by_dataset = defaultdict(list)
+    for number, meta in items_by_number.items():
+        by_dataset[meta["dataset"]].append(number)
+
+    keep = set()
+    dropped = {}
+    for dataset, numbers in by_dataset.items():
+        incomplete = []
+        for name in names:
+            missing = sum(1 for number in numbers
+                          if name not in votes.get((number, dimension), {}))
+            if missing:
+                incomplete.append(f"{name} ({missing}/{len(numbers)} missing)")
+        if incomplete:
+            dropped[dataset] = incomplete
+        else:
+            keep.update(numbers)
+
+    return keep, dropped
+
+
+def eligibility_lines(items_by_number, dropped, kept):
+    """The "what was analysed" preamble, printed under every dimension."""
+
+    lines = []
+    if dropped:
+        for dataset, why in sorted(dropped.items()):
+            lines.append(f"  DATASET DROPPED: {dataset} -- incomplete for "
+                         f"{', '.join(why)}")
+        lines.append(f"  analysed: {len(kept)}/{len(items_by_number)} items "
+                     f"from the datasets every annotator finished")
+    return lines
+
+
+def consensus_comparison_rows(entries, items_by_number, votes, dimension,
+                              allowed_items, judge_label):
+    """
+    -> {rater: [{dataset, mine, consensus}]} for the judge and every annotator.
+
+    Every rater is scored against the SAME target -- the annotator consensus --
+    so the rows are directly comparable to each other. Both sides are decoded
+    from slots to systems here, so "A" is never compared against "A": it is PMI
+    against PMI.
+    """
+
+    gpt = {(e["item"], e["dimension"]): e for e in entries}
+    names = annotators_in(votes)
+    rows = defaultdict(list)
+
+    for number in sorted(allowed_items):
+        slot_votes = votes.get((number, dimension))
+        if not slot_votes:
+            continue
+        meta = items_by_number[number]
+
+        def decode(slot):
+            return (decode_winner(slot, meta["system_a"], meta["system_b"])
+                    if slot in ("A", "B") else "tie")
+
+        consensus = decode(consensus_vote(slot_votes))
+
+        entry = gpt.get((number, dimension))
+        if entry is not None:
+            rows[judge_label].append({"dataset": meta["dataset"],
+                                      "mine": entry["gpt_winner"],
+                                      "consensus": consensus})
+        for name in names:
+            if name in slot_votes:
+                rows[name].append({"dataset": meta["dataset"],
+                                   "mine": decode(slot_votes[name]),
+                                   "consensus": consensus})
+
+    return rows
+
+
+def consensus_stats_line(label, subset):
+    """One rater's row: how often they matched the consensus, and how well."""
+
+    n = len(subset)
+    if not n:
+        return None
+    same = sum(1 for r in subset if r["mine"] == r["consensus"])
+    kappa = cohens_kappa([(r["mine"], r["consensus"]) for r in subset])
+    tau = kendall_tau_b([(SCORE[r["mine"]], SCORE[r["consensus"]])
+                         for r in subset])
+    return (f"    {label:<12} {same:>3}/{n:<3}  {same / n:6.1%}   "
+            f"kappa {kappa:+.3f}   tau-b {tau:+.3f}")
+
+
+def consensus_slots(votes, dimension, allowed_items=None):
+    """-> {item: consensus slot} for one dimension."""
+
+    slots = {}
+    for (item, dim), slot_votes in votes.items():
+        if dim != dimension or not slot_votes:
+            continue
+        if allowed_items is not None and item not in allowed_items:
+            continue
+        slots[item] = consensus_vote(slot_votes)
+    return slots
+
+
+def how_reached(slot_votes):
+    """"unanimous" / "plurality" / "no plurality" -- how consensus_vote got
+    its answer, so the tie-breaking rule is auditable per item."""
+
+    ranked = Counter(slot_votes.values()).most_common()
+    if len(ranked) == 1:
+        return "unanimous"
+    if ranked[0][1] == ranked[1][1]:
+        return "no plurality"
+    return "plurality"
+
+
+def consensus_records(entries, items_by_number, votes):
+    """
+    One row per (item, dimension): every annotator's vote, the consensus, the
+    judge, and whether they matched.
+
+    Written out as its own CSV so the consensus is an inspectable artefact
+    rather than a number that only exists inside a report. When a consensus
+    verdict looks wrong, the fix is to read the row -- who voted what, and
+    which branch of the rule produced it.
+    """
+
+    gpt = {(e["item"], e["dimension"]): e for e in entries}
+    names = annotators_in(votes)
+    records = []
+
+    for dimension in DIMENSIONS:
+        keep, _ = eligible_items(items_by_number, votes, dimension)
+        for number in sorted(keep):
+            slot_votes = votes.get((number, dimension))
+            if not slot_votes:
+                continue
+            meta = items_by_number[number]
+            slot = consensus_vote(slot_votes)
+            winner = (decode_winner(slot, meta["system_a"], meta["system_b"])
+                      if slot in ("A", "B") else "tie")
+
+            record = {
+                "item": number,
+                "dataset": meta["dataset"],
+                "dimension": dimension,
+                "system_a": meta["system_a"],
+                "system_b": meta["system_b"],
+                "consensus_slot": slot,
+                "consensus_winner": winner,
+                "reached_by": how_reached(slot_votes),
+            }
+            for name in names:
+                record[f"vote_{name}"] = slot_votes.get(name, "")
+
+            entry = gpt.get((number, dimension))
+            record["gpt_slot"] = entry["raw_result"] if entry else ""
+            record["gpt_winner"] = entry["gpt_winner"] if entry else ""
+            record["agree"] = ("" if not entry
+                               else "yes" if entry["gpt_winner"] == winner
+                               else "no")
+            records.append(record)
+
+    return records
+
+
+def write_consensus_csv(path, records):
+    """The consensus, per item, next to the judge that was compared to it."""
+
+    if not records:
+        return None
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(records[0]))
+        writer.writeheader()
+        writer.writerows(records)
+    return path
+
+
+def consensus_distribution_report(entries, items_by_number, votes):
+    """
+    What the annotators COLLECTIVELY decided, what the judge decided, and how
+    often the two matched.
+
+    Three different questions, and the table keeps them apart:
+
+      CONSENSUS  -- the annotators' verdict per item, counted up. This is the
+                    human result, and the row to quote for "PMI beat ROUGE".
+      GPT JUDGE  -- the judge's OWN verdict on the SAME items, counted up the
+                    same way. Not a comparison: it is what the judge decided,
+                    independently, and it is here so the two distributions can
+                    be read side by side.
+      agreement  -- how often, item by item, those two verdicts were the same
+                    one. This is the number that says whether the judge can
+                    stand in for the annotators.
+
+    The first two can match while the third is near chance (both sides pick
+    PMI 40% of the time, but on different items), and the third can be high
+    while the first two differ. Neither implies the other.
+
+    Note the judge's counts here cover only the datasets every annotator
+    finished, so they will not match the judge's own summary at the top of the
+    report, which covers all 105 items.
+    """
+
+    if not annotators_in(votes):
+        return ""
+
+    lines = ["", "=" * 78,
+             "WHAT WAS DECIDED: ANNOTATOR CONSENSUS vs. GPT JUDGE",
+             "=" * 78,
+             "",
+             "CONSENSUS  the annotators' plurality verdict per item; a split",
+             "           with no plurality is scored a tie (see consensus_vote).",
+             "GPT JUDGE  what the judge decided on those same items, on its own.",
+             "agreement  how often the two verdicts were identical, item by item.",
+             "",
+             "The first two are distributions and the third is a match rate;",
+             "a judge can reproduce the distribution while agreeing item-for-item",
+             "no better than chance."]
+
+    gpt = {(e["item"], e["dimension"]): e for e in entries}
+
+    for dimension in DIMENSIONS:
+        keep, dropped = eligible_items(items_by_number, votes, dimension)
+        lines += ["", "-" * 78, dimension.upper(), "-" * 78]
+        lines += eligibility_lines(items_by_number, dropped, keep)
+
+        rows = []
+        how = Counter()
+        for number in sorted(keep):
+            slot_votes = votes.get((number, dimension))
+            record = gpt.get((number, dimension))
+            if not slot_votes or record is None:
+                continue
+            slot = consensus_vote(slot_votes)
+            how[how_reached(slot_votes)] += 1
+            meta = items_by_number[number]
+            rows.append({
+                "dataset": meta["dataset"],
+                "consensus": decode_winner(slot, meta["system_a"], meta["system_b"])
+                if slot in ("A", "B") else "tie",
+                "gpt": record["gpt_winner"],
+            })
+
+        if not rows:
+            lines.append("  nothing left to report on this dimension")
+            continue
+
+        total = sum(how.values())
+        lines.append(
+            f"  consensus reached by: unanimous {how['unanimous']} "
+            f"({how['unanimous'] / total:.1%})   "
+            f"plurality {how['plurality']} ({how['plurality'] / total:.1%})   "
+            f"no plurality, scored tie {how['no plurality']} "
+            f"({how['no plurality'] / total:.1%})"
+        )
+
+        def block(label, subset):
+            n = len(subset)
+            out = ["", f"  {label}  (n={n})"]
+            for who, key in (("consensus", "consensus"), ("gpt judge", "gpt")):
+                counts = Counter(r[key] for r in subset)
+                out.append(
+                    f"    {who:<11} "
+                    + "   ".join(
+                        f"{name:<5} {counts[k]:>3} ({counts[k] / n:5.1%})"
+                        for name, k in (("PMI", "pmi"), ("ROUGE", "rouge"),
+                                        ("tie", "tie")))
+                )
+            same = sum(1 for r in subset if r["consensus"] == r["gpt"])
+            kappa = cohens_kappa([(r["consensus"], r["gpt"]) for r in subset])
+            out.append(f"    {'agreement':<11} {same:>3}/{n:<3} "
+                       f"({same / n:5.1%})   kappa {kappa:+.3f}")
+            return out
+
+        lines += block("ALL DATASETS", rows)
+        for dataset in sorted({r["dataset"] for r in rows}):
+            lines += block(dataset, [r for r in rows if r["dataset"] == dataset])
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 def correlation_report(entries, items_by_number, votes):
     """
-    The judge against the humans, two ways per dimension:
+    Can the judge stand in for a human annotator?
 
-      1. against the annotator CONSENSUS -- the headline number, and the one
-         to quote, because it is the humans' collective answer;
-      2. against EACH annotator separately -- which says whether a weak
-         consensus figure is the judge disagreeing with everyone, or the
-         judge siding with one annotator against the others.
+    One table answers that, and it is the only thing this section now does:
+    the judge and every annotator scored against the SAME annotator consensus,
+    on the same items, with the same three statistics.
 
-    Both are broken down by dataset, since cnn / wikihow / xsum behave quite
-    differently and a pooled number hides that.
+    WHY THIS REPLACED WHAT WAS HERE BEFORE
+    --------------------------------------
+    The old section reported the judge against the consensus, then the judge
+    against each annotator, and headed it with the inter-annotator agreement
+    as a "ceiling". That invited exactly one comparison -- judge-vs-consensus
+    against annotator-vs-annotator -- and that comparison is invalid. The
+    consensus is a majority vote, so its noise is averaged out; agreeing with
+    it is an easier task than agreeing with a single unsmoothed rater. Reading
+    the judge's 72.9% against a 49.5% human ceiling made the judge look
+    superhuman when it was only being graded on an easier exam.
+
+    Scoring everyone against the consensus fixes that. It also removed a lot
+    of duplication: the judge-against-each-annotator rows were the same
+    numbers as the pair rows in the agreement section, and the PMI-wins and
+    tie counts were the same numbers as the distribution table above.
+
+    ONE BIAS REMAINS, AND IT FAVOURS THE HUMANS
+    -------------------------------------------
+    Each annotator voted in the consensus they are scored against, so part of
+    their agreement with it is agreement with themselves. The judge gets no
+    such help. The human rows are therefore inflated relative to the judge's,
+    which means a judge that merely MATCHES them is doing slightly better than
+    the table shows. Leaving the bias in that direction is the conservative
+    choice: it cannot manufacture a favourable result for the judge.
+
+    (The unbiased alternative, scoring each annotator against the consensus of
+    the other two, was tried and discarded: with three raters that target is
+    two votes, where any disagreement becomes a tie, and it is too degenerate
+    to compare against.)
     """
 
     lines = ["", "=" * 78,
-             "CORRELATION: GPT JUDGE vs. HUMAN ANNOTATORS",
-             "=" * 78]
+             "CORRELATION: EVERY RATER vs. THE ANNOTATOR CONSENSUS",
+             "=" * 78,
+             "",
+             "The judge and each annotator, scored against the same consensus,",
+             "so the rows can be read against each other. The judge is doing as",
+             "well as a human when its row sits inside the annotators' range.",
+             "",
+             "Each annotator helped build the consensus they are scored against,",
+             "so their rows carry a self-agreement bonus the judge does not get.",
+             "The comparison is therefore slightly unfair TO the judge.",
+             "",
+             "kappa corrects for chance agreement. tau-b additionally treats the",
+             "scale as ordered (PMI > tie > ROUGE), so it penalises calling the",
+             "opposite system harder than it penalises a tie/side mismatch --",
+             "tau-b above kappa means the misses are mostly ties, not reversals."]
 
     names = annotators_in(votes)
+    judge_label = gpt_label_for(names)
 
     for dimension in DIMENSIONS:
-        lines += ["", "-" * 78, dimension.upper(), "-" * 78]
+        keep, dropped = eligible_items(items_by_number, votes, dimension)
 
-        rows, no_human, missing_gpt = comparison_rows(
-            entries, items_by_number, votes, dimension, consensus_vote)
+        lines += ["", "=" * 78, dimension.upper(), "=" * 78]
+        lines += eligibility_lines(items_by_number, dropped, keep)
 
+        rows = consensus_comparison_rows(entries, items_by_number, votes,
+                                         dimension, keep, judge_label)
         if not rows:
             lines.append("  no comparable items (no human votes loaded)")
             continue
 
-        ceiling = human_agreement(votes, items_by_number, dimension)
-        if ceiling:
-            lines.append(
-                f"  human inter-annotator ({ceiling['raters']} raters): "
-                f"agreement {ceiling['agreement']:6.1%}   "
-                f"mean pairwise kappa {ceiling['kappa']:+.3f}"
-            )
-        if no_human:
-            lines.append(f"  excluded, no human vote on file: {no_human}")
-        if missing_gpt:
-            lines.append(f"  excluded, no GPT verdict on file: {missing_gpt}")
+        order = [judge_label] + names
+        datasets = sorted({items_by_number[i]["dataset"] for i in keep})
 
-        lines += ["", "  vs. ANNOTATOR CONSENSUS"]
-        lines.append(stats_line("ALL", block_stats(rows)))
-        for dataset in sorted({r["dataset"] for r in rows}):
-            lines.append(stats_line(
-                dataset, block_stats([r for r in rows if r["dataset"] == dataset])))
-        slot_a = slot_a_line(rows)
-        if slot_a:
-            lines.append(slot_a)
+        for label, wanted in [("ALL DATASETS", None)] + [(d, d) for d in datasets]:
+            subsets = {}
+            for rater in order:
+                subset = [r for r in rows.get(rater, [])
+                          if wanted is None or r["dataset"] == wanted]
+                if subset:
+                    subsets[rater] = subset
+            if not subsets:
+                continue
 
-        if len(names) > 1:
-            lines += ["", "  vs. EACH ANNOTATOR (same judge, one rater at a time)"]
-            for name in names:
-                own_rows, _, _ = comparison_rows(
-                    entries, items_by_number, votes, dimension,
-                    lambda slot_votes, name=name: slot_votes.get(name))
-                block = block_stats(own_rows)
-                if block is None:
-                    lines.append(f"  {name:<12} no votes on this dimension")
+            size = len(next(iter(subsets.values())))
+            lines += ["", f"  {label}  (n={size})"]
+            for rater in order:
+                if rater not in subsets:
                     continue
-                lines.append(stats_line(name, block))
+                line = consensus_stats_line(
+                    f"{rater} (judge)" if rater == judge_label else rater,
+                    subsets[rater])
+                if line:
+                    lines.append(line)
 
     lines.append("")
     return "\n".join(lines)
@@ -1305,19 +1528,23 @@ def gpt_label_for(names):
     return label
 
 
-def rater_slots(entries, votes, dimension, judge_label):
-    """-> {rater: {item: slot}} across the annotators and the judge."""
+def rater_slots(entries, votes, dimension, judge_label, allowed_items=None):
+    """-> {rater: {item: slot}} across the annotators and the judge,
+    restricted to the datasets every annotator finished."""
+
+    def allowed(item):
+        return allowed_items is None or item in allowed_items
 
     slots = defaultdict(dict)
 
     for (item, dim), slot_votes in votes.items():
-        if dim != dimension:
+        if dim != dimension or not allowed(item):
             continue
         for name, slot in slot_votes.items():
             slots[name][item] = slot
 
     for entry in entries:
-        if entry["dimension"] != dimension:
+        if entry["dimension"] != dimension or not allowed(entry["item"]):
             continue
         # "TIE_2" (no [RESULT] tag emitted) is scored as a tie here, exactly as
         # it is everywhere else in this file.
@@ -1381,8 +1608,127 @@ def mean_rows(label, rows, width=34):
     return [line]
 
 
+def pair_rows(slots, present, judge_label, wanted_items=None):
+    """Every pair of raters over `wanted_items`, annotator pairs first."""
+
+    rows = []
+    for group in sorted(combinations(present, 2),
+                        key=lambda g: (judge_label in g, g)):
+        first, second = group
+        items = set(slots[first]) & set(slots[second])
+        if wanted_items is not None:
+            items &= wanted_items
+        if not items:
+            continue
+        items = sorted(items)
+        same = sum(1 for i in items if slots[first][i] == slots[second][i])
+        value = cohens_kappa([(slots[first][i], slots[second][i]) for i in items])
+        rows.append({"group": group, "shared": len(items), "same": same,
+                     "pct": same / len(items),
+                     "kappa": None if math.isnan(value) else value,
+                     "has_gpt": judge_label in group})
+    return rows
+
+
+def unanimity_row(slots, rating_names, wanted_items=None):
+    """-> (shared, all-agreed) for the annotators as one group."""
+
+    shared = set.intersection(*(set(slots[name]) for name in rating_names))
+    if wanted_items is not None:
+        shared &= wanted_items
+    if not shared:
+        return None
+    same = sum(1 for item in shared
+               if len({slots[name][item] for name in rating_names}) == 1)
+    return len(shared), same
+
+
+def agreement_block(slots, present, rating_names, judge_label, wanted_items,
+                    indent="  ", consensus=None):
+    """The PAIRS table, the consensus-vs-judge row, and the unanimity row
+    for one slice of the items."""
+
+    lines = []
+    rows = pair_rows(slots, present, judge_label, wanted_items)
+    if not rows:
+        return lines
+
+    lines.append(f"{indent}PAIRS")
+    for row in rows:
+        line = (f"{indent}  {' & '.join(row['group']):<32} "
+                f"{row['same']:>3}/{row['shared']:<3}  {row['pct']:6.1%}")
+        if row["kappa"] is not None:
+            line += f"   kappa {row['kappa']:+.3f}"
+        lines.append(line)
+
+    # Only the annotator ceiling and the overall mean. A "mean of the judge's
+    # pair rows" was tried and dropped: averaging the judge against three
+    # raters who disagree with each other as much as they do with it produces
+    # a number that moves for reasons that have nothing to do with the judge.
+    # The per-pair rows above already say everything that average could.
+    human_rows = [r for r in rows if not r["has_gpt"]]
+    averages = (mean_rows(f"mean, annotators only ({len(human_rows)})",
+                          human_rows, width=32)
+                + mean_rows(f"mean, all ({len(rows)})", rows, width=32))
+    if averages:
+        lines.append(f"{indent}  " + "-" * 68)
+        lines += [f"{indent}{line[2:]}" if line.startswith("    ") else line
+                  for line in averages]
+
+    # The consensus is not a rater -- it is derived from the three above --
+    # so it gets its own row rather than a seat in the PAIRS table, where it
+    # would be paired with the very annotators it is built from.
+    if consensus:
+        judge_slots = slots.get(judge_label, {})
+        items = set(consensus) & set(judge_slots)
+        if wanted_items is not None:
+            items &= wanted_items
+        if items:
+            items = sorted(items)
+            same = sum(1 for i in items if consensus[i] == judge_slots[i])
+            kappa = cohens_kappa([(consensus[i], judge_slots[i])
+                                  for i in items])
+            lines.append("")
+            lines.append(f"{indent}CONSENSUS vs. THE JUDGE "
+                         f"(the consensus is derived, not a fourth rater)")
+            line = (f"{indent}  {'consensus & ' + judge_label:<32} "
+                    f"{same:>3}/{len(items):<3}  {same / len(items):6.1%}")
+            if not math.isnan(kappa):
+                line += f"   kappa {kappa:+.3f}"
+            lines.append(line)
+
+    if len(rating_names) > 2:
+        row = unanimity_row(slots, rating_names, wanted_items)
+        if row:
+            shared, same = row
+            lines.append("")
+            lines.append(f"{indent}ALL {len(rating_names)} ANNOTATORS AGREE "
+                         f"(the judge is excluded by design)")
+            lines.append(f"{indent}  {' & '.join(rating_names):<32} "
+                         f"{same:>3}/{shared:<3}  {same / shared:6.1%}")
+
+    return lines
+
+
 def rater_agreement_report(entries, items_by_number, votes):
-    """Every combination of raters, from pairs upward, then their averages."""
+    """
+    Who agrees with whom -- pooled, then one block per dataset.
+
+    PAIRS cover every rater, judge included -- that is the comparison that
+    makes sense two at a time, and the judge's pair rows are exactly what the
+    correlation section reports from the other direction.
+
+    UNANIMITY is annotators only. A "GPT and two annotators all said the same
+    thing" row would read like a fourth opinion agreeing with the humans, but
+    the judge is the thing being evaluated, not a rater whose vote counts
+    toward a human consensus; mixing it into a group verdict confuses the
+    measure with the thing measured.
+
+    The per-dataset blocks matter more here than the pooled one: cnn, wikihow
+    and xsum are different tasks -- xsum is single-sentence, which compresses
+    everyone toward agreement -- so a pooled figure is an average over
+    populations that were never comparable.
+    """
 
     names = annotators_in(votes)
     if not names:
@@ -1395,83 +1741,55 @@ def rater_agreement_report(entries, items_by_number, votes):
              "AGREEMENT AMONG RATERS (annotators and the GPT judge)",
              "=" * 78,
              "",
-             "Raw agreement: how often two or more raters wrote the same answer.",
-             "Unanimous for groups of three or more. Percentages are over the",
-             "items every member of that group answered, which is why n can",
-             "differ between rows.",
+             "Raw agreement: how often two raters wrote the same answer, and --",
+             "in the last row of each block -- how often all the annotators did",
+             "at once. Percentages are over the items every member of that group",
+             "answered, restricted to the datasets every annotator finished.",
              "",
              "Cohen's kappa is shown for pairs only -- it is a two-rater",
              "statistic. It corrects for agreement expected by chance, so on a",
              "three-category scale where everyone ties often, a high raw",
              "percentage can still be a low kappa.",
              "",
-             "Each block ends with the averages of its own rows, split three",
-             "ways: the annotators among themselves (the human ceiling), the",
-             "judge against the annotators (what the judge achieves against a",
-             "typical single human), and everything pooled together. The first",
-             "two are the pair worth comparing -- the judge is doing well when",
-             "its row approaches the annotators' row, not when it approaches",
-             "100%."]
+             "Everything here is computed on the A/B/tie SLOTS. Agreement counts",
+             "are the same either way -- decoding to PMI/ROUGE is a per-item",
+             "relabelling, so two raters match on slots exactly when they match",
+             "on systems -- but kappa is not, because its chance-correction uses",
+             "the marginals, and those do change under relabelling. So the",
+             "consensus-vs-judge kappa here differs in the third decimal from",
+             "the systems-based one in the correlation section. Same comparison,",
+             "same agreement count, two defensible baselines.",
+             "",
+             "Read the per-dataset blocks before the pooled one. The judge is",
+             "doing well when its pair rows approach the annotators' rows, not",
+             "when they approach 100%."]
 
     for dimension in DIMENSIONS:
-        slots = rater_slots(entries, votes, dimension, judge_label)
+        keep, dropped = eligible_items(items_by_number, votes, dimension)
+        slots = rater_slots(entries, votes, dimension, judge_label, keep)
         present = [name for name in everyone if slots.get(name)]
+        rating_names = [name for name in names if slots.get(name)]
         if len(present) < 2:
             continue
 
-        lines += ["", "-" * 78, dimension.upper(), "-" * 78]
+        lines += ["", "=" * 78, dimension.upper(), "=" * 78]
+        lines += eligibility_lines(items_by_number, dropped, keep)
 
-        for size in range(2, len(present) + 1):
-            groups = list(combinations(present, size))
-            if not groups:
-                continue
+        consensus = consensus_slots(votes, dimension, keep)
 
-            if size == 2:
-                heading = "  PAIRS"
-            elif size == len(everyone):
-                heading = f"  ALL {size} RATERS"
-            else:
-                heading = f"  GROUPS OF {size}"
-            lines += ["", heading]
+        lines += ["", "  ALL DATASETS POOLED"]
+        lines += agreement_block(slots, present, rating_names, judge_label,
+                                 keep, indent="    ", consensus=consensus)
 
-            # Annotator-only combinations first: those are the inter-annotator
-            # numbers, and the judge's rows are a separate question.
-            rows = []
-            for group in sorted(groups, key=lambda g: (judge_label in g, g)):
-                shared, same = group_agreement(slots, group)
-                if not shared:
-                    continue
-
-                kappa = None
-                if size == 2:
-                    first, second = group
-                    items = sorted(set(slots[first]) & set(slots[second]))
-                    value = cohens_kappa(
-                        [(slots[first][i], slots[second][i]) for i in items])
-                    kappa = None if math.isnan(value) else value
-
-                rows.append({"group": group, "shared": shared, "same": same,
-                             "pct": same / shared, "kappa": kappa,
-                             "has_gpt": judge_label in group})
-
-            for row in rows:
-                line = (f"    {' & '.join(row['group']):<34} "
-                        f"{row['same']:>3}/{row['shared']:<3}  {row['pct']:6.1%}")
-                if row["kappa"] is not None:
-                    line += f"   kappa {row['kappa']:+.3f}"
-                lines.append(line)
-
-            human_rows = [r for r in rows if not r["has_gpt"]]
-            gpt_rows = [r for r in rows if r["has_gpt"]]
-            averages = (
-                mean_rows(f"mean, annotators only ({len(human_rows)})", human_rows)
-                + mean_rows(f"mean, including {judge_label} ({len(gpt_rows)})",
-                            gpt_rows)
-                + mean_rows(f"mean, all ({len(rows)})", rows)
-            )
-            if averages:
-                lines.append("    " + "-" * 70)
-                lines += averages
+        datasets = sorted({items_by_number[i]["dataset"] for i in keep})
+        for dataset in datasets:
+            wanted = {i for i in keep if items_by_number[i]["dataset"] == dataset}
+            block = agreement_block(slots, present, rating_names, judge_label,
+                                    wanted, indent="    ",
+                                    consensus=consensus)
+            if block:
+                lines += ["", f"  {dataset.upper()}  ({len(wanted)} items)"]
+                lines += block
 
     lines.append("")
     return "\n".join(lines)
@@ -1528,7 +1846,12 @@ def strong_disagreement_report(entries, items_by_number, votes):
 
     judge_label = gpt_label_for(names)
     everyone = names + [judge_label]
-    by_dimension = {dimension: rater_slots(entries, votes, dimension, judge_label)
+    keep_by_dimension = {dimension: eligible_items(items_by_number, votes,
+                                                   dimension)[0]
+                         for dimension in DIMENSIONS}
+    by_dimension = {dimension: rater_slots(entries, votes, dimension,
+                                           judge_label,
+                                           keep_by_dimension[dimension])
                     for dimension in DIMENSIONS}
 
     lines = ["", "=" * 78,
@@ -1565,17 +1888,28 @@ def strong_disagreement_report(entries, items_by_number, votes):
 
         lines += ["", f"  {first} & {second}"]
 
+        def by_dataset(numbers):
+            """'cnn 2, wikihow 3' -- which groups the disagreements sit in."""
+
+            counts = Counter(items_by_number[n]["dataset"] for n in numbers)
+            if not counts:
+                return ""
+            return "   (" + ", ".join(f"{d} {counts[d]}"
+                                      for d in sorted(counts)) + ")"
+
         either = set()
         for dimension, (found, shared) in per_dimension.items():
             either |= set(found)
             lines.append(f"    {dimension:<16} {len(found):>3}/{len(shared):<3} "
-                         f"{len(found) / len(shared):6.1%}")
+                         f"{len(found) / len(shared):6.1%}"
+                         f"{by_dataset(found)}")
             lines += wrap_numbers(found, " " * 6)
 
         if len(per_dimension) > 1:
             lines.append(f"    {'either':<16} {len(either):>3}/"
                          f"{len(shared_items):<3} "
-                         f"{len(either) / len(shared_items):6.1%}")
+                         f"{len(either) / len(shared_items):6.1%}"
+                         f"{by_dataset(either)}")
             lines += wrap_numbers(sorted(either), " " * 6)
 
     # The union over the human pairs only: the items the annotators themselves
@@ -1588,11 +1922,16 @@ def strong_disagreement_report(entries, items_by_number, votes):
             contested |= set(opposite_picks(slots.get(first, {}),
                                             slots.get(second, {})))
 
+    analysed = set().union(*keep_by_dimension.values()) or set(items_by_number)
     if len(names) > 1:
         lines += ["", "-" * 78,
                   f"  CONTESTED ITEMS -- any annotator pair, any dimension: "
-                  f"{len(contested)}/{len(items_by_number)} "
-                  f"({len(contested) / len(items_by_number):.1%})",
+                  f"{len(contested)}/{len(analysed)} "
+                  f"({len(contested) / len(analysed):.1%})"
+                  + "   (" + ", ".join(
+                      f"{d} {c}" for d, c in sorted(Counter(
+                          items_by_number[n]["dataset"]
+                          for n in contested).items())) + ")",
                   "-" * 78]
         lines += wrap_numbers(sorted(contested), "    ")
 
@@ -1687,11 +2026,12 @@ def summary_text(entries, items_by_number):
 
         # POSITIONAL BIAS, from the verdicts alone.
         #
-        # slot_a_line() in the correlation report measures the same thing
-        # comparatively -- judge against the humans on the identical
-        # arrangement -- and needs the human votes, so it cannot run until the
-        # annotators are in. This one needs nothing but the JSON, which means
-        # the bias is readable straight after the paid run.
+        # This is the only place the slot-A rate is reported. The correlation
+        # section used to carry a comparative version -- judge against the
+        # humans on the identical arrangement -- but it needed the votes, so it
+        # could not run until the annotators were in, and it said nothing this
+        # does not. This one needs only the JSON, so the bias is readable
+        # straight after the paid run.
         #
         # Read it against 50%, not against the humans: the packet puts PMI in
         # slot A on 52 of 105 items, so a judge with no positional preference
@@ -1712,6 +2052,50 @@ def summary_text(entries, items_by_number):
         lines.append("")
 
     return "\n".join(lines)
+
+###############################################################################
+# RUN CONTEXT
+###############################################################################
+
+def run_context_text(args, items, entries, votes, dimensions, mode):
+    """
+    What this report was built from, at the top of the report itself.
+
+    Everything here was previously printed to the console and lost when the
+    terminal scrolled, which made a saved .log ambiguous months later: it
+    showed numbers without saying which votes CSV or which verdict JSON
+    produced them. Anything a reader needs to reproduce or date the report
+    belongs in the file, not in the scrollback.
+    """
+
+    lines = ["=" * 78,
+             "RUN CONTEXT",
+             "=" * 78,
+             "",
+             f"generated          {datetime.now():%Y-%m-%d %H:%M}",
+             f"mode               {mode}",
+             f"dimensions         {', '.join(dimensions)}",
+             f"eval set           {args.eval_set.name}  ({len(items)} items)",
+             f"answer key         {args.answer_key.name}"]
+
+    json_path = args.out_dir / f"{BASE_NAME}.json"
+    lines.append(f"gpt verdicts       {json_path.name}  "
+                 f"({len(entries)} judgements)")
+
+    if votes:
+        names = annotators_in(votes)
+        total = sum(len(slot_votes) for slot_votes in votes.values())
+        lines.append(f"human votes        {args.human_answers.name}  "
+                     f"({len(names)} annotators, {total} votes)")
+        for name in names:
+            answered = sum(1 for slot_votes in votes.values()
+                           if name in slot_votes)
+            lines.append(f"                     {name:<12} {answered} votes")
+    else:
+        lines.append("human votes        none supplied")
+
+    lines.append("")
+    return "\n".join(lines) + "\n"
 
 ###############################################################################
 # ENTRY POINT
@@ -1750,6 +2134,11 @@ def parse_args():
                         help="answer_key.txt for that packet")
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR,
                         help="where results and the log are written")
+    parser.add_argument("--log-name", default=None,
+                        help="stem for the .log file, so a partial or "
+                             "one-off report can be kept under its own "
+                             "name instead of overwriting the last one "
+                             f"(default {BASE_NAME})")
     parser.add_argument("--model", default=MODEL, help=f"default {MODEL}")
     parser.add_argument("--reasoning-effort", default=REASONING_EFFORT,
                         choices=("none", "low", "medium", "high"),
@@ -1809,7 +2198,15 @@ def main():
         entries = json.loads(json_path.read_text(encoding="utf-8"))
         print(f"{len(entries)} judgements read from {json_path}")
 
-    report = summary_text(entries, items_by_number)
+    votes = None
+    if args.human_answers and do_the_sums:
+        votes = load_human_answers(args.human_answers)
+
+    mode = ("statistics only (no API calls)" if not ask_the_judge
+            else "GPT verdicts only" if not do_the_sums
+            else "GPT verdicts + statistics")
+    report = run_context_text(args, items, entries, votes, dimensions, mode)
+    report += summary_text(entries, items_by_number)
 
     if not do_the_sums:
         if args.human_answers:
@@ -1823,10 +2220,21 @@ def main():
                    "         --human-answers human_answers.csv\n")
         # Its own file, so stopping early cannot overwrite a full report that
         # is already on disk.
-        log_path = args.out_dir / f"{BASE_NAME}.gpt_only.log"
+        log_path = args.out_dir / (f"{args.log_name}.log" if args.log_name
+                                   else f"{BASE_NAME}.gpt_only.log")
     else:
-        if args.human_answers:
-            votes = load_human_answers(args.human_answers)
+        if votes:
+            stem = args.log_name or BASE_NAME
+            consensus_path = write_consensus_csv(
+                args.out_dir / f"{stem}.consensus.csv",
+                consensus_records(entries, items_by_number, votes))
+            if consensus_path:
+                print(f"consensus winners -> {consensus_path}")
+                report += (f"\nPer-item consensus verdicts, with every "
+                           f"annotator's vote and the judge's, were written "
+                           f"to\n{consensus_path.name}\n")
+            report += consensus_distribution_report(entries, items_by_number,
+                                                    votes)
             report += correlation_report(entries, items_by_number, votes)
             report += rater_agreement_report(entries, items_by_number, votes)
             report += strong_disagreement_report(entries, items_by_number, votes)
@@ -1845,7 +2253,7 @@ def main():
                        "prepare_human_answers_csv.py, then re-run with\n"
                        "--calc-correlation-statistics-only --human-answers "
                        "human_answers.csv;\nit costs nothing.\n")
-        log_path = args.out_dir / f"{BASE_NAME}.log"
+        log_path = args.out_dir / f"{args.log_name or BASE_NAME}.log"
 
     log_path.write_text(report, encoding="utf-8")
     print(report)
