@@ -2,7 +2,7 @@
 RUN CONTEXT
 ==============================================================================
 
-generated          2026-09-14 13:42
+generated          2026-09-14 15:09
 mode               statistics only (no API calls)
 dimensions         faithfulness, informativeness
 eval set           human_eval_set.txt  (105 items)
@@ -390,3 +390,91 @@ answered.
 ------------------------------------------------------------------------------
     2, 3, 5, 6, 7, 8, 9, 10, 12, 14, 20, 21, 23, 27, 33, 43, 45, 48, 49, 50,
     52, 53, 56, 57, 58, 61, 62, 66, 68, 70
+
+==============================================================================
+TIE-TOLERANT AGREEMENT (only A-vs-B counts as a disagreement)
+==============================================================================
+
+A tie against a side is treated as compatible, not as a
+disagreement: the two raters agree on which summary is not worse,
+they differ only in how large a margin they require before
+committing. Only A-vs-B -- genuinely opposite readings -- counts
+against a pair here.
+
+NOT OPPOSED              over every shared item: how often the two
+                         were not in direct opposition.
+SAME WHEN BOTH           over only the items where BOTH picked a
+  COMMITTED              side: how often it was the same side.
+                         Ties leave the denominator entirely, so a
+                         rater who ties often is neither rewarded
+                         nor punished -- they contribute fewer
+                         items. This is the stricter figure.
+
+Both tie back to STRONG DISAGREEMENTS above: not opposed is
+(shared - strong), and same-when-committed is (committed - strong).
+
+==============================================================================
+FAITHFULNESS
+==============================================================================
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+
+  ALL DATASETS POOLED  (70 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  65/70   92.9%               22/27   81.5%
+    ege & st                     61/70   87.1%               28/37   75.7%
+    harun & st                   64/70   91.4%               27/33   81.8%
+    ege & GPT                    61/70   87.1%               30/39   76.9%
+    harun & GPT                  65/70   92.9%               33/38   86.8%
+    st & GPT                     62/70   88.6%               34/42   81.0%
+
+  CNN  (35 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  33/35   94.3%                9/11   81.8%
+    ege & st                     29/35   82.9%               12/18   66.7%
+    harun & st                   35/35  100.0%               12/12  100.0%
+    ege & GPT                    32/35   91.4%               12/15   80.0%
+    harun & GPT                  35/35  100.0%               14/14  100.0%
+    st & GPT                     34/35   97.1%               14/15   93.3%
+
+  WIKIHOW  (35 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  32/35   91.4%               13/16   81.2%
+    ege & st                     32/35   91.4%               16/19   84.2%
+    harun & st                   29/35   82.9%               15/21   71.4%
+    ege & GPT                    29/35   82.9%               18/24   75.0%
+    harun & GPT                  30/35   85.7%               19/24   79.2%
+    st & GPT                     28/35   80.0%               20/27   74.1%
+
+==============================================================================
+INFORMATIVENESS
+==============================================================================
+  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
+  analysed: 70/105 items from the datasets every annotator finished
+
+  ALL DATASETS POOLED  (70 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  62/70   88.6%               35/43   81.4%
+    ege & st                     56/70   80.0%               28/42   66.7%
+    harun & st                   55/70   78.6%               32/47   68.1%
+    ege & GPT                    54/70   77.1%               37/53   69.8%
+    harun & GPT                  59/70   84.3%               43/54   79.6%
+    st & GPT                     52/70   74.3%               39/57   68.4%
+
+  CNN  (35 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  30/35   85.7%               18/23   78.3%
+    ege & st                     31/35   88.6%               15/19   78.9%
+    harun & st                   29/35   82.9%               17/23   73.9%
+    ege & GPT                    29/35   82.9%               20/26   76.9%
+    harun & GPT                  29/35   82.9%               23/29   79.3%
+    st & GPT                     28/35   80.0%               21/28   75.0%
+
+  WIKIHOW  (35 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  32/35   91.4%               17/20   85.0%
+    ege & st                     25/35   71.4%               13/23   56.5%
+    harun & st                   26/35   74.3%               15/24   62.5%
+    ege & GPT                    25/35   71.4%               17/27   63.0%
+    harun & GPT                  30/35   85.7%               20/25   80.0%
+    st & GPT                     24/35   68.6%               18/29   62.1%

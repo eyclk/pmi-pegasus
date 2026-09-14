@@ -2054,6 +2054,145 @@ def summary_text(entries, items_by_number):
     return "\n".join(lines)
 
 ###############################################################################
+# TIE-TOLERANT AGREEMENT
+###############################################################################
+
+# The AGREEMENT AMONG RATERS section counts a tie against a side as a
+# disagreement, because it is one: the raters gave different answers. But that
+# conflates two things that are not alike.
+#
+#     one said A, the other said B      they disagree about which is better
+#     one said B, the other said tie    they agree B is not worse; one of them
+#                                       simply required a clearer margin
+#
+# The second is a difference in how readily a rater commits, not a difference
+# of opinion about the systems. Raters differ enormously on that here -- st
+# ties 22.9% of faithfulness items, harun 44.8% -- so the ordinary agreement
+# numbers are partly a measure of who is willing to call a draw, which is not
+# what the study is about.
+#
+# This section removes that. Only A-vs-B counts as a disagreement; every
+# tie-involving pair is treated as compatible. Two figures, because they answer
+# different questions:
+#
+#   NOT OPPOSED       over every shared item: how often the two were not in
+#                     direct opposition. Ties count as compatible, so this is
+#                     the tie-tolerant analogue of the raw agreement rate.
+#   SAME WHEN BOTH    over only the items where BOTH picked a side: how often
+#     COMMITTED       they picked the SAME side. Ties are excluded from the
+#                     denominator, so a rater who ties often is neither
+#                     rewarded nor punished -- they simply contribute fewer
+#                     items. This is the stricter and more informative of the
+#                     two, and the closest thing here to "when both had an
+#                     opinion, did they share it?"
+#
+# The counts tie back to the STRONG DISAGREEMENTS section above: "not opposed"
+# is (shared - strong), and "same when both committed" is
+# (both committed - strong), over the same items.
+
+
+def tie_tolerant_row(slots_a, slots_b, wanted_items=None):
+    """-> (shared, strong, both_committed) for one pair over one slice."""
+
+    items = set(slots_a) & set(slots_b)
+    if wanted_items is not None:
+        items &= wanted_items
+    if not items:
+        return None
+
+    strong = committed = 0
+    for item in items:
+        first, second = slots_a[item], slots_b[item]
+        if first in ("A", "B") and second in ("A", "B"):
+            committed += 1
+            if first != second:
+                strong += 1
+    return len(items), strong, committed
+
+
+def tie_tolerant_block(slots, present, judge_label, wanted_items, indent="    "):
+    """The pair table for one slice of the items."""
+
+    lines = [f"{indent}{'pair':<24}{'not opposed':>18}"
+             f"{'same when both committed':>28}"]
+
+    for group in sorted(combinations(present, 2),
+                        key=lambda g: (judge_label in g, g)):
+        first, second = group
+        row = tie_tolerant_row(slots[first], slots[second], wanted_items)
+        if row is None:
+            continue
+        shared, strong, committed = row
+        not_opposed = shared - strong
+        same = committed - strong
+
+        cell = (f"{same:>3}/{committed:<3} {same / committed:6.1%}"
+                if committed else "      --     ")
+        lines.append(
+            f"{indent}{' & '.join(group):<24}"
+            f"{not_opposed:>7}/{shared:<3} {not_opposed / shared:6.1%}"
+            f"{cell:>28}"
+        )
+
+    return lines if len(lines) > 1 else []
+
+
+def tie_tolerant_report(entries, items_by_number, votes):
+    """Agreement with ties treated as compatible rather than as a mismatch."""
+
+    names = annotators_in(votes)
+    if not names:
+        return ""
+
+    judge_label = gpt_label_for(names)
+    everyone = names + [judge_label]
+
+    lines = ["", "=" * 78,
+             "TIE-TOLERANT AGREEMENT (only A-vs-B counts as a disagreement)",
+             "=" * 78,
+             "",
+             "A tie against a side is treated as compatible, not as a",
+             "disagreement: the two raters agree on which summary is not worse,",
+             "they differ only in how large a margin they require before",
+             "committing. Only A-vs-B -- genuinely opposite readings -- counts",
+             "against a pair here.",
+             "",
+             "NOT OPPOSED              over every shared item: how often the two",
+             "                         were not in direct opposition.",
+             "SAME WHEN BOTH           over only the items where BOTH picked a",
+             "  COMMITTED              side: how often it was the same side.",
+             "                         Ties leave the denominator entirely, so a",
+             "                         rater who ties often is neither rewarded",
+             "                         nor punished -- they contribute fewer",
+             "                         items. This is the stricter figure.",
+             "",
+             "Both tie back to STRONG DISAGREEMENTS above: not opposed is",
+             "(shared - strong), and same-when-committed is (committed - strong)."]
+
+    for dimension in DIMENSIONS:
+        keep, dropped = eligible_items(items_by_number, votes, dimension)
+        slots = rater_slots(entries, votes, dimension, judge_label, keep)
+        present = [name for name in everyone if slots.get(name)]
+        if len(present) < 2:
+            continue
+
+        lines += ["", "=" * 78, dimension.upper(), "=" * 78]
+        lines += eligibility_lines(items_by_number, dropped, keep)
+
+        lines += ["", f"  ALL DATASETS POOLED  ({len(keep)} items)"]
+        lines += tie_tolerant_block(slots, present, judge_label, keep)
+
+        for dataset in sorted({items_by_number[i]["dataset"] for i in keep}):
+            wanted = {i for i in keep if items_by_number[i]["dataset"] == dataset}
+            block = tie_tolerant_block(slots, present, judge_label, wanted)
+            if block:
+                lines += ["", f"  {dataset.upper()}  ({len(wanted)} items)"]
+                lines += block
+
+    lines.append("")
+    return "\n".join(lines)
+
+###############################################################################
 # RUN CONTEXT
 ###############################################################################
 
@@ -2238,6 +2377,7 @@ def main():
             report += correlation_report(entries, items_by_number, votes)
             report += rater_agreement_report(entries, items_by_number, votes)
             report += strong_disagreement_report(entries, items_by_number, votes)
+            report += tie_tolerant_report(entries, items_by_number, votes)
         elif args.calc_correlation_statistics_only:
             # The whole point of this flag is the statistics, and they need
             # votes. Saying so beats writing a report with the section missing.
