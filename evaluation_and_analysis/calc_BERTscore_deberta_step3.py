@@ -16,7 +16,7 @@ eval_for_FactPEGASUS = False
 
 eval_for_SBERT = True  # Set to False if you want to skip the SBERT-Pegasus model
 
-eval_for_only_sbert = False  # Set to True to evaluate ONLY SBERT-Pegasus, ignoring the PMI and ROUGE folders
+eval_for_only_sbert = True  # Set to True to evaluate ONLY SBERT-Pegasus, ignoring the PMI and ROUGE folders
 
 if eval_for_only_sbert:
     # An only-SBERT run needs SBERT itself switched on, and has nothing to compare

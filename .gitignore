@@ -45,3 +45,6 @@ __pycache__/
 .idea/copilot.data.migration.ask.xml
 evaluation_and_analysis/__pycache__/principal_sent_selection_analysis__B3.cpython-39.pyc
 .claude/settings.local.json
+
+# Per-stage console logs written by run_SBERT_full_pipeline_4M_to_8M.sh
+pipeline_logs/
