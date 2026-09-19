@@ -2,16 +2,16 @@
 RUN CONTEXT
 ==============================================================================
 
-generated          2026-09-14 15:46
+generated          2026-09-19 13:26
 mode               statistics only (no API calls)
 dimensions         faithfulness, informativeness
 eval set           human_eval_set.txt  (105 items)
 answer key         answer_key.txt
 gpt verdicts       gpt_judge_vs_human_eval.json  (210 judgements)
-human votes        human_answers.csv  (3 annotators, 560 votes)
+human votes        human_answers.csv  (3 annotators, 630 votes)
                      ege          210 votes
                      harun        210 votes
-                     st           140 votes
+                     st           210 votes
 
 ==============================================================================
 GPT JUDGE ON THE HUMAN-EVALUATION SET
@@ -51,7 +51,7 @@ INFORMATIVENESS
     xsum     n= 34  slot A  19 (55.9%)
 
 Per-item consensus verdicts, with every annotator's vote and the judge's, were written to
-incomplete.consensus.csv
+human_eval_complete_analysis.consensus.csv
 
 ==============================================================================
 WHAT WAS DECIDED: ANNOTATOR CONSENSUS vs. GPT JUDGE
@@ -69,14 +69,12 @@ no better than chance.
 ------------------------------------------------------------------------------
 FAITHFULNESS
 ------------------------------------------------------------------------------
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
-  consensus reached by: unanimous 21 (30.0%)   plurality 41 (58.6%)   no plurality, scored tie 8 (11.4%)
+  consensus reached by: unanimous 35 (33.3%)   plurality 60 (57.1%)   no plurality, scored tie 10 (9.5%)
 
-  ALL DATASETS  (n=70)
-    consensus   PMI    27 (38.6%)   ROUGE  16 (22.9%)   tie    27 (38.6%)
-    gpt judge   PMI    30 (42.9%)   ROUGE  23 (32.9%)   tie    17 (24.3%)
-    agreement    51/70  (72.9%)   kappa +0.592
+  ALL DATASETS  (n=105)
+    consensus   PMI    37 (35.2%)   ROUGE  23 (21.9%)   tie    45 (42.9%)
+    gpt judge   PMI    47 (44.8%)   ROUGE  39 (37.1%)   tie    19 (18.1%)
+    agreement    67/105 (63.8%)   kappa +0.470
 
   cnn  (n=35)
     consensus   PMI    10 (28.6%)   ROUGE   7 (20.0%)   tie    18 (51.4%)
@@ -88,17 +86,20 @@ FAITHFULNESS
     gpt judge   PMI    20 (57.1%)   ROUGE  14 (40.0%)   tie     1 ( 2.9%)
     agreement    22/35  (62.9%)   kappa +0.393
 
+  xsum  (n=35)
+    consensus   PMI    10 (28.6%)   ROUGE   7 (20.0%)   tie    18 (51.4%)
+    gpt judge   PMI    17 (48.6%)   ROUGE  16 (45.7%)   tie     2 ( 5.7%)
+    agreement    16/35  (45.7%)   kappa +0.267
+
 ------------------------------------------------------------------------------
 INFORMATIVENESS
 ------------------------------------------------------------------------------
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
-  consensus reached by: unanimous 22 (31.4%)   plurality 41 (58.6%)   no plurality, scored tie 7 (10.0%)
+  consensus reached by: unanimous 30 (28.6%)   plurality 65 (61.9%)   no plurality, scored tie 10 (9.5%)
 
-  ALL DATASETS  (n=70)
-    consensus   PMI    30 (42.9%)   ROUGE  23 (32.9%)   tie    17 (24.3%)
-    gpt judge   PMI    41 (58.6%)   ROUGE  28 (40.0%)   tie     1 ( 1.4%)
-    agreement    44/70  (62.9%)   kappa +0.395
+  ALL DATASETS  (n=105)
+    consensus   PMI    37 (35.2%)   ROUGE  32 (30.5%)   tie    36 (34.3%)
+    gpt judge   PMI    58 (55.2%)   ROUGE  45 (42.9%)   tie     2 ( 1.9%)
+    agreement    59/105 (56.2%)   kappa +0.344
 
   cnn  (n=35)
     consensus   PMI    13 (37.1%)   ROUGE  15 (42.9%)   tie     7 (20.0%)
@@ -109,6 +110,11 @@ INFORMATIVENESS
     consensus   PMI    17 (48.6%)   ROUGE   8 (22.9%)   tie    10 (28.6%)
     gpt judge   PMI    21 (60.0%)   ROUGE  13 (37.1%)   tie     1 ( 2.9%)
     agreement    20/35  (57.1%)   kappa +0.304
+
+  xsum  (n=35)
+    consensus   PMI     7 (20.0%)   ROUGE   9 (25.7%)   tie    19 (54.3%)
+    gpt judge   PMI    17 (48.6%)   ROUGE  17 (48.6%)   tie     1 ( 2.9%)
+    agreement    15/35  (42.9%)   kappa +0.251
 
 ==============================================================================
 CORRELATION: EVERY RATER vs. THE ANNOTATOR CONSENSUS
@@ -130,14 +136,12 @@ tau-b above kappa means the misses are mostly ties, not reversals.
 ==============================================================================
 FAITHFULNESS
 ==============================================================================
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
 
-  ALL DATASETS  (n=70)
-    GPT (judge)   51/70    72.9%   kappa +0.592   tau-b +0.606
-    ege           48/70    68.6%   kappa +0.512   tau-b +0.617
-    harun         54/70    77.1%   kappa +0.650   tau-b +0.698
-    st            51/70    72.9%   kappa +0.596   tau-b +0.718
+  ALL DATASETS  (n=105)
+    GPT (judge)   67/105   63.8%   kappa +0.470   tau-b +0.543
+    ege           73/105   69.5%   kappa +0.532   tau-b +0.598
+    harun         83/105   79.0%   kappa +0.675   tau-b +0.729
+    st            79/105   75.2%   kappa +0.632   tau-b +0.742
 
   cnn  (n=35)
     GPT (judge)   29/35    82.9%   kappa +0.729   tau-b +0.805
@@ -151,17 +155,21 @@ FAITHFULNESS
     harun         25/35    71.4%   kappa +0.561   tau-b +0.635
     st            27/35    77.1%   kappa +0.642   tau-b +0.702
 
+  xsum  (n=35)
+    GPT (judge)   16/35    45.7%   kappa +0.267   tau-b +0.438
+    ege           25/35    71.4%   kappa +0.553   tau-b +0.558
+    harun         29/35    82.9%   kappa +0.728   tau-b +0.805
+    st            28/35    80.0%   kappa +0.700   tau-b +0.808
+
 ==============================================================================
 INFORMATIVENESS
 ==============================================================================
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
 
-  ALL DATASETS  (n=70)
-    GPT (judge)   44/70    62.9%   kappa +0.395   tau-b +0.504
-    ege           51/70    72.9%   kappa +0.574   tau-b +0.695
-    harun         58/70    82.9%   kappa +0.737   tau-b +0.778
-    st            46/70    65.7%   kappa +0.467   tau-b +0.516
+  ALL DATASETS  (n=105)
+    GPT (judge)   59/105   56.2%   kappa +0.344   tau-b +0.499
+    ege           76/105   72.4%   kappa +0.583   tau-b +0.664
+    harun         84/105   80.0%   kappa +0.700   tau-b +0.708
+    st            70/105   66.7%   kappa +0.499   tau-b +0.562
 
   cnn  (n=35)
     GPT (judge)   24/35    68.6%   kappa +0.480   tau-b +0.625
@@ -174,6 +182,12 @@ INFORMATIVENESS
     ege           24/35    68.6%   kappa +0.481   tau-b +0.627
     harun         30/35    85.7%   kappa +0.776   tau-b +0.785
     st            23/35    65.7%   kappa +0.462   tau-b +0.401
+
+  xsum  (n=35)
+    GPT (judge)   15/35    42.9%   kappa +0.251   tau-b +0.491
+    ege           25/35    71.4%   kappa +0.556   tau-b +0.625
+    harun         26/35    74.3%   kappa +0.537   tau-b +0.438
+    st            24/35    68.6%   kappa +0.529   tau-b +0.719
 
 ==============================================================================
 AGREEMENT AMONG RATERS (annotators and the GPT judge)
@@ -205,26 +219,24 @@ when they approach 100%.
 ==============================================================================
 FAITHFULNESS
 ==============================================================================
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
 
   ALL DATASETS POOLED
     PAIRS
-      ege & harun                       33/70    47.1%   kappa +0.207
-      ege & st                          34/70    48.6%   kappa +0.228
-      harun & st                        37/70    52.9%   kappa +0.311
-      ege & GPT                         39/70    55.7%   kappa +0.335
-      harun & GPT                       49/70    70.0%   kappa +0.560
-      st & GPT                          39/70    55.7%   kappa +0.321
+      ege & harun                       52/105   49.5%   kappa +0.235
+      ege & st                          53/105   50.5%   kappa +0.262
+      harun & st                        60/105   57.1%   kappa +0.369
+      ege & GPT                         56/105   53.3%   kappa +0.309
+      harun & GPT                       65/105   61.9%   kappa +0.450
+      st & GPT                          59/105   56.2%   kappa +0.325
       --------------------------------------------------------------------
-      mean, annotators only (3)                  49.5%   kappa +0.249
-      mean, all (6)                              55.0%   kappa +0.327
+      mean, annotators only (3)                  52.4%   kappa +0.289
+      mean, all (6)                              54.8%   kappa +0.325
 
     CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
-      consensus & GPT                   51/70    72.9%   kappa +0.597
+      consensus & GPT                   67/105   63.8%   kappa +0.474
 
     ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
-      ege & harun & st                  21/70    30.0%
+      ege & harun & st                  35/105   33.3%
 
   CNN  (35 items)
     PAIRS
@@ -262,29 +274,45 @@ FAITHFULNESS
     ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
       ege & harun & st                  10/35    28.6%
 
+  XSUM  (35 items)
+    PAIRS
+      ege & harun                       19/35    54.3%   kappa +0.289
+      ege & st                          19/35    54.3%   kappa +0.318
+      harun & st                        23/35    65.7%   kappa +0.488
+      ege & GPT                         17/35    48.6%   kappa +0.283
+      harun & GPT                       16/35    45.7%   kappa +0.243
+      st & GPT                          20/35    57.1%   kappa +0.349
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  58.1%   kappa +0.365
+      mean, all (6)                              54.3%   kappa +0.329
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   16/35    45.7%   kappa +0.268
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                  14/35    40.0%
+
 ==============================================================================
 INFORMATIVENESS
 ==============================================================================
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
 
   ALL DATASETS POOLED
     PAIRS
-      ege & harun                       40/70    57.1%   kappa +0.340
-      ege & st                          29/70    41.4%   kappa +0.090
-      harun & st                        38/70    54.3%   kappa +0.290
-      ege & GPT                         37/70    52.9%   kappa +0.233
-      harun & GPT                       44/70    62.9%   kappa +0.391
-      st & GPT                          40/70    57.1%   kappa +0.282
+      ege & harun                       56/105   53.3%   kappa +0.302
+      ege & st                          46/105   43.8%   kappa +0.148
+      harun & st                        53/105   50.5%   kappa +0.265
+      ege & GPT                         54/105   51.4%   kappa +0.242
+      harun & GPT                       55/105   52.4%   kappa +0.304
+      st & GPT                          59/105   56.2%   kappa +0.295
       --------------------------------------------------------------------
-      mean, annotators only (3)                  51.0%   kappa +0.240
-      mean, all (6)                              54.3%   kappa +0.271
+      mean, annotators only (3)                  49.2%   kappa +0.238
+      mean, all (6)                              51.3%   kappa +0.259
 
     CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
-      consensus & GPT                   44/70    62.9%   kappa +0.403
+      consensus & GPT                   59/105   56.2%   kappa +0.348
 
     ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
-      ege & harun & st                  22/70    31.4%
+      ege & harun & st                  30/105   28.6%
 
   CNN  (35 items)
     PAIRS
@@ -322,6 +350,24 @@ INFORMATIVENESS
     ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
       ege & harun & st                  11/35    31.4%
 
+  XSUM  (35 items)
+    PAIRS
+      ege & harun                       16/35    45.7%   kappa +0.139
+      ege & st                          17/35    48.6%   kappa +0.226
+      harun & st                        15/35    42.9%   kappa +0.136
+      ege & GPT                         17/35    48.6%   kappa +0.257
+      harun & GPT                       11/35    31.4%   kappa +0.170
+      st & GPT                          19/35    54.3%   kappa +0.317
+      --------------------------------------------------------------------
+      mean, annotators only (3)                  45.7%   kappa +0.167
+      mean, all (6)                              45.2%   kappa +0.207
+
+    CONSENSUS vs. THE JUDGE (the consensus is derived, not a fourth rater)
+      consensus & GPT                   15/35    42.9%   kappa +0.254
+
+    ALL 3 ANNOTATORS AGREE (the judge is excluded by design)
+      ege & harun & st                   8/35    22.9%
+
 ==============================================================================
 STRONG DISAGREEMENTS -- one rater picked A, the other picked B
 ==============================================================================
@@ -335,55 +381,58 @@ of the two dimensions. Percentages are over the items both raters
 answered.
 
   ege & harun
-    faithfulness       5/70    7.1%   (cnn 2, wikihow 3)
-      12, 21, 52, 53, 58
-    informativeness    8/70   11.4%   (cnn 5, wikihow 3)
-      2, 3, 9, 14, 23, 61, 62, 70
-    either            13/70   18.6%   (cnn 7, wikihow 6)
-      2, 3, 9, 12, 14, 21, 23, 52, 53, 58, 61, 62, 70
+    faithfulness       7/105   6.7%   (cnn 2, wikihow 3, xsum 2)
+      12, 21, 52, 53, 58, 74, 85
+    informativeness   11/105  10.5%   (cnn 5, wikihow 3, xsum 3)
+      2, 3, 9, 14, 23, 61, 62, 70, 78, 93, 102
+    either            18/105  17.1%   (cnn 7, wikihow 6, xsum 5)
+      2, 3, 9, 12, 14, 21, 23, 52, 53, 58, 61, 62, 70, 74, 78, 85, 93, 102
 
   ege & st
-    faithfulness       9/70   12.9%   (cnn 6, wikihow 3)
-      5, 8, 9, 20, 21, 27, 49, 50, 52
-    informativeness   14/70   20.0%   (cnn 4, wikihow 10)
-      2, 7, 14, 33, 45, 48, 50, 52, 56, 57, 61, 66, 68, 70
-    either            21/70   30.0%   (cnn 10, wikihow 11)
+    faithfulness      12/105  11.4%   (cnn 6, wikihow 3, xsum 3)
+      5, 8, 9, 20, 21, 27, 49, 50, 52, 74, 85, 105
+    informativeness   18/105  17.1%   (cnn 4, wikihow 10, xsum 4)
+      2, 7, 14, 33, 45, 48, 50, 52, 56, 57, 61, 66, 68, 70, 78, 85, 99, 105
+    either            26/105  24.8%   (cnn 10, wikihow 11, xsum 5)
       2, 5, 7, 8, 9, 14, 20, 21, 27, 33, 45, 48, 49, 50, 52, 56, 57, 61, 66,
-      68, 70
+      68, 70, 74, 78, 85, 99, 105
 
   harun & st
-    faithfulness       6/70    8.6%   (wikihow 6)
-      43, 45, 49, 50, 53, 58
-    informativeness   15/70   21.4%   (cnn 6, wikihow 9)
-      3, 6, 7, 9, 10, 33, 43, 45, 49, 50, 52, 56, 62, 66, 68
-    either            17/70   24.3%   (cnn 6, wikihow 11)
-      3, 6, 7, 9, 10, 33, 43, 45, 49, 50, 52, 53, 56, 58, 62, 66, 68
+    faithfulness       7/105   6.7%   (wikihow 6, xsum 1)
+      43, 45, 49, 50, 53, 58, 84
+    informativeness   17/105  16.2%   (cnn 6, wikihow 9, xsum 2)
+      3, 6, 7, 9, 10, 33, 43, 45, 49, 50, 52, 56, 62, 66, 68, 93, 102
+    either            20/105  19.0%   (cnn 6, wikihow 11, xsum 3)
+      3, 6, 7, 9, 10, 33, 43, 45, 49, 50, 52, 53, 56, 58, 62, 66, 68, 84, 93,
+      102
 
   ege & GPT
-    faithfulness       9/70   12.9%   (cnn 3, wikihow 6)
-      12, 21, 25, 41, 42, 49, 52, 53, 65
-    informativeness   16/70   22.9%   (cnn 6, wikihow 10)
-      1, 2, 9, 14, 23, 25, 38, 41, 42, 45, 46, 48, 56, 57, 61, 62
-    either            22/70   31.4%   (cnn 8, wikihow 14)
+    faithfulness      13/105  12.4%   (cnn 3, wikihow 6, xsum 4)
+      12, 21, 25, 41, 42, 49, 52, 53, 65, 74, 82, 92, 105
+    informativeness   21/105  20.0%   (cnn 6, wikihow 10, xsum 5)
+      1, 2, 9, 14, 23, 25, 38, 41, 42, 45, 46, 48, 56, 57, 61, 62, 78, 79, 82,
+      93, 105
+    either            29/105  27.6%   (cnn 8, wikihow 14, xsum 7)
       1, 2, 9, 12, 14, 21, 23, 25, 38, 41, 42, 45, 46, 48, 49, 52, 53, 56, 57,
-      61, 62, 65
+      61, 62, 65, 74, 78, 79, 82, 92, 93, 105
 
   harun & GPT
-    faithfulness       5/70    7.1%   (wikihow 5)
-      42, 45, 49, 58, 70
-    informativeness   11/70   15.7%   (cnn 6, wikihow 5)
-      1, 3, 6, 10, 16, 25, 38, 42, 45, 56, 70
-    either            13/70   18.6%   (cnn 6, wikihow 7)
-      1, 3, 6, 10, 16, 25, 38, 42, 45, 49, 56, 58, 70
+    faithfulness       8/105   7.6%   (wikihow 5, xsum 3)
+      42, 45, 49, 58, 70, 78, 85, 94
+    informativeness   12/105  11.4%   (cnn 6, wikihow 5, xsum 1)
+      1, 3, 6, 10, 16, 25, 38, 42, 45, 56, 70, 102
+    either            17/105  16.2%   (cnn 6, wikihow 7, xsum 4)
+      1, 3, 6, 10, 16, 25, 38, 42, 45, 49, 56, 58, 70, 78, 85, 94, 102
 
   st & GPT
-    faithfulness       8/70   11.4%   (cnn 1, wikihow 7)
-      20, 42, 43, 50, 51, 53, 65, 70
-    informativeness   18/70   25.7%   (cnn 7, wikihow 11)
-      1, 5, 7, 9, 16, 32, 33, 38, 42, 43, 49, 50, 52, 53, 62, 66, 68, 70
-    either            21/70   30.0%   (cnn 8, wikihow 13)
+    faithfulness      14/105  13.3%   (cnn 1, wikihow 7, xsum 6)
+      20, 42, 43, 50, 51, 53, 65, 70, 71, 78, 84, 85, 92, 99
+    informativeness   23/105  21.9%   (cnn 7, wikihow 11, xsum 5)
+      1, 5, 7, 9, 16, 32, 33, 38, 42, 43, 49, 50, 52, 53, 62, 66, 68, 70, 79,
+      84, 85, 93, 99
+    either            29/105  27.6%   (cnn 8, wikihow 13, xsum 8)
       1, 5, 7, 9, 16, 20, 32, 33, 38, 42, 43, 49, 50, 51, 52, 53, 62, 65, 66,
-      68, 70
+      68, 70, 71, 78, 79, 84, 85, 92, 93, 99
 
 ------------------------------------------------------------------------------
   THREE-WAY: how ege & harun & st lined up -- FAITHFULNESS
@@ -391,18 +440,18 @@ answered.
   Three raters and two sides cannot be mutually opposed, so every
   opposed item below is 2-1, or two opposed with the third tying.
 
-                                             ALL       cnn   wikihow
-    same side, unanimous              17 (24.3%)         8         9
-    same side + tie(s)                35 (50.0%)        17        18
-    all three tied                     4 ( 5.7%)         3         1
+                                             ALL       cnn   wikihow      xsum
+    same side, unanimous              27 (25.7%)         8         9        10
+    same side + tie(s)                52 (49.5%)        17        18        17
+    all three tied                     8 ( 7.6%)         3         1         4
     ------------------------------
-    NOT OPPOSED                       56 (80.0%)        28        28
+    NOT OPPOSED                       87 (82.9%)        28        28        31
 
-    opposed, all committed             6 ( 8.6%)         1         5
-    opposed, one tied                  8 (11.4%)         6         2
+    opposed, all committed             8 ( 7.6%)         1         5         2
+    opposed, one tied                 10 ( 9.5%)         6         2         2
     ------------------------------
-    OPPOSED (three-way strong)        14 (20.0%)         7         7
-      5, 8, 9, 12, 20, 21, 27, 43, 45, 49, 50, 52, 53, 58
+    OPPOSED (three-way strong)        18 (17.1%)         7         7         4
+      5, 8, 9, 12, 20, 21, 27, 43, 45, 49, 50, 52, 53, 58, 74, 84, 85, 105
 
 ------------------------------------------------------------------------------
   THREE-WAY: how ege & harun & st lined up -- INFORMATIVENESS
@@ -410,25 +459,25 @@ answered.
   Three raters and two sides cannot be mutually opposed, so every
   opposed item below is 2-1, or two opposed with the third tying.
 
-                                             ALL       cnn   wikihow
-    same side, unanimous              21 (30.0%)        11        10
-    same side + tie(s)                26 (37.1%)        15        11
-    all three tied                     1 ( 1.4%)         0         1
+                                             ALL       cnn   wikihow      xsum
+    same side, unanimous              24 (22.9%)        11        10         3
+    same side + tie(s)                47 (44.8%)        15        11        21
+    all three tied                     6 ( 5.7%)         0         1         5
     ------------------------------
-    NOT OPPOSED                       48 (68.6%)        26        22
+    NOT OPPOSED                       77 (73.3%)        26        22        29
 
-    opposed, all committed            15 (21.4%)         6         9
-    opposed, one tied                  7 (10.0%)         3         4
+    opposed, all committed            18 (17.1%)         6         9         3
+    opposed, one tied                 10 ( 9.5%)         3         4         3
     ------------------------------
-    OPPOSED (three-way strong)        22 (31.4%)         9        13
+    OPPOSED (three-way strong)        28 (26.7%)         9        13         6
       2, 3, 6, 7, 9, 10, 14, 23, 33, 43, 45, 48, 49, 50, 52, 56, 57, 61, 62,
-      66, 68, 70
+      66, 68, 70, 78, 85, 93, 99, 102, 105
 
 ------------------------------------------------------------------------------
-  CONTESTED ITEMS -- any annotator pair, any dimension: 30/70 (42.9%)   (cnn 15, wikihow 15)
+  CONTESTED ITEMS -- any annotator pair, any dimension: 38/105 (36.2%)   (cnn 15, wikihow 15, xsum 8)
 ------------------------------------------------------------------------------
     2, 3, 5, 6, 7, 8, 9, 10, 12, 14, 20, 21, 23, 27, 33, 43, 45, 48, 49, 50,
-    52, 53, 56, 57, 58, 61, 62, 66, 68, 70
+    52, 53, 56, 57, 58, 61, 62, 66, 68, 70, 74, 78, 84, 85, 93, 99, 102, 105
 
 ==============================================================================
 TIE-TOLERANT AGREEMENT (only A-vs-B counts as a disagreement)
@@ -455,17 +504,15 @@ Both tie back to STRONG DISAGREEMENTS above: not opposed is
 ==============================================================================
 FAITHFULNESS
 ==============================================================================
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
 
-  ALL DATASETS POOLED  (70 items)
+  ALL DATASETS POOLED  (105 items)
     pair                           not opposed    same when both committed
-    ege & harun                  65/70   92.9%               22/27   81.5%
-    ege & st                     61/70   87.1%               28/37   75.7%
-    harun & st                   64/70   91.4%               27/33   81.8%
-    ege & GPT                    61/70   87.1%               30/39   76.9%
-    harun & GPT                  65/70   92.9%               33/38   86.8%
-    st & GPT                     62/70   88.6%               34/42   81.0%
+    ege & harun                  98/105  93.3%               32/39   82.1%
+    ege & st                     93/105  88.6%               40/52   76.9%
+    harun & st                   98/105  93.3%               42/49   85.7%
+    ege & GPT                    92/105  87.6%               45/58   77.6%
+    harun & GPT                  97/105  92.4%               48/56   85.7%
+    st & GPT                     91/105  86.7%               52/66   78.8%
 
   CNN  (35 items)
     pair                           not opposed    same when both committed
@@ -485,20 +532,27 @@ FAITHFULNESS
     harun & GPT                  30/35   85.7%               19/24   79.2%
     st & GPT                     28/35   80.0%               20/27   74.1%
 
+  XSUM  (35 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  33/35   94.3%               10/12   83.3%
+    ege & st                     32/35   91.4%               12/15   80.0%
+    harun & st                   34/35   97.1%               15/16   93.8%
+    ege & GPT                    31/35   88.6%               15/19   78.9%
+    harun & GPT                  32/35   91.4%               15/18   83.3%
+    st & GPT                     29/35   82.9%               18/24   75.0%
+
 ==============================================================================
 INFORMATIVENESS
 ==============================================================================
-  DATASET DROPPED: xsum -- incomplete for st (35/35 missing)
-  analysed: 70/105 items from the datasets every annotator finished
 
-  ALL DATASETS POOLED  (70 items)
+  ALL DATASETS POOLED  (105 items)
     pair                           not opposed    same when both committed
-    ege & harun                  62/70   88.6%               35/43   81.4%
-    ege & st                     56/70   80.0%               28/42   66.7%
-    harun & st                   55/70   78.6%               32/47   68.1%
-    ege & GPT                    54/70   77.1%               37/53   69.8%
-    harun & GPT                  59/70   84.3%               43/54   79.6%
-    st & GPT                     52/70   74.3%               39/57   68.4%
+    ege & harun                  94/105  89.5%               40/51   78.4%
+    ege & st                     87/105  82.9%               39/57   68.4%
+    harun & st                   88/105  83.8%               38/55   69.1%
+    ege & GPT                    84/105  80.0%               53/74   71.6%
+    harun & GPT                  93/105  88.6%               53/65   81.5%
+    st & GPT                     82/105  78.1%               57/80   71.2%
 
   CNN  (35 items)
     pair                           not opposed    same when both committed
@@ -517,3 +571,12 @@ INFORMATIVENESS
     ege & GPT                    25/35   71.4%               17/27   63.0%
     harun & GPT                  30/35   85.7%               20/25   80.0%
     st & GPT                     24/35   68.6%               18/29   62.1%
+
+  XSUM  (35 items)
+    pair                           not opposed    same when both committed
+    ege & harun                  32/35   91.4%                5/8    62.5%
+    ege & st                     31/35   88.6%               11/15   73.3%
+    harun & st                   33/35   94.3%                6/8    75.0%
+    ege & GPT                    30/35   85.7%               16/21   76.2%
+    harun & GPT                  34/35   97.1%               10/11   90.9%
+    st & GPT                     30/35   85.7%               18/23   78.3%

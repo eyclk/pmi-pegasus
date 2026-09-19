@@ -46,8 +46,8 @@ USAGE
     python prepare_human_answers_csv.py --out votes.csv
     python prepare_human_answers_csv.py "human_eval_set - Ege.txt"
 
-With no arguments it picks up every "human_eval_set - NAME.txt" beside this
-file and takes NAME as the annotator id, so adding the second and third
+With no arguments it picks up every "human_eval_set - NAME.txt" or
+"human_eval_set_NAME.txt" beside this file and takes NAME as the annotator id, so adding the second and third
 annotator later means dropping their file in and re-running. The blank
 "human_eval_set.txt" is not matched by that pattern and is used as the
 reference copy instead.
@@ -85,8 +85,15 @@ DEFAULT_OUT = SCRIPT_DIR / "human_answers.csv"
 # "human_eval_set - st - cnn & wikihow completed.txt" is annotator "st". People
 # label their working copies, and the label should not leak into the CSV and
 # the report as though it were who they are.
-PACKET_GLOB = "human_eval_set - *.txt"
-ANNOTATOR_FROM_NAME = re.compile(r"^human_eval_set - (.+?)(?: - .*)?$")
+# Both separators are accepted, because returned packets arrive named however
+# the annotator happened to save them:
+#     "human_eval_set - Ege.txt"                       -> ege
+#     "human_eval_set_st.txt"                          -> st
+#     "human_eval_set - st - cnn & wikihow done.txt"   -> st
+# The blank "human_eval_set.txt" has no separator at all and so is never
+# mistaken for a returned one.
+PACKET_GLOBS = ("human_eval_set - *.txt", "human_eval_set_*.txt")
+ANNOTATOR_FROM_NAME = re.compile(r"^human_eval_set[ _-]+(.+?)(?: - .*)?$")
 
 # The dimension columns of the CSV, and the packet headings they come from.
 # Order fixed here because it is the column order of the output.
@@ -342,7 +349,7 @@ def parse_args():
     )
     parser.add_argument("packets", nargs="*", type=Path,
                         help="filled-in packets; default is every "
-                             f"'{PACKET_GLOB}' beside this script")
+                             f"{' / '.join(PACKET_GLOBS)} beside this script")
     parser.add_argument("--blank", type=Path, default=BLANK_PACKET,
                         help="the unfilled packet to check against "
                              f"(default {BLANK_PACKET.name})")
@@ -359,11 +366,13 @@ def main():
     args = parse_args()
     judge = load_judge_module()
 
-    packets = args.packets or sorted(SCRIPT_DIR.glob(PACKET_GLOB))
+    found = {path for glob in PACKET_GLOBS for path in SCRIPT_DIR.glob(glob)}
+    packets = args.packets or sorted(found)
     if not packets:
         raise SystemExit(
             f"no annotator packets found. Put the returned files beside this "
-            f"script named '{PACKET_GLOB}', or pass them as arguments."
+            f"script named {' or '.join(PACKET_GLOBS)}, or pass them as "
+            f"arguments."
         )
 
     blank_texts = judge.parse_eval_set(args.blank)

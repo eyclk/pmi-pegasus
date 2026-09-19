@@ -2749,9 +2749,9 @@ is A Wales and India are to share the nation's culture and talent with different
 CANDIDATE B:
 A A new partnership between Wales and India is being launched as part of the's.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -2796,9 +2796,9 @@ The The French presidential candidate has accused the EU of being impatient and 
 CANDIDATE B:
 is The The French president has said he does not want to remain a member of the European Union, because it is "extremely important for the country in globalisation".
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -2827,9 +2827,9 @@ a A bus driver has been suspended after a video emerged of him punching and kick
 CANDIDATE B:
 d A A bus driver has been suspended after a video of an on-street street brawl was posted on social media.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -2860,9 +2860,9 @@ were Germany reached the semi-finals of the World Cup with a comfortable -win ov
 CANDIDATE B:
 Portugal Portugal began their campaign with a -win over's qualifying Group B.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -2893,9 +2893,9 @@ The The chief executive of Barnet Council has left the local authority after vot
 CANDIDATE B:
 has left Barnet Council after its chief executive apologised for the way voters were asked to vote in the general election.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -2920,9 +2920,9 @@ A A rare Olive ridley turtle found on Anglesey has been moved to a tank for the 
 CANDIDATE B:
 a A rare tropical sea turtle that washed up has arrived at a zoo for the first time.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -2970,9 +2970,9 @@ is The You're So Vain', Jon Stewart's latest edition of The Daily Show is the mo
 CANDIDATE B:
 The The Daily The Daily Show is five years since Jon Stewart took over as the host of US state-of-the-nation television's Daily Show from Jon Stewart.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -2999,9 +2999,9 @@ CANDIDATE A:
 CANDIDATE B:
 speed A A speed camera has notched up a record number of penalty notices for speeding drivers.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3028,9 +3028,9 @@ Manager Manager Manager Coleman says he is upset after Carlisle United's home ga
 CANDIDATE B:
 s Manager Coleman says he is upset by the way Carlisle United's game against Stanley has been postponed.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3072,9 +3072,9 @@ was Hamilton was left out of qualifying for the second race of the new Formula 1
 CANDIDATE B:
 Mercedes have apologised to fans for failing to push Ferrari's Sebastian Vettel to the limit in final practice.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3097,9 +3097,9 @@ poles have been installed at Trump Aberdeenshire golf resort.
 CANDIDATE B:
 An poles have been installed on the north pole at Trump golf resort in Aberdeenshire.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3121,9 +3121,9 @@ Portsmouth Portsmouth have signed Whatmough on a season-long loan deal.
 CANDIDATE B:
 haveough has signed a new contract with champions.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3154,9 +3154,9 @@ is Will have a one-shot lead over the rest of the field going into the final rou
 CANDIDATE B:
 Dubai Jumeirah's Open champion is five shots off the lead after the first round of the Dubai Desert Classic.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3178,9 +3178,9 @@ charges A A driver has been charged with causing the death of a Ceredigion woman
 CANDIDATE B:
 es A motorist has admitted causing the death of a Ceredigion woman following a collision with a car.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3208,9 +3208,9 @@ a The The Bundesbank has raised the retirement age for employees in Germany from
 CANDIDATE B:
 A The retirement age for Germans should rise to 67, the country's central bank, the Bundesbank, says.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3251,9 +3251,9 @@ has Couples has been criticised after it was criticised for failing to name the 
 CANDIDATE B:
 A A new Has A new online divorce form has been met with concern that people may not be able to ignore it.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3284,9 +3284,9 @@ Protesters have marched through the streets of Mexico's capital,, in support of 
 CANDIDATE B:
 has People People have taken to the streets of Mexico's capital,, to march against same-sex marriage.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3325,9 +3325,9 @@ were Durham Jets beat Leicestershire by 24 runs in the T20 Blast to earn their f
 CANDIDATE B:
 Durham Durham Durham set up a meeting with Middlesex in the T20 Blast with victory in Newcastle.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3352,9 +3352,9 @@ r A A retired police officer has been found not guilty of indecently assaulting 
 CANDIDATE B:
 A A retired police officer has been found not guilty of indecently assaulting a male colleague in 1986.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3376,9 +3376,9 @@ A A-kind of logs are set to be carve into logs for the Claymore Trophy.
 CANDIDATE B:
 carving competition, with a twist to the chainsaw, is taking place.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3405,9 +3405,9 @@ s England full-back Tomkins says he would "never want to return" to Wigan Warrio
 CANDIDATE B:
 England England full-back Tomkins says he would never want to return to Wigan, despite signing a new contract with the Super League champions.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3439,9 +3439,9 @@ The Plans to increase the airport's capacity to 30 million passengers a year hav
 CANDIDATE B:
 plans The The owner of London Luton Airport has announced plans to increase the number of passengers per annum to 30 million.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3486,9 +3486,9 @@ was A A case of a man who murdered his parents should have been investigated for
 CANDIDATE B:
 A A police force has "failing to believe victims of rape" were "wholly inappropriate", the police watchdog has said.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3521,9 +3521,9 @@ A A bot that promises to "countless" parking tickets and delay flights has been 
 CANDIDATE B:
 , A bot has been launched to offer "countless" parking tickets to drivers on busy streets.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3554,9 +3554,9 @@ sales The The UK's retail sales grew at their fastest pace in April, official fi
 CANDIDATE B:
 The The UK's retail sales growth slowed compared with a year earlier, according to official figures.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3599,9 +3599,9 @@ A A Malala Yousafzai, one of the country's best-known schoolgirls, has been shot
 CANDIDATE B:
 a A A Pakistani schoolgirls have been shot dead by gunmen in the Swat Valley in the north-west of the country, police say.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3641,9 +3641,9 @@ Jonathan Jonathan Jonathan Bell, the DUP's enterprise minister, has accused the 
 CANDIDATE B:
 Minister Former Minister Jonathan Bell has claimed DUP special advisers tried to oust him from the party in order to prevent him being called to a committee to discuss the botched RHI scheme.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3687,9 +3687,9 @@ was Katharina Barker was "daft" when she was told her son has Down's syndrome.
 CANDIDATE B:
 When When When Victoria When Victoria Barker celebrated her birthday, she had no idea she would not be celebrating her son's life.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3717,9 +3717,9 @@ Isle of Wight Council is appealing against a High Court ruling that parents shou
 CANDIDATE B:
 is Isle of Wight Council is to appeal against a High Court decision not to fine a father who took his daughter on holiday with him on holiday.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3747,9 +3747,9 @@ Police Police Police have clashed with police in Zimbabwe's capital,, killing pe
 CANDIDATE B:
 s roadblocks have broken out in Zimbabwe's main city, police say.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
 
 --------------------------------------------------------------------------------
@@ -3803,9 +3803,9 @@ It When Charles Darwin was one of the most famous people in the world when he di
 CANDIDATE B:
 , It It's It'll be like a birthday party - but the obituaries written on the grave of Charles Darwin have been glowing obituaries in his death.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3851,9 +3851,9 @@ A A - A new BBC Spotlight opinion poll suggests that a majority of those who ide
 CANDIDATE B:
 s A Aegon opinion polls for the BBC Spotlight programme suggest that a avowed religious divide is emerging between those who identify themselves as Northern Irish and those who backed a united Ireland.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3874,9 +3874,9 @@ a People have been rescued from a house fire.
 CANDIDATE B:
 able People People People have been rescued from a house fire.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ tie ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ tie ]
 
 
 --------------------------------------------------------------------------------
@@ -3902,9 +3902,9 @@ has A A man has been killed by a grizzly bear in the US state, police say.
 CANDIDATE B:
 a A A hiker has been killed by a grizzly bear in the US state, officials say.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ A ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ A ]
 
 
 --------------------------------------------------------------------------------
@@ -3946,7 +3946,7 @@ Owens scored Owens scored his first Super League try for Warrington to move to w
 CANDIDATE B:
 s Owens scored his second hat-trick of the season to hand Widnes their first Super League win.
 
-BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [  ]
+BEST ACCORDING TO FAITHFULNESS  (A / B / tie):  [ B ]
 
-BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [  ]
+BEST ACCORDING TO INFORMATIVENESS  (A / B / tie):  [ B ]
 
