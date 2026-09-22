@@ -82,6 +82,17 @@ FT_LR=3e-05
 FT_LOGGING_STEP=25000
 FT_WARMUP_STEPS=500
 
+# --max_target_length per dataset, used for BOTH fine-tuning and generation. It
+# must match the PMI / ROUGE runs, or the comparison is not like for like: those
+# models were run at 64 for xsum and 128 for cnn and wikihow (their cnn
+# predictions reach 125 tokens). A cnn value of 64 truncated 65% of the SBERT
+# 4M cnn summaries mid-sentence -- and, being a fine-tuning setting too, the
+# training labels with them, so changing it means re-fine-tuning, not just
+# regenerating.
+XSUM_TARGET_LEN=64
+CNN_TARGET_LEN=128
+WIKIHOW_TARGET_LEN=128
+
 # --- directories ---
 MODELS_DIR=./models
 FT_MODELS_DIR=./finetuned_models
@@ -103,9 +114,8 @@ ENV_STEP3=llm_score         # DeBERTa BERTScore
 # per-dataset settings
 ###############################################################################
 #
-# The generation length follows the existing scripts: 64 tokens for the single
-# sentence xsum and the cnn summaries, 128 for the longer wikihow ones, with the
-# batch size / accumulation pairs those scripts use alongside them.
+# The target lengths come from the *_TARGET_LEN constants above; the batch size
+# / accumulation pairs are the ones the existing scripts use for each dataset.
 
 dataset_config() {
     case "$1" in
@@ -113,7 +123,7 @@ dataset_config() {
             DS_FT_FOLDER=xsum_comb
             DS_EVAL_SUFFIX=xsum_comb
             DS_RESULT_FOLDER=xsum_result_files
-            DS_TARGET_LEN=64
+            DS_TARGET_LEN=$XSUM_TARGET_LEN
             DS_TRAIN_BS=16
             DS_GRAD_ACC=2
             ;;
@@ -121,7 +131,7 @@ dataset_config() {
             DS_FT_FOLDER=cnn_dailymail_comb
             DS_EVAL_SUFFIX=cnn_comb
             DS_RESULT_FOLDER=cnn_result_files
-            DS_TARGET_LEN=64
+            DS_TARGET_LEN=$CNN_TARGET_LEN
             DS_TRAIN_BS=16
             DS_GRAD_ACC=2
             ;;
@@ -129,7 +139,7 @@ dataset_config() {
             DS_FT_FOLDER=wikihow_comb
             DS_EVAL_SUFFIX=wikihow_comb
             DS_RESULT_FOLDER=wikihow_result_files
-            DS_TARGET_LEN=128
+            DS_TARGET_LEN=$WIKIHOW_TARGET_LEN
             DS_TRAIN_BS=8
             DS_GRAD_ACC=4
             ;;
