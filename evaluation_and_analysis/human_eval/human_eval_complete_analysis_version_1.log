@@ -2,7 +2,7 @@
 RUN CONTEXT
 ==============================================================================
 
-generated          2026-09-24 15:33
+generated          2026-09-19 13:26
 mode               statistics only (no API calls)
 dimensions         faithfulness, informativeness
 eval set           human_eval_set.txt  (105 items)
@@ -580,85 +580,3 @@ INFORMATIVENESS
     ege & GPT                    30/35   85.7%               16/21   76.2%
     harun & GPT                  34/35   97.1%               10/11   90.9%
     st & GPT                     30/35   85.7%               18/23   78.3%
-
-==============================================================================
-CONSENSUS vs. GPT JUDGE -- STRONG DISAGREEMENTS
-==============================================================================
-
-Only A-vs-B counts as a disagreement. If either side tied they are
-not opposed: they agree on which summary is not worse and differ
-only on whether the margin was big enough to call.
-
-strong disagreement   consensus picked one candidate, the judge
-                      picked the other. Genuine conflict.
-not opposed           everything else, ties included.
-same when both        of the items where BOTH named a winner, how
-  committed           often it was the same one. Ties leave the
-                      denominator, so neither side is rewarded or
-                      punished for tying. The strictest figure.
-of those, judge       on the conflicting items only, which system
-  backed              the judge preferred. A lopsided split means
-                      the judge leans toward that system relative
-                      to the annotators.
-
-==============================================================================
-FAITHFULNESS
-==============================================================================
-
-  ALL DATASETS  (n=105)
-    strong disagreement (A vs B)       8/105    7.6%
-    not opposed                       97/105   92.4%
-    same when both committed          50/58    86.2%
-      of those, judge backed        PMI   2   ROUGE   6   (consensus took the other one)
-      42, 49, 53, 65, 70, 78, 85, 92
-
-  cnn  (n=35)
-    strong disagreement (A vs B)       0/35     0.0%
-    not opposed                       35/35   100.0%
-    same when both committed          15/15   100.0%
-
-  wikihow  (n=35)
-    strong disagreement (A vs B)       5/35    14.3%
-    not opposed                       30/35    85.7%
-    same when both committed          21/26    80.8%
-      of those, judge backed        PMI   1   ROUGE   4   (consensus took the other one)
-      42, 49, 53, 65, 70
-
-  xsum  (n=35)
-    strong disagreement (A vs B)       3/35     8.6%
-    not opposed                       32/35    91.4%
-    same when both committed          14/17    82.4%
-      of those, judge backed        PMI   1   ROUGE   2   (consensus took the other one)
-      78, 85, 92
-
-==============================================================================
-INFORMATIVENESS
-==============================================================================
-
-  ALL DATASETS  (n=105)
-    strong disagreement (A vs B)      12/105   11.4%
-    not opposed                       93/105   88.6%
-    same when both committed          57/69    82.6%
-      of those, judge backed        PMI   6   ROUGE   6   (consensus took the other one)
-      1, 9, 16, 25, 38, 42, 45, 56, 62, 70, 79, 93
-
-  cnn  (n=35)
-    strong disagreement (A vs B)       4/35    11.4%
-    not opposed                       31/35    88.6%
-    same when both committed          24/28    85.7%
-      of those, judge backed        PMI   3   ROUGE   1   (consensus took the other one)
-      1, 9, 16, 25
-
-  wikihow  (n=35)
-    strong disagreement (A vs B)       6/35    17.1%
-    not opposed                       29/35    82.9%
-    same when both committed          19/25    76.0%
-      of those, judge backed        PMI   2   ROUGE   4   (consensus took the other one)
-      38, 42, 45, 56, 62, 70
-
-  xsum  (n=35)
-    strong disagreement (A vs B)       2/35     5.7%
-    not opposed                       33/35    94.3%
-    same when both committed          14/16    87.5%
-      of those, judge backed        PMI   1   ROUGE   1   (consensus took the other one)
-      79, 93

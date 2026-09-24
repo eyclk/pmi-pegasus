@@ -2162,6 +2162,144 @@ def summary_text(entries, items_by_number):
     return "\n".join(lines)
 
 ###############################################################################
+# CONSENSUS vs. THE JUDGE -- STRONG DISAGREEMENTS
+###############################################################################
+
+# The same opposed/not-opposed treatment the annotator pairs get, applied to the
+# comparison that actually matters: the annotators' collective verdict against
+# the judge's.
+#
+# Only A-vs-B counts. If either side tied, the two are not in opposition -- one
+# of them simply required a clearer margin before committing. That distinction
+# is the whole point here, because the judge and the consensus tie at wildly
+# different rates (the judge tied 2 of 35 xsum faithfulness items where the
+# consensus tied 18), so an ordinary agreement rate between them is measuring
+# willingness to commit as much as it is measuring shared judgement.
+#
+# Slots, not systems, but it makes no difference: consensus A against judge B is
+# exactly "one of them picked PMI and the other picked ROUGE".
+#
+# The DIRECTION line is the part worth reading. On items where the two genuinely
+# conflict, it says which system the judge preferred. A judge that splits those
+# evenly is disagreeing without bias; one that takes PMI in most of them is
+# systematically kinder to PMI than the annotators are, and any PMI-vs-ROUGE
+# conclusion drawn from that judge inherits the lean.
+
+
+def opposed_stats(slots_a, slots_b, wanted_items=None):
+    """-> dict of shared / strong / committed / same, plus the opposed items."""
+
+    items = set(slots_a) & set(slots_b)
+    if wanted_items is not None:
+        items &= wanted_items
+    if not items:
+        return None
+
+    strong, committed = [], 0
+    for item in sorted(items):
+        first, second = slots_a[item], slots_b[item]
+        if first in ("A", "B") and second in ("A", "B"):
+            committed += 1
+            if first != second:
+                strong.append(item)
+
+    return {"shared": len(items), "committed": committed,
+            "strong": len(strong), "items": strong,
+            "same": committed - len(strong)}
+
+
+def consensus_vs_judge_block(consensus, judge_slots, items_by_number,
+                             label, wanted_items, indent="    "):
+    """One scope: the rates, the direction of the conflicts, the item numbers."""
+
+    stats = opposed_stats(consensus, judge_slots, wanted_items)
+    if stats is None:
+        return []
+
+    shared, strong, committed = stats["shared"], stats["strong"], stats["committed"]
+    lines = ["", f"  {label}  (n={shared})"]
+    lines.append(f"{indent}{'strong disagreement (A vs B)':<32}"
+                 f"{strong:>4}/{shared:<4} {strong / shared:6.1%}")
+    lines.append(f"{indent}{'not opposed':<32}"
+                 f"{shared - strong:>4}/{shared:<4} "
+                 f"{(shared - strong) / shared:6.1%}")
+    if committed:
+        lines.append(f"{indent}{'same when both committed':<32}"
+                     f"{stats['same']:>4}/{committed:<4} "
+                     f"{stats['same'] / committed:6.1%}")
+    else:
+        lines.append(f"{indent}{'same when both committed':<32}"
+                     f"     --     (neither side ever committed)")
+
+    # Which system the judge backed on the items where the two truly conflict.
+    if strong:
+        judge_took = Counter()
+        for item in stats["items"]:
+            meta = items_by_number[item]
+            judge_took[decode_winner(judge_slots[item], meta["system_a"],
+                                     meta["system_b"])] += 1
+        lines.append(
+            f"{indent}{'  of those, judge backed':<32}"
+            f"PMI {judge_took['pmi']:>3}   ROUGE {judge_took['rouge']:>3}"
+            f"   (consensus took the other one)"
+        )
+        lines += wrap_numbers(stats["items"], indent + "  ")
+
+    return lines
+
+
+def consensus_vs_judge_strong_report(entries, items_by_number, votes):
+    """Strong disagreements between the annotator consensus and the judge."""
+
+    names = annotators_in(votes)
+    if not names:
+        return ""
+
+    judge_label = gpt_label_for(names)
+
+    lines = ["", "=" * 78,
+             "CONSENSUS vs. GPT JUDGE -- STRONG DISAGREEMENTS",
+             "=" * 78,
+             "",
+             "Only A-vs-B counts as a disagreement. If either side tied they are",
+             "not opposed: they agree on which summary is not worse and differ",
+             "only on whether the margin was big enough to call.",
+             "",
+             "strong disagreement   consensus picked one candidate, the judge",
+             "                      picked the other. Genuine conflict.",
+             "not opposed           everything else, ties included.",
+             "same when both        of the items where BOTH named a winner, how",
+             "  committed           often it was the same one. Ties leave the",
+             "                      denominator, so neither side is rewarded or",
+             "                      punished for tying. The strictest figure.",
+             "of those, judge       on the conflicting items only, which system",
+             "  backed              the judge preferred. A lopsided split means",
+             "                      the judge leans toward that system relative",
+             "                      to the annotators."]
+
+    for dimension in DIMENSIONS:
+        keep, dropped = eligible_items(items_by_number, votes, dimension)
+        slots = rater_slots(entries, votes, dimension, judge_label, keep)
+        judge_slots = slots.get(judge_label, {})
+        consensus = consensus_slots(votes, dimension, keep)
+        if not judge_slots or not consensus:
+            continue
+
+        lines += ["", "=" * 78, dimension.upper(), "=" * 78]
+        lines += eligibility_lines(items_by_number, dropped, keep)
+
+        lines += consensus_vs_judge_block(consensus, judge_slots, items_by_number,
+                                          "ALL DATASETS", keep)
+        for dataset in sorted({items_by_number[i]["dataset"] for i in keep}):
+            wanted = {i for i in keep
+                      if items_by_number[i]["dataset"] == dataset}
+            lines += consensus_vs_judge_block(consensus, judge_slots,
+                                              items_by_number, dataset, wanted)
+
+    lines.append("")
+    return "\n".join(lines)
+
+###############################################################################
 # TIE-TOLERANT AGREEMENT
 ###############################################################################
 
@@ -2486,6 +2624,8 @@ def main():
             report += rater_agreement_report(entries, items_by_number, votes)
             report += strong_disagreement_report(entries, items_by_number, votes)
             report += tie_tolerant_report(entries, items_by_number, votes)
+            report += consensus_vs_judge_strong_report(entries,
+                                                       items_by_number, votes)
         elif args.calc_correlation_statistics_only:
             # The whole point of this flag is the statistics, and they need
             # votes. Saying so beats writing a report with the section missing.

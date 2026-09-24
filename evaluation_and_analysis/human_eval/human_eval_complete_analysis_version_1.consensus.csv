@@ -1,0 +1,211 @@
+item,dataset,dimension,system_a,system_b,consensus_slot,consensus_winner,reached_by,vote_ege,vote_harun,vote_st,gpt_slot,gpt_winner,agree
+1,cnn,faithfulness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+2,cnn,faithfulness,PMI,ROUGE,tie,tie,plurality,tie,tie,B,TIE,tie,yes
+3,cnn,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+4,cnn,faithfulness,PMI,ROUGE,A,pmi,plurality,A,tie,A,TIE,tie,no
+5,cnn,faithfulness,PMI,ROUGE,tie,tie,no plurality,A,tie,B,TIE,tie,yes
+6,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,B,TIE,tie,yes
+7,cnn,faithfulness,ROUGE,PMI,A,rouge,plurality,tie,A,A,A,rouge,yes
+8,cnn,faithfulness,PMI,ROUGE,tie,tie,no plurality,B,tie,A,TIE,tie,yes
+9,cnn,faithfulness,ROUGE,PMI,tie,tie,no plurality,B,tie,A,TIE,tie,yes
+10,cnn,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+11,cnn,faithfulness,ROUGE,PMI,B,pmi,plurality,tie,B,B,B,pmi,yes
+12,cnn,faithfulness,PMI,ROUGE,tie,tie,no plurality,A,B,tie,B,rouge,no
+13,cnn,faithfulness,PMI,ROUGE,A,pmi,plurality,tie,A,A,A,pmi,yes
+14,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,A,TIE,tie,yes
+15,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,B,tie,TIE,tie,yes
+16,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,A,TIE,tie,yes
+17,cnn,faithfulness,PMI,ROUGE,B,rouge,plurality,B,B,tie,B,rouge,yes
+18,cnn,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+19,cnn,faithfulness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,TIE,tie,yes
+20,cnn,faithfulness,PMI,ROUGE,tie,tie,no plurality,A,tie,B,A,pmi,no
+21,cnn,faithfulness,ROUGE,PMI,B,pmi,plurality,A,B,B,B,pmi,yes
+22,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,B,tie,tie,TIE,tie,yes
+23,cnn,faithfulness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,TIE,tie,yes
+24,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,A,TIE,tie,yes
+25,cnn,faithfulness,ROUGE,PMI,tie,tie,plurality,B,tie,tie,A,rouge,no
+26,cnn,faithfulness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,A,pmi,no
+27,cnn,faithfulness,ROUGE,PMI,tie,tie,no plurality,B,tie,A,TIE,tie,yes
+28,cnn,faithfulness,PMI,ROUGE,B,rouge,plurality,B,tie,B,B,rouge,yes
+29,cnn,faithfulness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+30,cnn,faithfulness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+31,cnn,faithfulness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+32,cnn,faithfulness,ROUGE,PMI,B,pmi,plurality,B,tie,B,TIE,tie,no
+33,cnn,faithfulness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+34,cnn,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+35,cnn,faithfulness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,TIE,tie,yes
+36,wikihow,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+37,wikihow,faithfulness,ROUGE,PMI,tie,tie,plurality,B,tie,tie,B,pmi,no
+38,wikihow,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+39,wikihow,faithfulness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+40,wikihow,faithfulness,PMI,ROUGE,A,pmi,plurality,A,A,tie,A,pmi,yes
+41,wikihow,faithfulness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,B,rouge,no
+42,wikihow,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,A,rouge,no
+43,wikihow,faithfulness,PMI,ROUGE,tie,tie,no plurality,tie,A,B,A,pmi,no
+44,wikihow,faithfulness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+45,wikihow,faithfulness,PMI,ROUGE,tie,tie,no plurality,tie,B,A,A,pmi,no
+46,wikihow,faithfulness,ROUGE,PMI,tie,tie,plurality,B,tie,tie,B,pmi,no
+47,wikihow,faithfulness,ROUGE,PMI,A,rouge,plurality,A,A,tie,A,rouge,yes
+48,wikihow,faithfulness,PMI,ROUGE,A,pmi,plurality,tie,A,A,A,pmi,yes
+49,wikihow,faithfulness,PMI,ROUGE,A,pmi,plurality,A,A,B,B,rouge,no
+50,wikihow,faithfulness,ROUGE,PMI,B,pmi,plurality,B,B,A,B,pmi,yes
+51,wikihow,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,A,B,pmi,no
+52,wikihow,faithfulness,PMI,ROUGE,B,rouge,plurality,A,B,B,B,rouge,yes
+53,wikihow,faithfulness,PMI,ROUGE,A,pmi,plurality,A,B,A,B,rouge,no
+54,wikihow,faithfulness,ROUGE,PMI,A,rouge,plurality,A,tie,A,A,rouge,yes
+55,wikihow,faithfulness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+56,wikihow,faithfulness,ROUGE,PMI,A,rouge,plurality,tie,A,A,A,rouge,yes
+57,wikihow,faithfulness,PMI,ROUGE,A,pmi,plurality,A,tie,A,A,pmi,yes
+58,wikihow,faithfulness,ROUGE,PMI,A,rouge,plurality,A,B,A,A,rouge,yes
+59,wikihow,faithfulness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,A,pmi,no
+60,wikihow,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+61,wikihow,faithfulness,PMI,ROUGE,A,pmi,plurality,tie,A,A,A,pmi,yes
+62,wikihow,faithfulness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+63,wikihow,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+64,wikihow,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+65,wikihow,faithfulness,ROUGE,PMI,B,pmi,plurality,B,tie,B,A,rouge,no
+66,wikihow,faithfulness,PMI,ROUGE,B,rouge,plurality,tie,B,B,B,rouge,yes
+67,wikihow,faithfulness,PMI,ROUGE,tie,tie,plurality,tie,B,tie,B,rouge,no
+68,wikihow,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,B,TIE,tie,yes
+69,wikihow,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+70,wikihow,faithfulness,PMI,ROUGE,B,rouge,plurality,tie,B,B,A,pmi,no
+71,xsum,faithfulness,PMI,ROUGE,tie,tie,plurality,tie,tie,B,A,pmi,no
+72,xsum,faithfulness,ROUGE,PMI,tie,tie,plurality,A,tie,tie,A,rouge,no
+73,xsum,faithfulness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+74,xsum,faithfulness,PMI,ROUGE,A,pmi,plurality,B,A,A,A,pmi,yes
+75,xsum,faithfulness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+76,xsum,faithfulness,ROUGE,PMI,A,rouge,plurality,A,tie,A,A,rouge,yes
+77,xsum,faithfulness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,B,rouge,no
+78,xsum,faithfulness,PMI,ROUGE,B,rouge,plurality,tie,B,B,A,pmi,no
+79,xsum,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+80,xsum,faithfulness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,A,pmi,no
+81,xsum,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+82,xsum,faithfulness,ROUGE,PMI,tie,tie,plurality,A,tie,tie,B,pmi,no
+83,xsum,faithfulness,PMI,ROUGE,tie,tie,plurality,B,tie,tie,B,rouge,no
+84,xsum,faithfulness,PMI,ROUGE,tie,tie,no plurality,tie,B,A,B,rouge,no
+85,xsum,faithfulness,PMI,ROUGE,A,pmi,plurality,B,A,A,B,rouge,no
+86,xsum,faithfulness,PMI,ROUGE,tie,tie,plurality,tie,tie,B,B,rouge,no
+87,xsum,faithfulness,ROUGE,PMI,B,pmi,plurality,tie,B,B,B,pmi,yes
+88,xsum,faithfulness,PMI,ROUGE,A,pmi,plurality,tie,A,A,A,pmi,yes
+89,xsum,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+90,xsum,faithfulness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,B,pmi,no
+91,xsum,faithfulness,PMI,ROUGE,tie,tie,plurality,tie,A,tie,TIE,tie,yes
+92,xsum,faithfulness,ROUGE,PMI,B,pmi,plurality,B,tie,B,A,rouge,no
+93,xsum,faithfulness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+94,xsum,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,B,tie,A,rouge,no
+95,xsum,faithfulness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+96,xsum,faithfulness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,A,rouge,no
+97,xsum,faithfulness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+98,xsum,faithfulness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,A,pmi,no
+99,xsum,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,A,B,pmi,no
+100,xsum,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,tie,B,B,pmi,no
+101,xsum,faithfulness,ROUGE,PMI,tie,tie,plurality,tie,A,tie,A,rouge,no
+102,xsum,faithfulness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+103,xsum,faithfulness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,TIE,tie,yes
+104,xsum,faithfulness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+105,xsum,faithfulness,ROUGE,PMI,tie,tie,no plurality,A,tie,B,B,pmi,no
+1,cnn,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,B,pmi,no
+2,cnn,informativeness,PMI,ROUGE,B,rouge,plurality,A,B,B,B,rouge,yes
+3,cnn,informativeness,ROUGE,PMI,B,pmi,plurality,B,A,B,B,pmi,yes
+4,cnn,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+5,cnn,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,B,A,pmi,no
+6,cnn,informativeness,ROUGE,PMI,tie,tie,no plurality,tie,A,B,B,pmi,no
+7,cnn,informativeness,ROUGE,PMI,B,pmi,plurality,B,B,A,B,pmi,yes
+8,cnn,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+9,cnn,informativeness,ROUGE,PMI,A,rouge,plurality,A,B,A,B,pmi,no
+10,cnn,informativeness,ROUGE,PMI,tie,tie,no plurality,tie,A,B,B,pmi,no
+11,cnn,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+12,cnn,informativeness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,A,pmi,no
+13,cnn,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,A,pmi,no
+14,cnn,informativeness,ROUGE,PMI,A,rouge,plurality,B,A,A,A,rouge,yes
+15,cnn,informativeness,ROUGE,PMI,A,rouge,plurality,A,A,tie,A,rouge,yes
+16,cnn,informativeness,ROUGE,PMI,A,rouge,plurality,tie,A,A,B,pmi,no
+17,cnn,informativeness,PMI,ROUGE,B,rouge,plurality,B,B,tie,B,rouge,yes
+18,cnn,informativeness,PMI,ROUGE,A,pmi,plurality,A,tie,A,A,pmi,yes
+19,cnn,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+20,cnn,informativeness,PMI,ROUGE,B,rouge,plurality,tie,B,B,B,rouge,yes
+21,cnn,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+22,cnn,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+23,cnn,informativeness,PMI,ROUGE,tie,tie,no plurality,A,B,tie,B,rouge,no
+24,cnn,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+25,cnn,informativeness,ROUGE,PMI,B,pmi,plurality,B,B,tie,A,rouge,no
+26,cnn,informativeness,PMI,ROUGE,A,pmi,plurality,A,A,tie,A,pmi,yes
+27,cnn,informativeness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+28,cnn,informativeness,PMI,ROUGE,B,rouge,plurality,tie,B,B,B,rouge,yes
+29,cnn,informativeness,PMI,ROUGE,B,rouge,plurality,tie,B,B,B,rouge,yes
+30,cnn,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+31,cnn,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+32,cnn,informativeness,ROUGE,PMI,tie,tie,plurality,tie,tie,B,A,rouge,no
+33,cnn,informativeness,ROUGE,PMI,A,rouge,plurality,A,A,B,A,rouge,yes
+34,cnn,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+35,cnn,informativeness,ROUGE,PMI,B,pmi,plurality,B,B,tie,B,pmi,yes
+36,wikihow,informativeness,PMI,ROUGE,A,pmi,plurality,A,tie,A,A,pmi,yes
+37,wikihow,informativeness,ROUGE,PMI,tie,tie,plurality,B,tie,tie,B,pmi,no
+38,wikihow,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,A,rouge,no
+39,wikihow,informativeness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+40,wikihow,informativeness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,TIE,tie,yes
+41,wikihow,informativeness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,B,rouge,no
+42,wikihow,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,A,rouge,no
+43,wikihow,informativeness,PMI,ROUGE,tie,tie,no plurality,tie,A,B,A,pmi,no
+44,wikihow,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+45,wikihow,informativeness,PMI,ROUGE,B,rouge,plurality,B,B,A,A,pmi,no
+46,wikihow,informativeness,ROUGE,PMI,tie,tie,plurality,B,tie,tie,A,rouge,no
+47,wikihow,informativeness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,B,pmi,no
+48,wikihow,informativeness,PMI,ROUGE,tie,tie,no plurality,B,tie,A,A,pmi,no
+49,wikihow,informativeness,PMI,ROUGE,tie,tie,no plurality,tie,A,B,A,pmi,no
+50,wikihow,informativeness,ROUGE,PMI,B,pmi,plurality,B,B,A,B,pmi,yes
+51,wikihow,informativeness,ROUGE,PMI,A,rouge,plurality,tie,A,A,A,rouge,yes
+52,wikihow,informativeness,PMI,ROUGE,A,pmi,plurality,A,A,B,A,pmi,yes
+53,wikihow,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,B,rouge,no
+54,wikihow,informativeness,ROUGE,PMI,A,rouge,plurality,tie,A,A,A,rouge,yes
+55,wikihow,informativeness,PMI,ROUGE,B,rouge,plurality,tie,B,B,B,rouge,yes
+56,wikihow,informativeness,ROUGE,PMI,B,pmi,plurality,B,B,A,A,rouge,no
+57,wikihow,informativeness,PMI,ROUGE,tie,tie,no plurality,B,tie,A,A,pmi,no
+58,wikihow,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+59,wikihow,informativeness,PMI,ROUGE,A,pmi,plurality,A,A,tie,A,pmi,yes
+60,wikihow,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+61,wikihow,informativeness,PMI,ROUGE,A,pmi,plurality,B,A,A,A,pmi,yes
+62,wikihow,informativeness,ROUGE,PMI,B,pmi,plurality,B,A,B,A,rouge,no
+63,wikihow,informativeness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+64,wikihow,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+65,wikihow,informativeness,ROUGE,PMI,B,pmi,unanimous,B,B,B,B,pmi,yes
+66,wikihow,informativeness,PMI,ROUGE,A,pmi,plurality,A,A,B,A,pmi,yes
+67,wikihow,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+68,wikihow,informativeness,ROUGE,PMI,A,rouge,plurality,A,A,B,A,rouge,yes
+69,wikihow,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+70,wikihow,informativeness,PMI,ROUGE,B,rouge,plurality,A,B,B,A,pmi,no
+71,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,A,pmi,no
+72,xsum,informativeness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,A,rouge,no
+73,xsum,informativeness,PMI,ROUGE,B,rouge,plurality,B,tie,B,B,rouge,yes
+74,xsum,informativeness,PMI,ROUGE,A,pmi,unanimous,A,A,A,A,pmi,yes
+75,xsum,informativeness,ROUGE,PMI,A,rouge,unanimous,A,A,A,A,rouge,yes
+76,xsum,informativeness,ROUGE,PMI,A,rouge,plurality,A,tie,A,A,rouge,yes
+77,xsum,informativeness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,B,rouge,no
+78,xsum,informativeness,PMI,ROUGE,B,rouge,plurality,A,B,B,B,rouge,yes
+79,xsum,informativeness,ROUGE,PMI,B,pmi,plurality,B,tie,B,A,rouge,no
+80,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,A,pmi,no
+81,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,A,pmi,no
+82,xsum,informativeness,ROUGE,PMI,tie,tie,plurality,A,tie,tie,B,pmi,no
+83,xsum,informativeness,PMI,ROUGE,B,rouge,plurality,B,B,tie,B,rouge,yes
+84,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,B,rouge,no
+85,xsum,informativeness,PMI,ROUGE,tie,tie,no plurality,B,tie,A,B,rouge,no
+86,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,B,B,rouge,no
+87,xsum,informativeness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+88,xsum,informativeness,PMI,ROUGE,A,pmi,plurality,tie,A,A,A,pmi,yes
+89,xsum,informativeness,PMI,ROUGE,A,pmi,plurality,A,tie,A,A,pmi,yes
+90,xsum,informativeness,ROUGE,PMI,tie,tie,unanimous,tie,tie,tie,A,rouge,no
+91,xsum,informativeness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,TIE,tie,yes
+92,xsum,informativeness,ROUGE,PMI,B,pmi,plurality,B,tie,B,B,pmi,yes
+93,xsum,informativeness,PMI,ROUGE,B,rouge,plurality,B,A,B,A,pmi,no
+94,xsum,informativeness,ROUGE,PMI,tie,tie,plurality,tie,A,tie,A,rouge,no
+95,xsum,informativeness,PMI,ROUGE,B,rouge,unanimous,B,B,B,B,rouge,yes
+96,xsum,informativeness,ROUGE,PMI,tie,tie,plurality,A,tie,tie,A,rouge,no
+97,xsum,informativeness,ROUGE,PMI,B,pmi,plurality,tie,B,B,B,pmi,yes
+98,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,A,tie,tie,A,pmi,no
+99,xsum,informativeness,ROUGE,PMI,tie,tie,no plurality,B,tie,A,B,pmi,no
+100,xsum,informativeness,ROUGE,PMI,tie,tie,plurality,tie,tie,B,B,pmi,no
+101,xsum,informativeness,ROUGE,PMI,A,rouge,plurality,A,A,tie,A,rouge,yes
+102,xsum,informativeness,ROUGE,PMI,A,rouge,plurality,A,B,A,A,rouge,yes
+103,xsum,informativeness,PMI,ROUGE,tie,tie,unanimous,tie,tie,tie,A,pmi,no
+104,xsum,informativeness,PMI,ROUGE,tie,tie,plurality,tie,tie,A,A,pmi,no
+105,xsum,informativeness,ROUGE,PMI,tie,tie,no plurality,A,tie,B,B,pmi,no
