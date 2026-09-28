@@ -58,8 +58,8 @@ PORT=29501
 KIND=SBERT                 # used in every model / folder name
 KIND_LOWER=sbert           # used in the evaluation_and_analysis folder names
 
-DEFAULT_CHECKPOINTS="1 2 3 4"
-DATASETS="cnn wikihow"
+DEFAULT_CHECKPOINTS="1 2 3"
+DATASETS="wikihow"
 
 # --- pretrained models ---
 # The model each checkpoint is fine-tuned from. Either a final model folder or a
@@ -68,8 +68,8 @@ DATASETS="cnn wikihow"
 # Each one must hold the model AND its tokenizer (src/main.py loads both from
 # it), and its trainer_state.json must say it is at n million steps. All the
 # requested paths are checked before anything is renamed or trained.
-PRETRAINED_1M=./models/SBERT_pegasus__complete_realnewslike_1_MIL_steps
-PRETRAINED_2M=./models/SBERT_pegasus__complete_realnewslike_2_MIL_steps
+PRETRAINED_1M=./models/SBERT_pegasus__complete_realnewslike_1_MIL_steps/checkpoint-1000000
+PRETRAINED_2M=./models/SBERT_pegasus__complete_realnewslike_3_MIL_steps/checkpoint-2000000
 PRETRAINED_3M=./models/SBERT_pegasus__complete_realnewslike_3_MIL_steps
 PRETRAINED_4M=./models/SBERT_pegasus__complete_realnewslike_4_MIL_steps
 
@@ -94,7 +94,7 @@ WIKIHOW_TARGET_LEN=128
 # taken at a much higher learning rate, so it is not like for like and the
 # script refuses it. Set to 1 (here, or as ALLOW_MID_RUN_CHECKPOINTS=1 in front
 # of the command) to use such a checkpoint anyway.
-ALLOW_MID_RUN_CHECKPOINTS=${ALLOW_MID_RUN_CHECKPOINTS:-0}
+ALLOW_MID_RUN_CHECKPOINTS=${ALLOW_MID_RUN_CHECKPOINTS:-1}
 
 # --- directories ---
 MODELS_DIR=./models
