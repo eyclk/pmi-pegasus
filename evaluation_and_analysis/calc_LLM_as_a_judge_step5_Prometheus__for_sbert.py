@@ -7,14 +7,17 @@ unchanged -- the candidates are still compared against the reference summaries
 shipped with the datasets, using the same prompt and the same four evaluation
 criteria (see build_judge_prompt). What changed is WHICH two systems are put
 against each other: instead of the single PMI-vs-ROUGE comparison, this script
-judges the SBERT-pegasus summaries against the other two selection methods,
+judges the SBERT-pegasus summaries against another selection method,
 
-  * sbert_vs_pmi   -- SBERT-pegasus  vs  PMI-pegasus
+  * sbert_vs_pmi   -- SBERT-pegasus  vs  PMI-pegasus  (the DEFAULT)
   * sbert_vs_rouge -- SBERT-pegasus  vs  ROUGE-pegasus (the original PEGASUS
                       baseline, i.e. the same opponent PMI is measured against)
+                      -- OPTIONAL, only run when asked for
 
-selectable with --pairings (one of them, or both in a single run). Everything
-else follows the direct-output script:
+Without --pairings only sbert_vs_pmi is judged. Pass "--pairings
+sbert_vs_rouge" (or "rouge") for the ROUGE comparison alone, or "--pairings
+all" for both in a single run. Everything else follows the direct-output
+script:
 
   * candidate summaries are read straight from the "eval_generated_pred/
     eval_results_*" folders, so nothing has to be copied into place by hand;
@@ -159,6 +162,10 @@ PAIRINGS = {
     "sbert_vs_pmi": ("sbert", "pmi"),
     "sbert_vs_rouge": ("sbert", "rouge"),
 }
+
+# Pairings judged when --pairings is not given. sbert_vs_rouge is optional and
+# has to be requested explicitly (--pairings sbert_vs_rouge, or all).
+DEFAULT_PAIRINGS = "sbert_vs_pmi"
 
 # dataset key -> where its reference summaries / candidate summaries / outputs
 # live. Unlike step 6 there is no per-dataset prompt: the reference summary is
@@ -792,23 +799,23 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Step 5 (SBERT) -- Prometheus LLM-as-a-judge of SBERT-pegasus "
-            "summaries against PMI-pegasus and/or ROUGE-pegasus, all judged "
-            "against the datasets' REFERENCE summaries. Without arguments it "
-            "runs both pairings on all 3 datasets x 8 checkpoints, which needs "
-            "an eval_results_SBERT_* folder for every checkpoint -- until they "
-            "all exist, pass the ones that do, e.g. --checkpoints 4M. Use the "
-            "flags to pick a pairing or to split the job across devices, e.g. "
-            "--pairings sbert_vs_pmi on one machine and --pairings "
-            "sbert_vs_rouge on another."
+            "summaries against PMI-pegasus (default) and optionally "
+            "ROUGE-pegasus, all judged against the datasets' REFERENCE "
+            "summaries. Without arguments it runs SBERT vs PMI on all 3 "
+            "datasets x 8 checkpoints, which needs an eval_results_SBERT_* "
+            "folder for every checkpoint -- until they all exist, pass the ones "
+            "that do, e.g. --checkpoints 4M. Pass --pairings sbert_vs_rouge to "
+            "judge SBERT vs ROUGE instead, or --pairings all for both."
         )
     )
     parser.add_argument(
         "--pairings",
-        default="all",
+        default=DEFAULT_PAIRINGS,
         help=(
-            f"comma separated subset of: {', '.join(PAIRINGS)} (default: all, "
-            "i.e. both). 'pmi' / 'rouge' are accepted as shorthand for the "
-            "SBERT pairing with that method."
+            f"comma separated subset of: {', '.join(PAIRINGS)}, or all "
+            f"(default: {DEFAULT_PAIRINGS}; sbert_vs_rouge is optional and only "
+            "runs when requested). 'pmi' / 'rouge' are accepted as shorthand "
+            "for the SBERT pairing with that method."
         ),
     )
     parser.add_argument(
@@ -1046,7 +1053,7 @@ def run_single_comparison(
     return entries
 
 ###############################################################################
-# MAIN ENTRY POINT (SBERT vs PMI / vs ROUGE, CNN + XSUM + WIKIHOW)
+# MAIN ENTRY POINT (SBERT vs PMI by default, optionally vs ROUGE; CNN + XSUM + WIKIHOW)
 ###############################################################################
 
 if __name__ == "__main__":

@@ -34,15 +34,28 @@
 # Usage:
 #     ./run_SBERT_refinetune_cnn_wikihow_1M_to_4M.sh            # 1M, 2M, 3M, 4M
 #     ./run_SBERT_refinetune_cnn_wikihow_1M_to_4M.sh 3 4        # only those checkpoints
+#     ./run_SBERT_refinetune_cnn_wikihow_1M_to_4M.sh --analysis-only
+#
+# --analysis-only (equivalently ANALYSIS_ONLY=1) re-runs steps 1-3 on the
+# summaries that are already in eval_generated_pred and overwrites the step 1-3
+# results of the same checkpoint and dataset in place. Stages 0, 1 and 2 are
+# skipped entirely: nothing is fine-tuned, nothing is generated, and nothing is
+# renamed to "__version1" -- the summaries the new scores are computed from are
+# the very ones the old scores were computed from, so the old scores are not a
+# separate version worth keeping. Use it after changing something inside the
+# step 1-3 scripts (a metric, a batch size, a model) rather than the summaries.
 #
 # The script is resumable: the archive step runs once per checkpoint and dataset
 # (a marker file in LOG_DIR records it), and every later stage skips itself when
 # its own output is already there. Re-running after a crash therefore picks up
 # where it stopped and never renames the NEW results as "__version1".
+# --analysis-only deliberately does NOT skip a checkpoint whose step 1-3 results
+# are already there, because replacing exactly those is the point of it.
 #
 # Prerequisites on this machine:
 #   - the SBERT pretrained models for the requested checkpoints, at the
 #     PRETRAINED_<n>M paths set under "pretrained models" below
+#     (not needed with --analysis-only, which never fine-tunes)
 #   - finetune_data/{cnn_dailymail_comb,wikihow_comb}
 #   - the conda environments listed under "conda environments" below
 
@@ -60,6 +73,11 @@ KIND_LOWER=sbert           # used in the evaluation_and_analysis folder names
 
 DEFAULT_CHECKPOINTS="1 2 3"
 DATASETS="wikihow"
+
+# Skip fine-tuning and generation and only re-run steps 1-3, overwriting the
+# step 1-3 results of the same checkpoint and dataset. Set it here, pass
+# --analysis-only, or put ANALYSIS_ONLY=1 in front of the command.
+ANALYSIS_ONLY=${ANALYSIS_ONLY:-0}
 
 # --- pretrained models ---
 # The model each checkpoint is fine-tuned from. Either a final model folder or a
@@ -515,6 +533,10 @@ run_analysis_steps() {
 # stage 5 -- rename the results so the checkpoint is part of the name
 ###############################################################################
 
+# On a normal run the old results were renamed to "__version1" in stage 0, so
+# each destination here is free. Under --analysis-only they were not, and `mv`
+# replaces them in place -- which is what that mode is for, so it is reported
+# rather than refused.
 archive_analysis_outputs() {
     n="$1"
     say "archiving step1-3 results as ${n}M"
@@ -528,8 +550,10 @@ archive_analysis_outputs() {
                     echo "expected output missing: $base.$ext" >&2
                     exit 1
                 fi
+                _note=""
+                [ -f "${base}_${n}M.$ext" ] && _note="   (replaced)"
                 mv "$base.$ext" "${base}_${n}M.$ext"
-                echo "  ${ds}_combined_results_for_analysis__step${s}_only_sbert_${n}M.$ext"
+                echo "  ${ds}_combined_results_for_analysis__step${s}_only_sbert_${n}M.$ext$_note"
             done
         done
     done
@@ -551,9 +575,25 @@ analysis_already_done() {
 # main
 ###############################################################################
 
-if [ $# -gt 0 ]; then
-    CHECKPOINTS="$*"
-else
+CHECKPOINTS=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --analysis-only) ANALYSIS_ONLY=1 ;;
+        -h|--help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        -*)
+            echo "unknown option: $1" >&2
+            echo "usage: $0 [--analysis-only] [checkpoint ...]" >&2
+            exit 1
+            ;;
+        *) CHECKPOINTS="$CHECKPOINTS $1" ;;
+    esac
+    shift
+done
+
+if [ -z "$CHECKPOINTS" ]; then
     CHECKPOINTS="$DEFAULT_CHECKPOINTS"
 fi
 
@@ -564,31 +604,62 @@ for n in $CHECKPOINTS; do
     esac
 done
 
-# Checked for every requested checkpoint before anything is renamed, so a wrong
-# path fails in seconds rather than after the earlier checkpoints have trained.
-for n in $CHECKPOINTS; do
-    resolve_pretrained "$n"
-done
+# Checked for every requested checkpoint up front, so a wrong path or a missing
+# input fails in seconds rather than after the earlier checkpoints have run.
+# --analysis-only never fine-tunes, so it wants the summaries to score rather
+# than the pretrained models to start from.
+if [ "$ANALYSIS_ONLY" = "1" ]; then
+    for n in $CHECKPOINTS; do
+        for ds in $DATASETS; do
+            dataset_config "$ds"
+            preds="$PRED_DIR/eval_results_${KIND}_pegasus_complete_${n}M_pt_${FT_TAG}_ft_${DS_EVAL_SUFFIX}/generated_predictions.txt"
+            if [ ! -s "$preds" ]; then
+                echo "--analysis-only needs summaries that are already there, but" >&2
+                echo "$preds is missing or empty." >&2
+                echo "Run without --analysis-only to fine-tune and generate them first." >&2
+                exit 1
+            fi
+            echo "  ${n}M / ${ds}: $preds"
+        done
+    done
+else
+    for n in $CHECKPOINTS; do
+        resolve_pretrained "$n"
+    done
+fi
 
 mkdir -p "$LOG_DIR"
 LOG_DIR=$(cd "$LOG_DIR" && pwd)
 
-say "SBERT re-fine-tune -- checkpoints: $CHECKPOINTS"
-echo "  datasets         : $DATASETS"
-echo "  target lengths   : cnn=$CNN_TARGET_LEN wikihow=$WIKIHOW_TARGET_LEN"
-echo "  old outputs      : renamed with \"$VERSION_SUFFIX\""
-echo "  logs             : $LOG_DIR"
+if [ "$ANALYSIS_ONLY" = "1" ]; then
+    say "SBERT steps 1-3 only -- checkpoints: $CHECKPOINTS"
+    echo "  datasets         : $DATASETS"
+    echo "  fine-tune        : skipped (--analysis-only)"
+    echo "  generation       : skipped (--analysis-only)"
+    echo "  step 1-3 results : replaced in place, no \"$VERSION_SUFFIX\" copy kept"
+    echo "  logs             : $LOG_DIR"
+else
+    say "SBERT re-fine-tune -- checkpoints: $CHECKPOINTS"
+    echo "  datasets         : $DATASETS"
+    echo "  target lengths   : cnn=$CNN_TARGET_LEN wikihow=$WIKIHOW_TARGET_LEN"
+    echo "  old outputs      : renamed with \"$VERSION_SUFFIX\""
+    echo "  logs             : $LOG_DIR"
+fi
 
 for n in $CHECKPOINTS; do
     mkdir -p "$LOG_DIR/${n}M"
 
-    for ds in $DATASETS; do
-        archive_version1 "$n" "$ds"
-        finetune_dataset "$n" "$ds"
-        generate_predictions "$n" "$ds"
-    done
+    if [ "$ANALYSIS_ONLY" != "1" ]; then
+        for ds in $DATASETS; do
+            archive_version1 "$n" "$ds"
+            finetune_dataset "$n" "$ds"
+            generate_predictions "$n" "$ds"
+        done
+    fi
 
-    if analysis_already_done "$n"; then
+    # Under --analysis-only the results that are already there are precisely the
+    # ones being replaced, so the skip does not apply.
+    if [ "$ANALYSIS_ONLY" != "1" ] && analysis_already_done "$n"; then
         say "step1-3 for ${n}M -- already archived, skipping"
     else
         say "staging ${n}M predictions for evaluation_and_analysis"

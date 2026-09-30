@@ -30,10 +30,22 @@
 # Usage:
 #     ./run_SBERT_full_pipeline_4M_to_8M.sh              # 5M, 6M, 7M, 8M
 #     ./run_SBERT_full_pipeline_4M_to_8M.sh 7 8          # only those checkpoints
+#     ./run_SBERT_full_pipeline_4M_to_8M.sh --analysis-only
+#
+# --analysis-only (equivalently ANALYSIS_ONLY=1) re-runs stages 4-6 on the
+# summaries that are already in eval_generated_pred and overwrites the step 1-3
+# results of the same checkpoint and dataset in place.  Pretraining, fine-tuning
+# and generation are skipped entirely: no model is trained, no summary is
+# regenerated, and the summaries the new scores are computed from are the very
+# ones the old scores were computed from.  Use it after changing something
+# inside the step 1-3 scripts (a metric, a batch size, a model) rather than the
+# summaries.
 #
 # The script is resumable: every stage checks for its own finished output first
 # and skips itself when that output is already there, so re-running it after a
 # crash picks up where it stopped.  Set FORCE=1 to redo everything regardless.
+# --analysis-only deliberately does NOT skip a checkpoint whose step 1-3 results
+# are already there, because replacing exactly those is the point of it.
 #
 # Prerequisites on this machine:
 #   - models/SBERT_pegasus__complete_realnewslike_4_MIL_steps/checkpoint-4000000
@@ -41,6 +53,8 @@
 #   - finetune_data/{xsum_comb,cnn_dailymail_comb,wikihow_comb}
 #   - evaluation_and_analysis/*_result_files/test_set_*  (the test set arrow files)
 #   - the conda environments listed under "conda environments" below
+#   With --analysis-only only the test sets and the step 1-3 environments are
+#   needed; the pretraining set and the fine-tuning data are not touched.
 
 set -e
 
@@ -57,6 +71,11 @@ KIND_LOWER=sbert           # used in the evaluation_and_analysis folder names
 # Checkpoints to produce.  Each one resumes from the one before it, so 5 needs
 # checkpoint-4000000 to already exist.
 DEFAULT_CHECKPOINTS="5 6 7 8"
+
+# Skip pretraining, fine-tuning and generation and only re-run steps 1-3,
+# overwriting the step 1-3 results of the same checkpoint and dataset.  Set it
+# here, pass --analysis-only, or put ANALYSIS_ONLY=1 in front of the command.
+ANALYSIS_ONLY=${ANALYSIS_ONLY:-0}
 
 # --- pretraining ---
 PRETRAIN_DATA_DIR=./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined
@@ -395,8 +414,14 @@ archive_analysis_outputs() {
                     echo "expected output missing: $base.$ext" >&2
                     exit 1
                 fi
+                # Under --analysis-only (or FORCE=1) the destination already
+                # holds the previous run's numbers and `mv` replaces them, which
+                # is the point of those modes, so it is reported rather than
+                # refused.
+                _note=""
+                [ -f "${base}_${n}M.$ext" ] && _note="   (replaced)"
                 mv "$base.$ext" "${base}_${n}M.$ext"
-                echo "  ${ds}_combined_results_for_analysis__step${s}_only_sbert_${n}M.$ext"
+                echo "  ${ds}_combined_results_for_analysis__step${s}_only_sbert_${n}M.$ext$_note"
             done
         done
     done
@@ -418,10 +443,44 @@ analysis_already_done() {
 # main
 ###############################################################################
 
-if [ $# -gt 0 ]; then
-    CHECKPOINTS="$*"
-else
+CHECKPOINTS=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --analysis-only) ANALYSIS_ONLY=1 ;;
+        -h|--help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        -*)
+            echo "unknown option: $1" >&2
+            echo "usage: $0 [--analysis-only] [checkpoint ...]" >&2
+            exit 1
+            ;;
+        *) CHECKPOINTS="$CHECKPOINTS $1" ;;
+    esac
+    shift
+done
+
+if [ -z "$CHECKPOINTS" ]; then
     CHECKPOINTS="$DEFAULT_CHECKPOINTS"
+fi
+
+# --analysis-only scores summaries that must already be there, so a missing one
+# is caught up front rather than after the earlier checkpoints have been scored.
+if [ "$ANALYSIS_ONLY" = "1" ]; then
+    for n in $CHECKPOINTS; do
+        for ds in $DATASETS; do
+            dataset_config "$ds"
+            preds="$PRED_DIR/eval_results_${KIND}_pegasus_complete_${n}M_pt_${FT_TAG}_ft_${DS_EVAL_SUFFIX}/generated_predictions.txt"
+            if [ ! -s "$preds" ]; then
+                echo "--analysis-only needs summaries that are already there, but" >&2
+                echo "$preds is missing or empty." >&2
+                echo "Run without --analysis-only to train and generate them first." >&2
+                exit 1
+            fi
+            echo "  ${n}M / ${ds}: $preds"
+        done
+    done
 fi
 
 mkdir -p "$LOG_DIR"
@@ -429,26 +488,40 @@ mkdir -p "$LOG_DIR"
 # still write their logs here.
 LOG_DIR=$(cd "$LOG_DIR" && pwd)
 
-say "SBERT pipeline -- checkpoints: $CHECKPOINTS"
-echo "  pretraining data : $PRETRAIN_DATA_DIR"
-echo "  save_steps       : $PRETRAIN_SAVE_STEPS"
-echo "  datasets         : $DATASETS"
-echo "  logs             : $LOG_DIR"
-if [ "$FORCE" = "1" ]; then
-    echo "  FORCE=1          : finished stages will be redone"
+if [ "$ANALYSIS_ONLY" = "1" ]; then
+    say "SBERT steps 1-3 only -- checkpoints: $CHECKPOINTS"
+    echo "  datasets         : $DATASETS"
+    echo "  pretraining      : skipped (--analysis-only)"
+    echo "  fine-tune        : skipped (--analysis-only)"
+    echo "  generation       : skipped (--analysis-only)"
+    echo "  step 1-3 results : replaced in place"
+    echo "  logs             : $LOG_DIR"
+else
+    say "SBERT pipeline -- checkpoints: $CHECKPOINTS"
+    echo "  pretraining data : $PRETRAIN_DATA_DIR"
+    echo "  save_steps       : $PRETRAIN_SAVE_STEPS"
+    echo "  datasets         : $DATASETS"
+    echo "  logs             : $LOG_DIR"
+    if [ "$FORCE" = "1" ]; then
+        echo "  FORCE=1          : finished stages will be redone"
+    fi
 fi
 
 for n in $CHECKPOINTS; do
     mkdir -p "$LOG_DIR/${n}M"
 
-    pretrain_checkpoint "$n"
+    if [ "$ANALYSIS_ONLY" != "1" ]; then
+        pretrain_checkpoint "$n"
 
-    for ds in $DATASETS; do
-        finetune_dataset "$n" "$ds"
-        generate_predictions "$n" "$ds"
-    done
+        for ds in $DATASETS; do
+            finetune_dataset "$n" "$ds"
+            generate_predictions "$n" "$ds"
+        done
+    fi
 
-    if [ "$FORCE" != "1" ] && analysis_already_done "$n"; then
+    # Under --analysis-only the results that are already there are precisely the
+    # ones being replaced, so the skip does not apply.
+    if [ "$ANALYSIS_ONLY" != "1" ] && [ "$FORCE" != "1" ] && analysis_already_done "$n"; then
         say "step1-3 for ${n}M -- already archived, skipping"
     else
         say "staging ${n}M predictions for evaluation_and_analysis"
