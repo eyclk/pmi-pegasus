@@ -44,6 +44,10 @@
 # The script is resumable: every stage checks for its own finished output first
 # and skips itself when that output is already there, so re-running it after a
 # crash picks up where it stopped.  Set FORCE=1 to redo everything regardless.
+# An interrupted pretraining stage resumes from the newest complete
+# checkpoint-* it saved (every PRETRAIN_SAVE_STEPS), not from the start of the
+# stage -- e.g. a 5M stage that died after checkpoint-4400000 continues from
+# 4,400,000 rather than 4,000,000.
 # --analysis-only deliberately does NOT skip a checkpoint whose step 1-3 results
 # are already there, because replacing exactly those is the point of it.
 #
@@ -218,6 +222,23 @@ model_is_saved() {
     [ -f "$1/pytorch_model.bin" ] || [ -f "$1/model.safetensors" ]
 }
 
+# Prints the newest checkpoint-* folder in $1 that finished saving, or nothing.
+#
+# A crash during a save leaves a half-written checkpoint-* folder behind, which
+# the Trainer would happily try to resume from and fail on. The Trainer writes
+# trainer_state.json after the model weights and the DeepSpeed state, so a
+# folder that has it is complete. Incomplete ones are skipped, newest first,
+# until a complete one is found.
+latest_complete_checkpoint() {
+    for _step in $(ls -d "$1"/checkpoint-* 2>/dev/null | sed 's/.*checkpoint-//' | sort -rn); do
+        if [ -f "$1/checkpoint-$_step/trainer_state.json" ]; then
+            echo "$1/checkpoint-$_step"
+            return 0
+        fi
+        echo "  skipping incomplete checkpoint (no trainer_state.json): $1/checkpoint-$_step" >&2
+    done
+}
+
 ###############################################################################
 # stage 1 -- pretraining
 ###############################################################################
@@ -234,12 +255,27 @@ pretrain_checkpoint() {
         return 0
     fi
 
-    if [ ! -d "$prev_ckpt" ]; then
-        echo "missing checkpoint to resume from: $prev_ckpt" >&2
-        exit 1
+    # A run interrupted part way through this stage left its own checkpoints in
+    # out_dir (every PRETRAIN_SAVE_STEPS), and the newest complete one is where
+    # it should pick up. src/main.py would find it by itself, but only when
+    # --resume_from_checkpoint is not given -- an explicit one always wins -- so
+    # the choice has to be made here. With none in out_dir the stage is starting
+    # fresh, from the end of the previous one. FORCE=1 also starts fresh.
+    resume_from=""
+    if [ "$FORCE" != "1" ]; then
+        resume_from=$(latest_complete_checkpoint "$out_dir")
     fi
 
-    say "pretrain ${n}M  (resume from checkpoint-${prev}000000, up to ${n},000,000 steps)"
+    if [ -n "$resume_from" ]; then
+        say "pretrain ${n}M  (continuing interrupted run from ${resume_from##*/}, up to ${n},000,000 steps)"
+    else
+        if [ ! -d "$prev_ckpt" ]; then
+            echo "missing checkpoint to resume from: $prev_ckpt" >&2
+            exit 1
+        fi
+        resume_from="$prev_ckpt"
+        say "pretrain ${n}M  (resume from checkpoint-${prev}000000, up to ${n},000,000 steps)"
+    fi
 
     _limit=""
     if [ -n "$PRETRAIN_SAVE_TOTAL_LIMIT" ]; then
@@ -250,7 +286,7 @@ pretrain_checkpoint() {
         deepspeed --include=localhost:"$GPU_IDX" src/main.py --fp16 \
         --data_dir "$PRETRAIN_DATA_DIR" \
         --do_train --do_pretrain --model_name facebook/bart-base \
-        --resume_from_checkpoint "$prev_ckpt" \
+        --resume_from_checkpoint "$resume_from" \
         --deepspeed src/ds_config.json \
         --per_device_train_batch_size $PRETRAIN_TRAIN_BS \
         --gradient_accumulation_steps $PRETRAIN_GRAD_ACC \
