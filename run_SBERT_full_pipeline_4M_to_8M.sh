@@ -31,6 +31,36 @@
 #     ./run_SBERT_full_pipeline_4M_to_8M.sh              # 5M, 6M, 7M, 8M
 #     ./run_SBERT_full_pipeline_4M_to_8M.sh 7 8          # only those checkpoints
 #     ./run_SBERT_full_pipeline_4M_to_8M.sh --analysis-only
+#     ./run_SBERT_full_pipeline_4M_to_8M.sh --analysis-only --datasets wikihow 5 6 7 8
+#     ./run_SBERT_full_pipeline_4M_to_8M.sh --eval-only --datasets wikihow
+#
+# Three levels of re-running, from most to least work:
+#
+#   (no flag)         pretrain -> fine-tune -> generate -> steps 1-3
+#   --eval-only                               generate -> steps 1-3
+#   --analysis-only                                       steps 1-3
+#
+# --eval-only (equivalently EVAL_ONLY=1) skips pretraining and fine-tuning and
+# regenerates the summaries in eval_generated_pred from the fine-tuned models
+# that are already in finetuned_models, then runs steps 1-3 on them. Both the
+# generated_predictions.txt files and the step 1-3 results of the same
+# checkpoint and dataset are replaced in place. Use it after changing something
+# about generation (e.g. --max_target_length, or src/main.py's decoding). It
+# always regenerates, even when a generated_predictions.txt is already there --
+# that is the difference from a plain re-run, which would skip generation.
+#
+# Because the summaries change, any step 5 judge results of that checkpoint
+# and dataset no longer describe them -- and step 5 skips a comparison whose
+# output already exists, and resumes a .partial.jsonl without checking what it
+# judged, so it would quietly keep the old verdicts. --eval-only therefore moves
+# those files aside (renamed with "__before_regen_<timestamp>", never deleted)
+# so the next step 5 run judges the new summaries.
+#
+# --datasets (equivalently DATASETS="...") limits every per-dataset stage --
+# fine-tuning, generation, copying, steps 1-3 and renaming -- to the datasets
+# given, comma- or space-separated (e.g. "wikihow" or "cnn,wikihow"); the
+# default is all three. The results of the other datasets are left untouched.
+# Pretraining is per checkpoint, not per dataset, so it is unaffected.
 #
 # --analysis-only (equivalently ANALYSIS_ONLY=1) re-runs stages 4-6 on the
 # summaries that are already in eval_generated_pred and overwrites the step 1-3
@@ -81,6 +111,15 @@ DEFAULT_CHECKPOINTS="5 6 7 8"
 # here, pass --analysis-only, or put ANALYSIS_ONLY=1 in front of the command.
 ANALYSIS_ONLY=${ANALYSIS_ONLY:-0}
 
+# Skip pretraining and fine-tuning, regenerate the summaries from the existing
+# fine-tuned models, then re-run steps 1-3, replacing both in place. Set it
+# here, pass --eval-only, or put EVAL_ONLY=1 in front of the command.
+EVAL_ONLY=${EVAL_ONLY:-0}
+
+# Appended, under --eval-only, to the step 5 results of the summaries being
+# replaced. Timestamped, so repeated --eval-only runs never collide.
+STALE_SUFFIX="__before_regen_$(date '+%Y%m%d-%H%M%S')"
+
 # --- pretraining ---
 PRETRAIN_DATA_DIR=./PREPROCESSED_DATASETS/c4_realnewslike_processed_SBERT_complete_combined
 PRETRAIN_SAVE_STEPS=200000
@@ -123,7 +162,9 @@ PRED_DIR=./eval_generated_pred
 ANALYSIS_DIR=./evaluation_and_analysis
 LOG_DIR=./pipeline_logs
 
-DATASETS="xsum cnn wikihow"
+# Which datasets to run. Overridden by --datasets, or by DATASETS="..." in front
+# of the command.
+DATASETS=${DATASETS:-"xsum cnn wikihow"}
 
 # --- conda environments ---
 # Set any of these to "" to run that stage in whatever environment is already
@@ -198,6 +239,10 @@ run_stage() {
     rm -f "$_status_file"
 
     {
+        # This group runs in a subshell that inherits `set -e`, which would end
+        # it on a failure before the status below is recorded -- reporting every
+        # failure as exit 1 instead of the command's own code.
+        set +e
         if [ -z "$_env" ]; then
             "$@"
         else
@@ -236,6 +281,38 @@ latest_complete_checkpoint() {
             return 0
         fi
         echo "  skipping incomplete checkpoint (no trainer_state.json): $1/checkpoint-$_step" >&2
+    done
+}
+
+# Under --eval-only, renames the step 5 judge results of checkpoint $1 and
+# dataset $2 with STALE_SUFFIX before their summaries are regenerated:
+#   <ds>_<n>M_sbert_vs_{pmi,rouge}_llm_judge_vs_reference_summaries__step5.{json,log,partial.jsonl}
+#     -> ..._step5__before_regen_<timestamp>.{json,log,partial.jsonl}
+# The step 5 summary logs are left alone: step 5 rebuilds them from the
+# per-checkpoint files on disk on its next run.
+move_aside_stale_step5() {
+    n="$1"
+    ds="$2"
+    dataset_config "$ds"
+
+    _moved=""
+    for opponent in pmi rouge; do
+        base="$ANALYSIS_DIR/$DS_RESULT_FOLDER/${ds}_${n}M_${KIND_LOWER}_vs_${opponent}_llm_judge_vs_reference_summaries__step5"
+        for ext in json log partial.jsonl; do
+            [ -e "$base.$ext" ] || continue
+            if [ -z "$_moved" ]; then
+                say "step 5 results of ${n}M / ${ds} judged the old summaries -- moving them aside"
+                _moved=1
+            fi
+            dst="$base$STALE_SUFFIX.$ext"
+            if [ -e "$dst" ]; then
+                echo "refusing to overwrite $dst while moving $base.$ext aside" >&2
+                exit 1
+            fi
+            mv "$base.$ext" "$dst"
+            echo "  $base.$ext"
+            echo "    -> $dst"
+        done
     done
 }
 
@@ -345,12 +422,18 @@ generate_predictions() {
     ft_model="$FT_MODELS_DIR/${KIND}_pegasus_complete_${n}M_pt_${FT_TAG}_ft_${DS_EVAL_SUFFIX}"
     out_dir="$PRED_DIR/eval_results_${KIND}_pegasus_complete_${n}M_pt_${FT_TAG}_ft_${DS_EVAL_SUFFIX}"
 
-    if [ "$FORCE" != "1" ] && [ -s "$out_dir/generated_predictions.txt" ]; then
+    # --eval-only exists to regenerate, so it never takes this skip.
+    if [ "$FORCE" != "1" ] && [ "$EVAL_ONLY" != "1" ] && [ -s "$out_dir/generated_predictions.txt" ]; then
         say "generate ${n}M / ${ds} -- already done, skipping"
         return 0
     fi
 
     say "generate ${n}M / ${ds}"
+
+    # src/main.py only writes this file once every summary is generated, so
+    # without removing the old one first, the check after the run below could
+    # not tell new output from the previous run's.
+    rm -f "$out_dir/generated_predictions.txt"
 
     run_stage "$LOG_DIR/${n}M/generate_${ds}.log" "$ENV_TRAIN" \
         python src/main.py --fp16 \
@@ -403,9 +486,26 @@ stage_predictions() {
 # stage 5 -- the three analysis scripts
 ###############################################################################
 #
-# Each one walks xsum, cnn and wikihow itself, and each one reads the JSON the
-# previous one wrote, so they run in order and none of them may be renamed until
-# step3 has finished.
+# Each one reads the JSON the previous one wrote, so they run in order and none
+# of them may be renamed until step3 has finished.
+#
+# Their __main__ always runs xsum, cnn and wikihow, which with a --datasets
+# subset would score the other datasets on whatever stale predictions sit in
+# their sbert_* folders. So they are imported instead and only the functions for
+# DATASETS are called. Importing still runs their module-level setup (flags,
+# model preloading), which is what their functions rely on. sys.argv[0] is set
+# to the script's name first, so the header eval_logging_utils writes into each
+# .log names the script, as it did when the scripts were run directly.
+
+# $1 = module, $2 = function prefix
+#   -> "import sys; sys.argv[0] = 'm.py'; import m; m.<prefix>wikihow()"
+step_call() {
+    _code="import sys; sys.argv[0] = '$1.py'; import $1"
+    for ds in $DATASETS; do
+        _code="$_code; $1.$2$ds()"
+    done
+    echo "$_code"
+}
 
 # The three scripts resolve every path they use relative to their own folder, so
 # they are run from inside it.  LOG_DIR was made absolute up front precisely so
@@ -413,17 +513,17 @@ stage_predictions() {
 run_analysis_steps() {
     n="$1"
 
-    say "step1 (ROUGE + BERTScore) for ${n}M"
+    say "step1 (ROUGE + BERTScore) for ${n}M -- $DATASETS"
     ( cd "$ANALYSIS_DIR" && run_stage "$LOG_DIR/${n}M/step1.log" "$ENV_STEP1" \
-        python calc_rouge_and_bert_scores_step1.py )
+        python -c "$(step_call calc_rouge_and_bert_scores_step1 combine_results_of_)" )
 
-    say "step2 (QAEval) for ${n}M"
+    say "step2 (QAEval) for ${n}M -- $DATASETS"
     ( cd "$ANALYSIS_DIR" && run_stage "$LOG_DIR/${n}M/step2.log" "$ENV_STEP2" \
-        python calc_QAeval_metrics_step2.py )
+        python -c "$(step_call calc_QAeval_metrics_step2 calc_qaeval_metric_of_)" )
 
-    say "step3 (DeBERTa BERTScore) for ${n}M"
+    say "step3 (DeBERTa BERTScore) for ${n}M -- $DATASETS"
     ( cd "$ANALYSIS_DIR" && run_stage "$LOG_DIR/${n}M/step3.log" "$ENV_STEP3" \
-        python calc_BERTscore_deberta_step3.py )
+        python -c "$(step_call calc_BERTscore_deberta_step3 calc_deberta_f1_metric_of_)" )
 }
 
 ###############################################################################
@@ -450,7 +550,7 @@ archive_analysis_outputs() {
                     echo "expected output missing: $base.$ext" >&2
                     exit 1
                 fi
-                # Under --analysis-only (or FORCE=1) the destination already
+                # Under --analysis-only, --eval-only or FORCE=1 the destination already
                 # holds the previous run's numbers and `mv` replaces them, which
                 # is the point of those modes, so it is reported rather than
                 # refused.
@@ -483,13 +583,23 @@ CHECKPOINTS=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --analysis-only) ANALYSIS_ONLY=1 ;;
+        --eval-only) EVAL_ONLY=1 ;;
+        --datasets)
+            if [ $# -lt 2 ]; then
+                echo "--datasets needs a value, e.g. --datasets wikihow" >&2
+                exit 1
+            fi
+            DATASETS="$2"
+            shift
+            ;;
+        --datasets=*) DATASETS="${1#--datasets=}" ;;
         -h|--help)
             sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         -*)
             echo "unknown option: $1" >&2
-            echo "usage: $0 [--analysis-only] [checkpoint ...]" >&2
+            echo "usage: $0 [--eval-only | --analysis-only] [--datasets xsum,cnn,wikihow] [checkpoint ...]" >&2
             exit 1
             ;;
         *) CHECKPOINTS="$CHECKPOINTS $1" ;;
@@ -500,6 +610,31 @@ done
 if [ -z "$CHECKPOINTS" ]; then
     CHECKPOINTS="$DEFAULT_CHECKPOINTS"
 fi
+
+# One says regenerate the summaries, the other says keep them; there is no
+# sensible run that does both.
+if [ "$EVAL_ONLY" = "1" ] && [ "$ANALYSIS_ONLY" = "1" ]; then
+    echo "--eval-only and --analysis-only cannot be combined:" >&2
+    echo "  --eval-only     regenerates the summaries, then runs steps 1-3" >&2
+    echo "  --analysis-only keeps the summaries, and only runs steps 1-3" >&2
+    exit 1
+fi
+
+# "cnn,wikihow" and "cnn wikihow" both become "cnn wikihow", with repeats
+# dropped -- a dataset listed twice would be scored twice and its second rename
+# would find nothing to rename. Every name is checked here, before anything
+# runs, rather than when its first stage comes up.
+DATASETS=$(echo "$DATASETS" | tr ', ' '\n\n' | awk 'NF && !seen[$0]++' | xargs)
+if [ -z "$DATASETS" ]; then
+    echo "--datasets is empty" >&2
+    exit 1
+fi
+for ds in $DATASETS; do
+    case "$ds" in
+        xsum|cnn|wikihow) ;;
+        *) echo "unknown dataset: $ds (choose from xsum, cnn, wikihow)" >&2; exit 1 ;;
+    esac
+done
 
 # --analysis-only scores summaries that must already be there, so a missing one
 # is caught up front rather than after the earlier checkpoints have been scored.
@@ -519,6 +654,24 @@ if [ "$ANALYSIS_ONLY" = "1" ]; then
     done
 fi
 
+# --eval-only generates from fine-tuned models that must already be there, for
+# the same reason.
+if [ "$EVAL_ONLY" = "1" ]; then
+    for n in $CHECKPOINTS; do
+        for ds in $DATASETS; do
+            dataset_config "$ds"
+            ft_model="$FT_MODELS_DIR/${KIND}_pegasus_complete_${n}M_pt_${FT_TAG}_ft_${DS_EVAL_SUFFIX}"
+            if ! model_is_saved "$ft_model"; then
+                echo "--eval-only needs fine-tuned models that are already there, but" >&2
+                echo "$ft_model holds no pytorch_model.bin / model.safetensors." >&2
+                echo "Run without --eval-only to fine-tune it first." >&2
+                exit 1
+            fi
+            echo "  ${n}M / ${ds}: $ft_model"
+        done
+    done
+fi
+
 mkdir -p "$LOG_DIR"
 # Absolute, so that the stages that have to run from inside evaluation_and_analysis
 # still write their logs here.
@@ -531,6 +684,15 @@ if [ "$ANALYSIS_ONLY" = "1" ]; then
     echo "  fine-tune        : skipped (--analysis-only)"
     echo "  generation       : skipped (--analysis-only)"
     echo "  step 1-3 results : replaced in place"
+    echo "  logs             : $LOG_DIR"
+elif [ "$EVAL_ONLY" = "1" ]; then
+    say "SBERT generation + steps 1-3 -- checkpoints: $CHECKPOINTS"
+    echo "  datasets         : $DATASETS"
+    echo "  pretraining      : skipped (--eval-only)"
+    echo "  fine-tune        : skipped (--eval-only)"
+    echo "  generation       : rerun from finetuned_models, summaries replaced in place"
+    echo "  step 1-3 results : replaced in place"
+    echo "  step 5 results   : moved aside with \"$STALE_SUFFIX\""
     echo "  logs             : $LOG_DIR"
 else
     say "SBERT pipeline -- checkpoints: $CHECKPOINTS"
@@ -546,7 +708,12 @@ fi
 for n in $CHECKPOINTS; do
     mkdir -p "$LOG_DIR/${n}M"
 
-    if [ "$ANALYSIS_ONLY" != "1" ]; then
+    if [ "$EVAL_ONLY" = "1" ]; then
+        for ds in $DATASETS; do
+            move_aside_stale_step5 "$n" "$ds"
+            generate_predictions "$n" "$ds"
+        done
+    elif [ "$ANALYSIS_ONLY" != "1" ]; then
         pretrain_checkpoint "$n"
 
         for ds in $DATASETS; do
@@ -555,9 +722,10 @@ for n in $CHECKPOINTS; do
         done
     fi
 
-    # Under --analysis-only the results that are already there are precisely the
-    # ones being replaced, so the skip does not apply.
-    if [ "$ANALYSIS_ONLY" != "1" ] && [ "$FORCE" != "1" ] && analysis_already_done "$n"; then
+    # Under --analysis-only and --eval-only the results that are already there
+    # are precisely the ones being replaced, so the skip does not apply.
+    if [ "$ANALYSIS_ONLY" != "1" ] && [ "$EVAL_ONLY" != "1" ] && [ "$FORCE" != "1" ] \
+            && analysis_already_done "$n"; then
         say "step1-3 for ${n}M -- already archived, skipping"
     else
         say "staging ${n}M predictions for evaluation_and_analysis"
